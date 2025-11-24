@@ -16,6 +16,7 @@ export default function VoiceWidget({ isOpen, onClose, autoStart = true }) {
   const [micPermissionGranted, setMicPermissionGranted] = useState(false);
   const messagesEndRef = useRef(null);
   const retellClientRef = useRef(null);
+  const addedMessagesRef = useRef(new Set()); // Track messages we've already added to prevent duplicates
 
   // Auto-scroll to bottom when new messages arrive
   const scrollToBottom = () => {
@@ -162,14 +163,13 @@ export default function VoiceWidget({ isOpen, onClose, autoStart = true }) {
           transcript.slice(0, -1).forEach((entry) => {
             if (!entry.content || !entry.content.trim()) return;
             
-            // Check if we already have this message (simple duplicate check)
-            const exists = messages.some(
-              m => m.role === (entry.role === "agent" ? "assistant" : "user") && 
-                   m.content === entry.content.trim()
-            );
+            // Create a unique key for this message
+            const messageKey = `${entry.role === "agent" ? "assistant" : "user"}:${entry.content.trim()}`;
             
-            if (!exists) {
+            // Check if we've already added this exact message
+            if (!addedMessagesRef.current.has(messageKey)) {
               addMessage(entry.role === "agent" ? "assistant" : "user", entry.content);
+              addedMessagesRef.current.add(messageKey); // Mark as added
             }
           });
         }
@@ -236,23 +236,28 @@ export default function VoiceWidget({ isOpen, onClose, autoStart = true }) {
   const addMessage = (role, content) => {
     if (!content || !content.trim()) return;
     
+    const trimmedContent = content.trim();
+    const messageKey = `${role}:${trimmedContent}`;
+    
+    // Double-check we haven't added this (in case called directly)
+    if (addedMessagesRef.current.has(messageKey)) {
+      return;
+    }
+    
     setMessages((prev) => {
-      // Check if this exact message already exists (more thorough check)
+      // Check if this exact message already exists
       const exists = prev.some(
-        m => m.role === role && m.content === content.trim()
+        m => m.role === role && m.content === trimmedContent
       );
       
       if (exists) {
         return prev; // Don't add duplicate
       }
       
-      // Also check if the last message is the same (common case)
-      const lastMessage = prev[prev.length - 1];
-      if (lastMessage?.role === role && lastMessage?.content === content.trim()) {
-        return prev;
-      }
+      // Mark as added
+      addedMessagesRef.current.add(messageKey);
       
-      return [...prev, { role, content: content.trim(), timestamp: new Date() }];
+      return [...prev, { role, content: trimmedContent, timestamp: new Date() }];
     });
   };
 
@@ -281,6 +286,8 @@ export default function VoiceWidget({ isOpen, onClose, autoStart = true }) {
     setIsConnecting(false);
     setMicPermissionGranted(false);
     setAgentStatus("Initializing...");
+    // Reset added messages tracking
+    addedMessagesRef.current.clear();
     onClose();
   };
 
