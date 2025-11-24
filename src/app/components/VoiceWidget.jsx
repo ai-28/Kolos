@@ -89,24 +89,40 @@ export default function VoiceWidget({ isOpen, onClose, autoStart = true }) {
 
       retellWebClient.on("conversationEnded", ({ code, reason }) => {
         console.log("Conversation ended:", code, reason);
-        // Finalize any pending messages
-        if (currentAgentMessage) {
-          addMessage("assistant", currentAgentMessage);
+        
+        // Finalize any pending streaming messages when conversation ends
+        // This captures the agent's final polite message before call ends
+        if (currentAgentMessage && currentAgentMessage.trim()) {
+          const messageKey = `assistant:${currentAgentMessage.trim()}`;
+          if (!addedMessagesRef.current.has(messageKey)) {
+            addMessage("assistant", currentAgentMessage);
+          }
           setCurrentAgentMessage("");
           setIsAgentSpeaking(false);
         }
-        if (currentUserMessage) {
-          addMessage("user", currentUserMessage);
+        if (currentUserMessage && currentUserMessage.trim()) {
+          const messageKey = `user:${currentUserMessage.trim()}`;
+          if (!addedMessagesRef.current.has(messageKey)) {
+            addMessage("user", currentUserMessage);
+          }
           setCurrentUserMessage("");
           setIsUserSpeaking(false);
         }
+        
         setIsConnected(false);
         setAgentStatus("Disconnected");
         
         // Show appropriate message based on reason
         if (code === 1000) {
           // Normal completion - function was triggered and call ended
-          addMessage("system", "✅ Conversation completed! Your responses have been saved.");
+          // The agent's polite closing message should already be in the chat from the final transcript
+          // Add a completion confirmation message
+          addMessage("system", "✅ Thank you for completing the onboarding! Your information has been saved. We'll be in touch soon.");
+          
+          // Automatically close the widget after showing the message (3 seconds delay)
+          setTimeout(() => {
+            handleClose();
+          }, 3000);
         } else {
           addMessage("system", `Conversation ended. ${reason ? `Reason: ${reason}` : `Code: ${code}`}`);
         }
@@ -142,7 +158,7 @@ export default function VoiceWidget({ isOpen, onClose, autoStart = true }) {
         
         // Handle transcript updates - simple approach
         // Last entry = currently streaming (STT in real-time)
-        // Previous entries = completed messages
+        // Only finalize when role changes (agent → user or user → agent)
         if (update.transcript && update.transcript.length > 0) {
           const transcript = update.transcript;
           const lastEntry = transcript[transcript.length - 1];
@@ -151,14 +167,13 @@ export default function VoiceWidget({ isOpen, onClose, autoStart = true }) {
           
           const previousLastEntry = previousLastEntryRef.current;
           
-          // Check if this is a NEW message (different role OR content doesn't continue previous)
-          const isNewMessage = 
-            !previousLastEntry.content ||
-            lastEntry.role !== previousLastEntry.role ||
-            !lastEntry.content.trim().startsWith(previousLastEntry.content.trim());
+          // Only finalize if the ROLE changed (agent asked → user answers, or user answered → agent asks)
+          // This ensures each question/answer is ONE complete paragraph
+          const roleChanged = previousLastEntry.content && 
+                             previousLastEntry.role !== lastEntry.role;
           
-          // If it's a new message, finalize the previous streaming message
-          if (isNewMessage && previousLastEntry.content && previousLastEntry.content.trim()) {
+          // If role changed, finalize the previous message (it's complete)
+          if (roleChanged && previousLastEntry.content && previousLastEntry.content.trim()) {
             const previousRole = previousLastEntry.role === "agent" ? "assistant" : "user";
             const messageKey = `${previousRole}:${previousLastEntry.content.trim()}`;
             
@@ -167,7 +182,7 @@ export default function VoiceWidget({ isOpen, onClose, autoStart = true }) {
             }
           }
           
-          // Update the current streaming message
+          // Update the current streaming message (updates in real-time as chunks come in)
           if (lastEntry.role === "agent" && lastEntry.content) {
             setCurrentAgentMessage(lastEntry.content);
             setIsAgentSpeaking(true);
@@ -180,42 +195,11 @@ export default function VoiceWidget({ isOpen, onClose, autoStart = true }) {
             setIsAgentSpeaking(false);
           }
           
-          // Also check if previous streaming message is now in completed entries (message finished)
-          if (previousLastEntry.content && previousLastEntry.content.trim()) {
-            const previousInCompleted = transcript.slice(0, -1).some(
-              entry => entry.role === previousLastEntry.role && 
-                       entry.content && 
-                       entry.content.trim() === previousLastEntry.content.trim()
-            );
-            
-            // If previous message is now in completed list, finalize it
-            if (previousInCompleted) {
-              const previousRole = previousLastEntry.role === "agent" ? "assistant" : "user";
-              const messageKey = `${previousRole}:${previousLastEntry.content.trim()}`;
-              
-              if (!addedMessagesRef.current.has(messageKey)) {
-                addMessage(previousRole, previousLastEntry.content);
-              }
-            }
-          }
-          
           // Update the previous last entry reference
           previousLastEntryRef.current = {
             role: lastEntry.role,
             content: lastEntry.content
           };
-          
-          // Also add any completed messages from previous entries (backup - in case we missed any)
-          transcript.slice(0, -1).forEach((entry) => {
-            if (!entry.content || !entry.content.trim()) return;
-            
-            const entryRole = entry.role === "agent" ? "assistant" : "user";
-            const messageKey = `${entryRole}:${entry.content.trim()}`;
-            
-            if (!addedMessagesRef.current.has(messageKey)) {
-              addMessage(entryRole, entry.content);
-            }
-          });
         }
       });
 
