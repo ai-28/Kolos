@@ -17,11 +17,9 @@ export async function GET(request) {
             view: "Grid view",
         }).all();
 
-        // Transform Airtable records to client objects
         const clients = records.map((record) => {
             const fields = record.fields;
 
-            // Convert all fields to a clean object
             const client = {
                 id: record.id,
                 ...fields,
