@@ -141,37 +141,46 @@ export default function VoiceWidget({ isOpen, onClose, autoStart = true }) {
         
         // Handle transcript updates - simple approach
         // Last entry = currently streaming (STT in real-time)
-        // Previous entries = completed messages
+        // Only finalize when a NEW message starts (not on every chunk)
         if (update.transcript && update.transcript.length > 0) {
           const transcript = update.transcript;
           const lastEntry = transcript[transcript.length - 1];
           
-          // Last entry is the streaming message (agent or user speaking)
+          if (!lastEntry.content) return;
+          
+          const lastEntryRole = lastEntry.role === "agent" ? "assistant" : "user";
+          const currentStreamingRole = isAgentSpeaking ? "assistant" : (isUserSpeaking ? "user" : null);
+          const currentStreamingContent = isAgentSpeaking ? currentAgentMessage : (isUserSpeaking ? currentUserMessage : "");
+          
+          // Check if this is a NEW message (different role OR content doesn't continue current stream)
+          const isNewMessage = 
+            lastEntryRole !== currentStreamingRole || 
+            !currentStreamingContent || 
+            !lastEntry.content.trim().startsWith(currentStreamingContent.trim());
+          
+          // If it's a new message, finalize the previous streaming message first
+          if (isNewMessage && currentStreamingContent && currentStreamingContent.trim()) {
+            const messageKey = `${currentStreamingRole}:${currentStreamingContent.trim()}`;
+            if (!addedMessagesRef.current.has(messageKey)) {
+              addMessage(currentStreamingRole, currentStreamingContent);
+            }
+          }
+          
+          // Update the current streaming message
           if (lastEntry.role === "agent" && lastEntry.content) {
             setCurrentAgentMessage(lastEntry.content);
             setIsAgentSpeaking(true);
-            setCurrentUserMessage(""); // Clear user message when agent speaks
+            setCurrentUserMessage("");
             setIsUserSpeaking(false);
           } else if (lastEntry.role === "user" && lastEntry.content) {
             setCurrentUserMessage(lastEntry.content);
             setIsUserSpeaking(true);
-            setCurrentAgentMessage(""); // Clear agent message when user speaks
+            setCurrentAgentMessage("");
             setIsAgentSpeaking(false);
           }
           
-          // All entries except the last one are completed messages
-          transcript.slice(0, -1).forEach((entry) => {
-            if (!entry.content || !entry.content.trim()) return;
-            
-            // Create a unique key for this message
-            const messageKey = `${entry.role === "agent" ? "assistant" : "user"}:${entry.content.trim()}`;
-            
-            // Check if we've already added this exact message
-            if (!addedMessagesRef.current.has(messageKey)) {
-              addMessage(entry.role === "agent" ? "assistant" : "user", entry.content);
-              addedMessagesRef.current.add(messageKey); // Mark as added
-            }
-          });
+          // DON'T add entries from slice(0, -1) - those are just intermediate chunks
+          // We only finalize when a new message starts (handled above)
         }
       });
 
