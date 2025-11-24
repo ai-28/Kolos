@@ -17,6 +17,7 @@ export default function VoiceWidget({ isOpen, onClose, autoStart = true }) {
   const messagesEndRef = useRef(null);
   const retellClientRef = useRef(null);
   const addedMessagesRef = useRef(new Set()); // Track messages we've already added to prevent duplicates
+  const previousLastEntryRef = useRef({ role: null, content: null }); // Track previous last entry to detect when message completes
 
   // Auto-scroll to bottom when new messages arrive
   const scrollToBottom = () => {
@@ -141,28 +142,28 @@ export default function VoiceWidget({ isOpen, onClose, autoStart = true }) {
         
         // Handle transcript updates - simple approach
         // Last entry = currently streaming (STT in real-time)
-        // Only finalize when a NEW message starts (not on every chunk)
+        // Previous entries = completed messages
         if (update.transcript && update.transcript.length > 0) {
           const transcript = update.transcript;
           const lastEntry = transcript[transcript.length - 1];
           
           if (!lastEntry.content) return;
           
-          const lastEntryRole = lastEntry.role === "agent" ? "assistant" : "user";
-          const currentStreamingRole = isAgentSpeaking ? "assistant" : (isUserSpeaking ? "user" : null);
-          const currentStreamingContent = isAgentSpeaking ? currentAgentMessage : (isUserSpeaking ? currentUserMessage : "");
+          const previousLastEntry = previousLastEntryRef.current;
           
-          // Check if this is a NEW message (different role OR content doesn't continue current stream)
+          // Check if this is a NEW message (different role OR content doesn't continue previous)
           const isNewMessage = 
-            lastEntryRole !== currentStreamingRole || 
-            !currentStreamingContent || 
-            !lastEntry.content.trim().startsWith(currentStreamingContent.trim());
+            !previousLastEntry.content ||
+            lastEntry.role !== previousLastEntry.role ||
+            !lastEntry.content.trim().startsWith(previousLastEntry.content.trim());
           
-          // If it's a new message, finalize the previous streaming message first
-          if (isNewMessage && currentStreamingContent && currentStreamingContent.trim()) {
-            const messageKey = `${currentStreamingRole}:${currentStreamingContent.trim()}`;
+          // If it's a new message, finalize the previous streaming message
+          if (isNewMessage && previousLastEntry.content && previousLastEntry.content.trim()) {
+            const previousRole = previousLastEntry.role === "agent" ? "assistant" : "user";
+            const messageKey = `${previousRole}:${previousLastEntry.content.trim()}`;
+            
             if (!addedMessagesRef.current.has(messageKey)) {
-              addMessage(currentStreamingRole, currentStreamingContent);
+              addMessage(previousRole, previousLastEntry.content);
             }
           }
           
@@ -179,8 +180,42 @@ export default function VoiceWidget({ isOpen, onClose, autoStart = true }) {
             setIsAgentSpeaking(false);
           }
           
-          // DON'T add entries from slice(0, -1) - those are just intermediate chunks
-          // We only finalize when a new message starts (handled above)
+          // Also check if previous streaming message is now in completed entries (message finished)
+          if (previousLastEntry.content && previousLastEntry.content.trim()) {
+            const previousInCompleted = transcript.slice(0, -1).some(
+              entry => entry.role === previousLastEntry.role && 
+                       entry.content && 
+                       entry.content.trim() === previousLastEntry.content.trim()
+            );
+            
+            // If previous message is now in completed list, finalize it
+            if (previousInCompleted) {
+              const previousRole = previousLastEntry.role === "agent" ? "assistant" : "user";
+              const messageKey = `${previousRole}:${previousLastEntry.content.trim()}`;
+              
+              if (!addedMessagesRef.current.has(messageKey)) {
+                addMessage(previousRole, previousLastEntry.content);
+              }
+            }
+          }
+          
+          // Update the previous last entry reference
+          previousLastEntryRef.current = {
+            role: lastEntry.role,
+            content: lastEntry.content
+          };
+          
+          // Also add any completed messages from previous entries (backup - in case we missed any)
+          transcript.slice(0, -1).forEach((entry) => {
+            if (!entry.content || !entry.content.trim()) return;
+            
+            const entryRole = entry.role === "agent" ? "assistant" : "user";
+            const messageKey = `${entryRole}:${entry.content.trim()}`;
+            
+            if (!addedMessagesRef.current.has(messageKey)) {
+              addMessage(entryRole, entry.content);
+            }
+          });
         }
       });
 
@@ -297,6 +332,7 @@ export default function VoiceWidget({ isOpen, onClose, autoStart = true }) {
     setAgentStatus("Initializing...");
     // Reset added messages tracking
     addedMessagesRef.current.clear();
+    previousLastEntryRef.current = { role: null, content: null };
     onClose();
   };
 
