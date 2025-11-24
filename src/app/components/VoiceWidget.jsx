@@ -138,48 +138,38 @@ export default function VoiceWidget({ isOpen, onClose, autoStart = true }) {
           setMicPermissionGranted(true);
         }
         
-        // Handle transcript updates with streaming effect
+        // Handle transcript updates - simple approach
+        // Last entry = currently streaming (STT in real-time)
+        // Previous entries = completed messages
         if (update.transcript && update.transcript.length > 0) {
-          // Process all transcript entries to ensure we capture all messages
-          update.transcript.forEach((entry, index) => {
-            const isLastEntry = index === update.transcript.length - 1;
+          const transcript = update.transcript;
+          const lastEntry = transcript[transcript.length - 1];
+          
+          // Last entry is the streaming message (agent or user speaking)
+          if (lastEntry.role === "agent" && lastEntry.content) {
+            setCurrentAgentMessage(lastEntry.content);
+            setIsAgentSpeaking(true);
+            setCurrentUserMessage(""); // Clear user message when agent speaks
+            setIsUserSpeaking(false);
+          } else if (lastEntry.role === "user" && lastEntry.content) {
+            setCurrentUserMessage(lastEntry.content);
+            setIsUserSpeaking(true);
+            setCurrentAgentMessage(""); // Clear agent message when user speaks
+            setIsAgentSpeaking(false);
+          }
+          
+          // All entries except the last one are completed messages
+          transcript.slice(0, -1).forEach((entry) => {
+            if (!entry.content || !entry.content.trim()) return;
             
-            if (entry.role === "agent" && entry.content) {
-              if (isLastEntry) {
-                // This is the current streaming agent message
-                setCurrentAgentMessage(entry.content);
-                setIsAgentSpeaking(true);
-              } else {
-                // This is a completed agent message - finalize it
-                const exists = messages.some(m => m.role === "assistant" && m.content === entry.content);
-                if (!exists) {
-                  // Finalize any current streaming message first
-                  if (currentAgentMessage && currentAgentMessage !== entry.content) {
-                    addMessage("assistant", currentAgentMessage);
-                    setCurrentAgentMessage("");
-                    setIsAgentSpeaking(false);
-                  }
-                  addMessage("assistant", entry.content);
-                }
-              }
-            } else if (entry.role === "user" && entry.content) {
-              if (isLastEntry) {
-                // This is the current streaming user message
-                setCurrentUserMessage(entry.content);
-                setIsUserSpeaking(true);
-              } else {
-                // This is a completed user message - finalize it
-                const exists = messages.some(m => m.role === "user" && m.content === entry.content);
-                if (!exists) {
-                  // Finalize any current streaming message first
-                  if (currentUserMessage && currentUserMessage !== entry.content) {
-                    addMessage("user", currentUserMessage);
-                    setCurrentUserMessage("");
-                    setIsUserSpeaking(false);
-                  }
-                  addMessage("user", entry.content);
-                }
-              }
+            // Check if we already have this message (simple duplicate check)
+            const exists = messages.some(
+              m => m.role === (entry.role === "agent" ? "assistant" : "user") && 
+                   m.content === entry.content.trim()
+            );
+            
+            if (!exists) {
+              addMessage(entry.role === "agent" ? "assistant" : "user", entry.content);
             }
           });
         }
@@ -244,13 +234,25 @@ export default function VoiceWidget({ isOpen, onClose, autoStart = true }) {
   };
 
   const addMessage = (role, content) => {
+    if (!content || !content.trim()) return;
+    
     setMessages((prev) => {
-      // Avoid duplicate messages
+      // Check if this exact message already exists (more thorough check)
+      const exists = prev.some(
+        m => m.role === role && m.content === content.trim()
+      );
+      
+      if (exists) {
+        return prev; // Don't add duplicate
+      }
+      
+      // Also check if the last message is the same (common case)
       const lastMessage = prev[prev.length - 1];
-      if (lastMessage?.role === role && lastMessage?.content === content) {
+      if (lastMessage?.role === role && lastMessage?.content === content.trim()) {
         return prev;
       }
-      return [...prev, { role, content, timestamp: new Date() }];
+      
+      return [...prev, { role, content: content.trim(), timestamp: new Date() }];
     });
   };
 
