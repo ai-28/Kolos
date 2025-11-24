@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/app/components/ui/accordion";
@@ -9,9 +10,14 @@ import VoiceWidget from "@/app/components/VoiceWidget";
 
 export default function Home() {
   const [isWidgetOpen, setIsWidgetOpen] = useState(false);
+  const router = useRouter();
 
   const handleStartOnboarding = () => {
     setIsWidgetOpen(true);
+  };
+
+  const handleGoToDashboard = () => {
+    router.push("/dashboard");
   };
 
   return (
@@ -59,8 +65,12 @@ export default function Home() {
                 >
                   Start AI Onboarding
                 </Button>
-                <Button size="lg" variant="outline">
-                  Talk to the Kolos team
+                <Button 
+                  size="lg" 
+                  className="bg-secondary hover:bg-secondary/90"
+                  onClick={handleGoToDashboard}
+                >
+                  Go to Dashboard
                 </Button>
               </div>
               <p className="text-sm text-muted-foreground">
