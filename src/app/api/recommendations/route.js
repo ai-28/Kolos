@@ -180,8 +180,6 @@ Important:
 - scores_R_O_A must be a string like "5,5,4"
 - Return ONLY the JSON object, no markdown, no code blocks, no explanations
   
-
-
 `;
 
         const completion = await client.chat.completions.create({
@@ -210,7 +208,7 @@ Important:
         }
 
         // Return the parsed JSON object directly (not wrapped in a string)
-        return NextResponse.json(parsedData);
+        return NextResponse.json({recommendations:parsedData});
     } catch (error) {
         console.error("Error generating recommendations:", error);
         return NextResponse.json(
