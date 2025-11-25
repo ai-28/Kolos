@@ -178,7 +178,6 @@ Important:
 - All dates must be strings in YYYY-MM-DD format
 - All numeric values (time_window_days, overall) must be numbers, not strings
 - scores_R_O_A must be a string like "5,5,4"
-- Return ONLY the JSON object, no markdown, no code blocks, no explanations
   
 `;
 
@@ -186,29 +185,14 @@ Important:
             model: "gpt-5.1", // Using gpt-5.1 as requested
             messages: [{ role: "user", content: prompt }],
             temperature: 0.7,
-            response_format: { type: "json_object" }, // Force JSON output
         });
 
         const responseContent = completion.choices[0].message.content;
 
-        // Parse the JSON string from OpenAI response
-        let parsedData;
-        try {
-            parsedData = JSON.parse(responseContent);
-        } catch (parseError) {
-            console.error("Error parsing OpenAI JSON response:", parseError);
-            console.error("Raw response:", responseContent);
-            return NextResponse.json(
-                {
-                    error: "Failed to parse AI response as JSON",
-                    details: parseError.message,
-                },
-                { status: 500 }
-            );
-        }
+
 
         // Return the parsed JSON object directly (not wrapped in a string)
-        return NextResponse.json({recommendations:parsedData});
+        return NextResponse.json({ responseContent });
     } catch (error) {
         console.error("Error generating recommendations:", error);
         return NextResponse.json(
