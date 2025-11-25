@@ -179,7 +179,7 @@ json
 `;
 
         const completion = await client.chat.completions.create({
-            model: "gpt-4o", // or "gpt-4-turbo" or "gpt-3.5-turbo" depending on your needs
+            model: "gpt-5.1", // or "gpt-4-turbo" or "gpt-3.5-turbo" depending on your needs
             messages: [{ role: "user", content: prompt }],
             temperature: 0.7,
         });
