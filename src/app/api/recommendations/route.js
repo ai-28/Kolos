@@ -206,9 +206,53 @@ Important:
             );
         }
 
-        // Return the exact JSON structure from the prompt
-        // Structure: { client_name, run_date, time_window_days, signals: [...] }
-        return NextResponse.json({recommendations:parsedData});
+        // Prepare data with all 13 fields for Airtable webhook
+        // Stringify recommendations JSON for Airtable long text field (max 100,000 chars)
+        const recommendationsJsonString = JSON.stringify(parsedData, null, 2);
+
+        const airtableData = {
+            full_name: profile.full_name || null,
+            company: profile.company || null,
+            email: profile.email || null,
+            role: profile.role || null,
+            industries: profile.industries || null,
+            regions: profile.regions || null,
+            check_size: profile.check_size || null,
+            goals: profile.goals || null,
+            partner_types: profile.partner_types || null,
+            active_deal: profile.active_deal || null,
+            constraints: profile.constraints || null,
+            city: profile.city || null,
+            recommendations: recommendationsJsonString, // LLM output as JSON string for Airtable long text field
+        };
+
+        // Send to Airtable webhook
+        const airtableWebhookUrl = "https://hooks.airtable.com/workflows/v1/genericWebhook/appABufEiJ7K5VzFQ/wfl0ZjgE5vbRt02At/wtrgWLRhLX6Tcl6K1";
+
+        try {
+            const webhookResponse = await fetch(airtableWebhookUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(airtableData),
+            });
+
+            if (!webhookResponse.ok) {
+                console.error("Airtable webhook error:", webhookResponse.status, webhookResponse.statusText);
+            } else {
+                console.log("✅ Data sent to Airtable webhook successfully");
+            }
+        } catch (webhookError) {
+            console.error("Error sending to Airtable webhook:", webhookError);
+            // Don't fail the request if webhook fails, just log it
+        }
+
+        // Return the recommendations
+        return NextResponse.json({
+            status: "success",
+            recommendations: parsedData,
+        });
     } catch (error) {
         console.error("Error generating recommendations:", error);
         return NextResponse.json(
