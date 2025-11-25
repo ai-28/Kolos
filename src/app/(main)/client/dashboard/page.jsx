@@ -184,7 +184,7 @@ console.log("client",client)
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
-      <aside className="w-[284px] bg-[#03171a] text-white p-6 flex flex-col">
+      <aside className="fixed left-0 top-0 h-screen w-[284px] bg-[#03171a] text-white p-6 flex flex-col overflow-y-auto z-10">
         <div className="mb-8">
             <KolosLogo/>
         </div>
@@ -246,10 +246,11 @@ console.log("client",client)
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-8 bg-[#f5f3f0]">
+      <main className="flex-1 ml-[284px] bg-[#f5f3f0]">
         <div className="max-w-[1400px] mx-auto">
-          {/* Header */}
-          <div className="flex justify-between items-center mb-8">
+          {/* Header - Fixed */}
+          <div className="sticky top-0 bg-[#f5f3f0] z-20 border-b border-gray-200 shadow-sm">
+            <div className="flex justify-between items-center p-8 pb-4">
             <div className="flex items-center gap-4">
               <Button
                 variant="ghost"
@@ -266,8 +267,11 @@ console.log("client",client)
               <AvatarImage src="/placeholder-avatar.jpg" alt={clientName} />
               <AvatarFallback>{getInitials(clientName)}</AvatarFallback>
             </Avatar>
+            </div>
           </div>
 
+          {/* Content Area */}
+          <div className="p-8 pt-4">
           {/* Select Your Role */}
           <section className="mb-8">
             <h2 className="text-xl font-serif text-[#c9a961] mb-4">Select Your Role</h2>
@@ -385,7 +389,7 @@ console.log("client",client)
             <Card className="bg-white border-none shadow-sm">
               <CardContent className="p-6">
                 {signals.length > 0 ? (
-                  <div className="space-y-6">
+                  <div className="space-y-6 max-h-[600px] overflow-y-auto pr-2">
                     {signals.map((signal, index) => {
                       const badge = getIndustryBadge(signal.signal_type, signal.category)
                       return (
@@ -696,6 +700,7 @@ console.log("client",client)
               </CardContent>
             </Card>
           </section>
+          </div>
         </div>
       </main>
     </div>
