@@ -211,7 +211,7 @@ Important:
         const recommendationsJsonString = JSON.stringify(parsedData, null, 2);
 
         const airtableData = {
-            full_name: profile.full_name || null,
+            full_name: profile.name || null,
             company: profile.company || null,
             email: profile.email || null,
             role: profile.role || null,

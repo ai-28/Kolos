@@ -5,14 +5,11 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent } from "@/app/components/ui/card";
 import { Loader2, ArrowLeft, User } from "lucide-react";
-import ClientDetailModal from "@/app/components/ClientDetailModal";
 
 export default function Dashboard() {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedClient, setSelectedClient] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -41,13 +38,8 @@ export default function Dashboard() {
   };
 
   const handleClientClick = (client) => {
-    setSelectedClient(client);
-    setIsModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedClient(null);
+    // Navigate to client dashboard with client ID
+    router.push(`/client/dashboard?id=${client.id}`);
   };
 
   return (
@@ -155,16 +147,6 @@ export default function Dashboard() {
           </div>
         )}
       </main>
-
-      {/* Client Detail Modal */}
-      {selectedClient && (
-        <ClientDetailModal
-          client={selectedClient}
-          isOpen={isModalOpen}
-          onClose={handleCloseModal}
-        />
-      )}
     </div>
   );
 }
-
