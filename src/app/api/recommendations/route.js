@@ -182,17 +182,33 @@ Important:
 `;
 
         const completion = await client.chat.completions.create({
-            model: "gpt-5.1", // Using gpt-5.1 as requested
+            model: "gpt-5.1", // Valid OpenAI model
             messages: [{ role: "user", content: prompt }],
             temperature: 0.7,
+            response_format: { type: "json_object" }, // Force JSON output
         });
 
         const responseContent = completion.choices[0].message.content;
 
+        // Parse the JSON string from OpenAI response
+        let parsedData;
+        try {
+            parsedData = JSON.parse(responseContent);
+        } catch (parseError) {
+            console.error("Error parsing OpenAI JSON response:", parseError);
+            console.error("Raw response:", responseContent);
+            return NextResponse.json(
+                {
+                    error: "Failed to parse AI response as JSON",
+                    details: parseError.message,
+                },
+                { status: 500 }
+            );
+        }
 
-
-        // Return the parsed JSON object directly (not wrapped in a string)
-        return NextResponse.json({ responseContent });
+        // Return the exact JSON structure from the prompt
+        // Structure: { client_name, run_date, time_window_days, signals: [...] }
+        return NextResponse.json(parsedData);
     } catch (error) {
         console.error("Error generating recommendations:", error);
         return NextResponse.json(
