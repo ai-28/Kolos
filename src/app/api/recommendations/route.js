@@ -151,15 +151,14 @@ Avoid vague text like “monitor” or “stay in touch”.
 STEP 5 - OUTPUT
 -----------------
 
-Return the result as JSON so it is easy to load into a sheet.
+You MUST return a valid JSON object. Your entire response must be valid JSON only, no other text.
 
-Structure:
+Required structure:
 
-json
 {
   "client_name": "<CLIENT_NAME>",
   "run_date": "<YYYY-MM-DD>",
-  "time_window_days": <7 or 14 or 30>,
+  "time_window_days": 7,
   "signals": [
     {
       "date": "2025-11-07",
@@ -171,28 +170,47 @@ json
       "overall": 5,
       "next_step": "Pull latest TWC WARN list; offer 2–4 week AI/Data reskill cohorts to affected employers + boards; align WIOA funding paths."
     }
-    // 9–14 more rows here
   ]
 }
+
+Important:
+- Return 10-15 signals in the signals array
+- All dates must be strings in YYYY-MM-DD format
+- All numeric values (time_window_days, overall) must be numbers, not strings
+- scores_R_O_A must be a string like "5,5,4"
+- Return ONLY the JSON object, no markdown, no code blocks, no explanations
   
-Return the JSON object directly.
-Do NOT wrap JSON inside quotation marks.
-Do NOT escape quotes.
-Your entire output must be valid JSON.
+
 
 `;
 
         const completion = await client.chat.completions.create({
-            model: "gpt-5.1", // or "gpt-4-turbo" or "gpt-3.5-turbo" depending on your needs
+            model: "gpt-5.1", // Using gpt-5.1 as requested
             messages: [{ role: "user", content: prompt }],
             temperature: 0.7,
+            response_format: { type: "json_object" }, // Force JSON output
         });
 
-        const recommendations = completion.choices[0].message.content;
+        const responseContent = completion.choices[0].message.content;
 
-        return NextResponse.json({
-            recommendations,
-        });
+        // Parse the JSON string from OpenAI response
+        let parsedData;
+        try {
+            parsedData = JSON.parse(responseContent);
+        } catch (parseError) {
+            console.error("Error parsing OpenAI JSON response:", parseError);
+            console.error("Raw response:", responseContent);
+            return NextResponse.json(
+                {
+                    error: "Failed to parse AI response as JSON",
+                    details: parseError.message,
+                },
+                { status: 500 }
+            );
+        }
+
+        // Return the parsed JSON object directly (not wrapped in a string)
+        return NextResponse.json(parsedData);
     } catch (error) {
         console.error("Error generating recommendations:", error);
         return NextResponse.json(
