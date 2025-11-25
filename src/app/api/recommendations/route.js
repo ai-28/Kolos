@@ -208,7 +208,7 @@ Important:
 
         // Return the exact JSON structure from the prompt
         // Structure: { client_name, run_date, time_window_days, signals: [...] }
-        return NextResponse.json(parsedData);
+        return NextResponse.json({recommendations:parsedData});
     } catch (error) {
         console.error("Error generating recommendations:", error);
         return NextResponse.json(
