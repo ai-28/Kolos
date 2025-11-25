@@ -174,7 +174,11 @@ json
     // 9–14 more rows here
   ]
 }
-
+  
+Return the JSON object directly.
+Do NOT wrap JSON inside quotation marks.
+Do NOT escape quotes.
+Your entire output must be valid JSON.
 
 `;
 
