@@ -4,17 +4,17 @@ import OpenAI from "openai";
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function POST(req) {
-    try {
-        const profile = await req.json();
+  try {
+    const profile = await req.json();
 
-        if (!profile || typeof profile !== "object") {
-            return NextResponse.json(
-                { error: "Invalid profile data" },
-                { status: 400 }
-            );
-        }
+    if (!profile || typeof profile !== "object") {
+      return NextResponse.json(
+        { error: "Invalid profile data" },
+        { status: 400 }
+      );
+    }
 
-        const prompt = `
+    const prompt = `
         
 ROLE
 
@@ -174,93 +174,110 @@ Required structure:
 }
 
 Important:
-- Return 10-15 signals in the signals array
+- Return 8 top signals in the signals array
 - All dates must be strings in YYYY-MM-DD format
 - All numeric values (time_window_days, overall) must be numbers, not strings
 - scores_R_O_A must be a string like "5,5,4"
   
 `;
 
-        const completion = await client.chat.completions.create({
-            model: "gpt-5.1", // Valid OpenAI model
-            messages: [{ role: "user", content: prompt }],
-            temperature: 0.7,
-            response_format: { type: "json_object" }, // Force JSON output
-        });
+    const completion = await client.chat.completions.create({
+      model: "gpt-5.1", // Valid OpenAI model
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.7,
+      response_format: { type: "json_object" }, // Force JSON output
+    });
 
-        const responseContent = completion.choices[0].message.content;
+    const responseContent = completion.choices[0].message.content;
 
-        // Parse the JSON string from OpenAI response
-        let parsedData;
-        try {
-            parsedData = JSON.parse(responseContent);
-        } catch (parseError) {
-            console.error("Error parsing OpenAI JSON response:", parseError);
-            console.error("Raw response:", responseContent);
-            return NextResponse.json(
-                {
-                    error: "Failed to parse AI response as JSON",
-                    details: parseError.message,
-                },
-                { status: 500 }
-            );
-        }
-
-        // Prepare data with all 13 fields for Airtable webhook
-        // Stringify recommendations JSON for Airtable long text field (max 100,000 chars)
-        const recommendationsJsonString = JSON.stringify(parsedData, null, 2);
-
-        const airtableData = {
-            name: profile.name || null,
-            company: profile.company || null,
-            email: profile.email || null,
-            role: profile.role || null,
-            industries: profile.industries || null,
-            regions: profile.regions || null,
-            check_size: profile.check_size || null,
-            goals: profile.goals || null,
-            partner_types: profile.partner_types || null,
-            active_deal: profile.active_deal || null,
-            constraints: profile.constraints || null,
-            city: profile.city || null,
-            recommendations: recommendationsJsonString, // LLM output as JSON string for Airtable long text field
-        };
-
-        // Send to Airtable webhook
-        const airtableWebhookUrl = "https://hooks.airtable.com/workflows/v1/genericWebhook/appABufEiJ7K5VzFQ/wfl0ZjgE5vbRt02At/wtrgWLRhLX6Tcl6K1";
-
-        try {
-            const webhookResponse = await fetch(airtableWebhookUrl, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(airtableData),
-            });
-
-            if (!webhookResponse.ok) {
-                console.error("Airtable webhook error:", webhookResponse.status, webhookResponse.statusText);
-            } else {
-                console.log("✅ Data sent to Airtable webhook successfully");
-            }
-        } catch (webhookError) {
-            console.error("Error sending to Airtable webhook:", webhookError);
-            // Don't fail the request if webhook fails, just log it
-        }
-
-        // Return the recommendations
-        return NextResponse.json({
-            status: "success",
-            recommendations: parsedData,
-        });
-    } catch (error) {
-        console.error("Error generating recommendations:", error);
-        return NextResponse.json(
-            {
-                error: "Failed to generate recommendations",
-                details: error.message,
-            },
-            { status: 500 }
-        );
+    // Parse the JSON string from OpenAI response
+    let parsedData;
+    try {
+      parsedData = JSON.parse(responseContent);
+    } catch (parseError) {
+      console.error("Error parsing OpenAI JSON response:", parseError);
+      console.error("Raw response:", responseContent);
+      return NextResponse.json(
+        {
+          error: "Failed to parse AI response as JSON",
+          details: parseError.message,
+        },
+        { status: 500 }
+      );
     }
+
+    // Import Google Sheets utility
+    const { appendToSheet, SHEETS } = await import('@/app/lib/googleSheets');
+
+    // Generate a profile_id (using timestamp for uniqueness)
+    const profileId = `profile_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // 1. Save Profile to Profiles table
+    const profileRow = [
+      profileId, // id (first column)
+      profile.name || '',
+      profile.company || '',
+      profile.email || '',
+      profile.role || '',
+      profile.industries || '',
+      profile.regions || '',
+      profile.check_size || '',
+      profile.goals || '',
+      profile.partner_types || '',
+      profile.active_deal || '',
+      profile.constraints || '',
+      profile.city || '',
+      new Date().toISOString(), // created_at
+    ];
+
+    try {
+      await appendToSheet(SHEETS.PROFILES, profileRow);
+      console.log('✅ Profile saved to Google Sheets');
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      // Continue even if profile save fails
+    }
+
+    // 2. Save Signals to Signals table
+    if (parsedData.signals && Array.isArray(parsedData.signals)) {
+      let signalsSaved = 0;
+      for (const signal of parsedData.signals) {
+        const signalRow = [
+          profileId,
+          signal.date || '',
+          signal.headline_source || '',
+          signal.url || '',
+          signal.category || '',
+          signal.signal_type || '',
+          signal.scores_R_O_A || '',
+          signal.overall || '',
+          signal.next_step || '',
+        ];
+
+        try {
+          await appendToSheet(SHEETS.SIGNALS, signalRow);
+          signalsSaved++;
+        } catch (error) {
+          console.error('Error saving signal:', error);
+        }
+      }
+      console.log(`✅ ${signalsSaved} signals saved to Google Sheets`);
+    }
+
+    // Return the recommendations
+    return NextResponse.json({
+      status: "success",
+      recommendations: parsedData,
+      profile_id: profileId,
+    });
+  } catch (error) {
+    console.error("Error generating recommendations:", error);
+    return NextResponse.json(
+      {
+        error: "Failed to generate recommendations",
+        details: error.message,
+      },
+      { status: 500 }
+    );
+  }
 }

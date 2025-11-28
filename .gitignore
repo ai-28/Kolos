@@ -23,7 +23,7 @@
 # misc
 .DS_Store
 *.pem
-
+kolos-project-40696a085f6e.json
 # debug
 npm-debug.log*
 yarn-debug.log*

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import Airtable from "airtable";
+import { findRowById, SHEETS } from "@/app/lib/googleSheets";
 
 export async function GET(request, { params }) {
     try {
@@ -12,43 +12,21 @@ export async function GET(request, { params }) {
             );
         }
 
-        // Initialize Airtable
-        const base = new Airtable({
-            apiKey: process.env.AIRTABLE_API_KEY,
-        }).base(process.env.AIRTABLE_BASE_ID);
+        const client = await findRowById(SHEETS.PROFILES, id);
 
-        // Get the table name from environment or use default
-        const tableName = process.env.AIRTABLE_TABLE_NAME || "Clients";
-
-        // Fetch the specific record by ID
-        const record = await base(tableName).find(id);
-
-        if (!record) {
+        if (!client) {
             return NextResponse.json(
                 { error: "Client not found" },
                 { status: 404 }
             );
         }
-
-        const client = {
-            id: record.id,
-            ...record.fields,
-            createdAt: record._rawJson.createdTime,
-        };
 
         return NextResponse.json({
             success: true,
             client,
         });
     } catch (error) {
-        console.error("Error fetching client from Airtable:", error);
-
-        if (error.error === "NOT_FOUND") {
-            return NextResponse.json(
-                { error: "Client not found" },
-                { status: 404 }
-            );
-        }
+        console.error("Error fetching client from Google Sheets:", error);
 
         return NextResponse.json(
             {
