@@ -227,7 +227,6 @@ Important:
       profile.active_deal || '',
       profile.constraints || '',
       profile.city || '',
-      new Date().toISOString(), // created_at
     ];
 
     try {
