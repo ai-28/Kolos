@@ -1,17 +1,49 @@
 import { google } from 'googleapis';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 // Initialize Google Sheets client
 function getSheetsClient() {
-    const auth = new google.auth.GoogleAuth({
-        keyFile: process.env.GOOGLE_CREDENTIALS_PATH || './google-credentials.json',
-        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
+    try {
+        const credentialsPath = process.env.GOOGLE_CREDENTIALS_PATH || 'kolos-project-40696a085f6e.json';
 
-    return google.sheets({ version: 'v4', auth });
+        // Try to read credentials as file path first
+        let credentials;
+        try {
+            // Handle both relative and absolute paths
+            const fullPath = credentialsPath.startsWith('/') || credentialsPath.startsWith('C:') || credentialsPath.startsWith('E:')
+                ? credentialsPath
+                : join(process.cwd(), credentialsPath.replace(/^\.\//, ''));
+
+            const credentialsFile = readFileSync(fullPath, 'utf8');
+            credentials = JSON.parse(credentialsFile);
+        } catch (fileError) {
+            // If file read fails, try as JSON string from env
+            if (process.env.GOOGLE_CREDENTIALS) {
+                credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+            } else {
+                throw new Error(`Could not read credentials file: ${credentialsPath}. Error: ${fileError.message}`);
+            }
+        }
+
+        const auth = new google.auth.GoogleAuth({
+            credentials: credentials,
+            scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+        });
+
+        return google.sheets({ version: 'v4', auth });
+    } catch (error) {
+        console.error('Error initializing Google Sheets client:', error);
+        throw error;
+    }
 }
 
 // Get sheet ID from environment
 const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
+
+if (!SPREADSHEET_ID) {
+    console.warn('⚠️ GOOGLE_SHEET_ID environment variable is not set!');
+}
 
 // Table names (sheet names in your Google Sheet)
 const SHEETS = {
@@ -25,11 +57,17 @@ const SHEETS = {
  */
 export async function appendToSheet(sheetName, values) {
     try {
+        if (!SPREADSHEET_ID) {
+            throw new Error('GOOGLE_SHEET_ID environment variable is not set');
+        }
+
         const sheets = getSheetsClient();
-        
-        await sheets.spreadsheets.values.append({
+
+        // Append will automatically find the next empty row after existing data
+        // Using A:Z range to cover all columns we might write to
+        const response = await sheets.spreadsheets.values.append({
             spreadsheetId: SPREADSHEET_ID,
-            range: `${sheetName}!A:Z`,
+            range: `${sheetName}!A:Z`, // Full range - append will find next empty row
             valueInputOption: 'USER_ENTERED',
             insertDataOption: 'INSERT_ROWS',
             resource: {
@@ -37,9 +75,15 @@ export async function appendToSheet(sheetName, values) {
             },
         });
 
-        return { success: true };
+        console.log(`✅ Successfully appended row to ${sheetName} sheet`);
+        return { success: true, response };
     } catch (error) {
-        console.error(`Error appending to ${sheetName}:`, error);
+        console.error(`❌ Error appending to ${sheetName}:`, error);
+        console.error('Error details:', {
+            message: error.message,
+            code: error.code,
+            response: error.response?.data,
+        });
         throw error;
     }
 }
@@ -50,14 +94,14 @@ export async function appendToSheet(sheetName, values) {
 export async function getSheetData(sheetName) {
     try {
         const sheets = getSheetsClient();
-        
+
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
             range: `${sheetName}!A:Z`,
         });
 
         const rows = response.data.values || [];
-        
+
         if (rows.length === 0) {
             return [];
         }

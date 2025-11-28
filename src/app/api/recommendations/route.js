@@ -234,8 +234,9 @@ Important:
       await appendToSheet(SHEETS.PROFILES, profileRow);
       console.log('✅ Profile saved to Google Sheets');
     } catch (error) {
-      console.error('Error saving profile:', error);
-      // Continue even if profile save fails
+      console.error('❌ Error saving profile to Google Sheets:', error);
+      console.error('Profile data that failed to save:', profileRow);
+      // Continue even if profile save fails, but log the error
     }
 
     // 2. Save Signals to Signals table
@@ -258,7 +259,8 @@ Important:
           await appendToSheet(SHEETS.SIGNALS, signalRow);
           signalsSaved++;
         } catch (error) {
-          console.error('Error saving signal:', error);
+          console.error('❌ Error saving signal to Google Sheets:', error);
+          console.error('Signal data that failed to save:', signalRow);
         }
       }
       console.log(`✅ ${signalsSaved} signals saved to Google Sheets`);
