@@ -65,16 +65,38 @@ profile_id, company_name, source_signal_id, contact_person, stage, owner, next_s
 
 ### 3. Environment Variables
 
+#### For Local Development
+
 Add these to your `.env.local` file:
 
 ```env
-GOOGLE_SHEET_ID=1LEDcpsJHbPAxsykJFiAzeJ4QkJqECkjFw7I3Jix4sSQ
+GOOGLE_SHEET_ID=your_spreadsheet_id_here
 GOOGLE_CREDENTIALS_PATH=./kolos-project-40696a085f6e.json
 ```
 
+#### For Production (Vercel/Serverless)
+
+**Important:** In production, you cannot use the credentials file. You must use the `GOOGLE_CREDENTIALS` environment variable instead.
+
+1. Open your credentials JSON file (`kolos-project-40696a085f6e.json`)
+2. Copy the entire JSON content
+3. In your production environment (e.g., Vercel):
+   - Go to Settings → Environment Variables
+   - Add these variables:
+     - `GOOGLE_SHEET_ID` = your spreadsheet ID
+     - `GOOGLE_CREDENTIALS` = paste the entire JSON content as a string (keep all quotes, brackets, etc.)
+
+**Example for Vercel:**
+```
+GOOGLE_SHEET_ID=1LEDcpsJHbPAxsykJFiAzeJ4QkJqECkjFw7I3Jix4sSQ
+GOOGLE_CREDENTIALS={"type":"service_account","project_id":"kolos-project",...}
+```
+
+**Note:** The `GOOGLE_CREDENTIALS` should be the entire JSON object as a single-line string. You can use a tool like [JSON Minifier](https://jsonformatter.org/json-minify) to convert it to a single line if needed.
+
 ### 4. Security
 
-Make sure `google-credentials.json` is in your `.gitignore` file (it should already be there).
+Make sure `kolos-project-40696a085f6e.json` is in your `.gitignore` file (it should already be there). Never commit credentials to git!
 
 ## API Endpoints
 

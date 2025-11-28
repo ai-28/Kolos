@@ -5,25 +5,44 @@ import { join } from 'path';
 // Initialize Google Sheets client
 function getSheetsClient() {
     try {
-        const credentialsPath = process.env.GOOGLE_CREDENTIALS_PATH || 'kolos-project-40696a085f6e.json';
-
-        // Try to read credentials as file path first
         let credentials;
-        try {
-            // Handle both relative and absolute paths
-            const fullPath = credentialsPath.startsWith('/') || credentialsPath.startsWith('C:') || credentialsPath.startsWith('E:')
-                ? credentialsPath
-                : join(process.cwd(), credentialsPath.replace(/^\.\//, ''));
 
-            const credentialsFile = readFileSync(fullPath, 'utf8');
-            credentials = JSON.parse(credentialsFile);
-        } catch (fileError) {
-            // If file read fails, try as JSON string from env
-            if (process.env.GOOGLE_CREDENTIALS) {
-                credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
-            } else {
-                throw new Error(`Could not read credentials file: ${credentialsPath}. Error: ${fileError.message}`);
+        // Priority 1: Try environment variable first (for production/serverless)
+        if (process.env.GOOGLE_CREDENTIALS) {
+            try {
+                credentials = typeof process.env.GOOGLE_CREDENTIALS === 'string'
+                    ? JSON.parse(process.env.GOOGLE_CREDENTIALS)
+                    : process.env.GOOGLE_CREDENTIALS;
+                console.log('✅ Using credentials from GOOGLE_CREDENTIALS environment variable');
+            } catch (parseError) {
+                throw new Error(`Failed to parse GOOGLE_CREDENTIALS: ${parseError.message}`);
             }
+        }
+        // Priority 2: Try reading from file (for local development)
+        else {
+            const credentialsPath = process.env.GOOGLE_CREDENTIALS_PATH || 'kolos-project-40696a085f6e.json';
+
+            try {
+                // Handle both relative and absolute paths
+                const fullPath = credentialsPath.startsWith('/') || credentialsPath.startsWith('C:') || credentialsPath.startsWith('E:')
+                    ? credentialsPath
+                    : join(process.cwd(), credentialsPath.replace(/^\.\//, ''));
+
+                console.log(`Reading credentials from file: ${fullPath}`);
+                const credentialsFile = readFileSync(fullPath, 'utf8');
+                credentials = JSON.parse(credentialsFile);
+                console.log('✅ Using credentials from file');
+            } catch (fileError) {
+                throw new Error(
+                    `Could not read credentials file: ${credentialsPath}. ` +
+                    `Error: ${fileError.message}. ` +
+                    `For production, set GOOGLE_CREDENTIALS environment variable with the JSON content.`
+                );
+            }
+        }
+
+        if (!credentials) {
+            throw new Error('No credentials found. Set GOOGLE_CREDENTIALS environment variable or provide a valid credentials file.');
         }
 
         const auth = new google.auth.GoogleAuth({
@@ -33,7 +52,7 @@ function getSheetsClient() {
 
         return google.sheets({ version: 'v4', auth });
     } catch (error) {
-        console.error('Error initializing Google Sheets client:', error);
+        console.error('❌ Error initializing Google Sheets client:', error);
         throw error;
     }
 }
