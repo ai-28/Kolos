@@ -7,7 +7,8 @@ import { Button } from "@/app/components/ui/button"
 import { Card, CardContent } from "@/app/components/ui/card"
 import {KolosLogo} from "@/app/components/svg"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, Loader2 } from "lucide-react"
+import { ArrowLeft, Loader2, Edit2, Save, X, Trash2 } from "lucide-react"
+import { toast } from "sonner"
 
 function ClientDashboardContent() {
   const router = useRouter()
@@ -16,6 +17,23 @@ function ClientDashboardContent() {
   const [loading, setLoading] = useState(true)
   const [selectedRole, setSelectedRole] = useState("Investor")
   const [signals, setSignals] = useState([])
+  const [deals, setDeals] = useState([])
+  const [isEditing, setIsEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [editData, setEditData] = useState({})
+  const [updatingStage, setUpdatingStage] = useState(null)
+  const [showCreateDealModal, setShowCreateDealModal] = useState(false)
+  const [selectedSignal, setSelectedSignal] = useState(null)
+  const [dealFormData, setDealFormData] = useState({
+    deal_name: '',
+    target: '',
+    source: '',
+    stage: 'list',
+    target_deal_size: '',
+    next_step: ''
+  })
+  const [creatingDeal, setCreatingDeal] = useState(false)
+  const [deletingDeal, setDeletingDeal] = useState(null)
 
   useEffect(() => {
     // Get client ID from URL params and fetch client data
@@ -40,25 +58,53 @@ function ClientDashboardContent() {
       const clientData = data.client
       setClient(clientData)
       
-      // Set default role from client profile
-      const clientRole = clientData.Role || clientData["Role"] || "Investor"
+      // Set default role from client profile (check lowercase first, then uppercase)
+      const clientRole = clientData.role || clientData.Role || clientData["role"] || clientData["Role"] || "Investor"
       // Normalize role to match button labels
       const normalizedRole = clientRole.charAt(0).toUpperCase() + clientRole.slice(1).toLowerCase()
       if (["Investor", "Entrepreneur", "Asset Manager", "Facilitator"].includes(normalizedRole)) {
         setSelectedRole(normalizedRole)
       }
       
-      // Parse recommendations JSON to get signals
-      const recommendations = clientData.Recommendations || clientData["Recommendations"]
-      if (recommendations) {
+      // Fetch signals from Signals sheet using profile_id
+      const profileId = clientData.id || clientData.ID || clientData["id"] || clientData["ID"]
+      if (profileId) {
         try {
-          const recData = typeof recommendations === "string" ? JSON.parse(recommendations) : recommendations
-          if (recData.signals && Array.isArray(recData.signals)) {
-            setSignals(recData.signals)
+          const signalsResponse = await fetch(`/api/signals?profile_id=${encodeURIComponent(profileId)}`)
+          const signalsData = await signalsResponse.json()
+          
+          if (signalsResponse.ok && signalsData.signals && Array.isArray(signalsData.signals)) {
+            setSignals(signalsData.signals)
+            console.log(`✅ Loaded ${signalsData.signals.length} signals for profile ${profileId}`)
+          } else {
+            console.warn("No signals found or error fetching signals:", signalsData)
+            setSignals([])
           }
-        } catch (e) {
-          console.error("Error parsing recommendations:", e)
+        } catch (signalError) {
+          console.error("Error fetching signals:", signalError)
+          setSignals([])
         }
+
+        // Fetch deals from Deals sheet using profile_id
+        try {
+          const dealsResponse = await fetch(`/api/deals?profile_id=${encodeURIComponent(profileId)}`)
+          const dealsData = await dealsResponse.json()
+          
+          if (dealsResponse.ok && dealsData.deals && Array.isArray(dealsData.deals)) {
+            setDeals(dealsData.deals)
+            console.log(`✅ Loaded ${dealsData.deals.length} deals for profile ${profileId}`)
+          } else {
+            console.warn("No deals found or error fetching deals:", dealsData)
+            setDeals([])
+          }
+        } catch (dealError) {
+          console.error("Error fetching deals:", dealError)
+          setDeals([])
+        }
+      } else {
+        console.warn("No profile ID found, cannot fetch signals or deals")
+        setSignals([])
+        setDeals([])
       }
     } catch (error) {
       console.error("Error fetching client data:", error)
@@ -66,11 +112,258 @@ function ClientDashboardContent() {
       setLoading(false)
     }
   }
-console.log("client",client)
+
+  const handleEdit = () => {
+    // Initialize edit data with current client values
+    setEditData({
+      name: client?.name || client?.["name"] || "",
+      company: client?.company || client?.["company"] || "",
+      email: client?.email || client?.["email"] || "",
+      role: client?.role || client?.["role"] || selectedRole,
+      industries: client?.industries || client?.["industries"] || "",
+      regions: client?.regions || client?.["regions"] || "",
+      check_size: client?.check_size || client?.["check_size"] || "",
+      goals: client?.goals || client?.["goals"] || "",
+      partner_types: client?.partner_types || client?.["partner_types"] || "",
+      active_deal: client?.active_deal || client?.["active_deal"] || "",
+      constraints: client?.constraints || client?.["constraints"] || "",
+      city: client?.city || client?.["city"] || "",
+    })
+    setIsEditing(true)
+  }
+
+  const handleCancel = () => {
+    setIsEditing(false)
+    setEditData({})
+  }
+
+  const handleSave = async () => {
+    if (!client) return
+
+    const clientId = client.id || client.ID || client["id"] || client["ID"]
+    if (!clientId) {
+      alert("Cannot save: Client ID not found")
+      return
+    }
+
+    setSaving(true)
+    try {
+      const response = await fetch(`/api/airtable/clients/${clientId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(editData),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to update client")
+      }
+
+      // Update local client state
+      setClient(data.client)
+      setIsEditing(false)
+      setEditData({})
+      
+      // Update role if it was changed
+      if (editData.role) {
+        setSelectedRole(editData.role)
+      }
+
+      alert("Profile updated successfully!")
+    } catch (error) {
+      console.error("Error saving client:", error)
+      alert(`Failed to save: ${error.message}`)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleStageChange = async (dealId, newStage) => {
+    if (!dealId) {
+      console.error("Cannot update: Deal ID not found")
+      return
+    }
+
+    setUpdatingStage(dealId)
+    try {
+      const response = await fetch(`/api/deals/${dealId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ stage: newStage }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to update deal stage")
+      }
+
+      // Update local deals state
+      setDeals(prevDeals => 
+        prevDeals.map(deal => {
+          const id = deal.deal_id || deal["deal_id"] || deal.id || deal["id"]
+          if (id && String(id).trim() === String(dealId).trim()) {
+            return { ...deal, stage: newStage }
+          }
+          return deal
+        })
+      )
+
+      console.log(`✅ Deal stage updated to: ${newStage}`)
+    } catch (error) {
+      console.error("Error updating deal stage:", error)
+      alert(`Failed to update stage: ${error.message}`)
+    } finally {
+      setUpdatingStage(null)
+    }
+  }
+
+  const handleCreateDeal = async () => {
+    if (!client) {
+      alert("Client data not available")
+      return
+    }
+
+    const profileId = client.id || client.ID || client["id"] || client["ID"]
+    if (!profileId) {
+      alert("Cannot create deal: Client ID not found")
+      return
+    }
+
+    setCreatingDeal(true)
+    try {
+      const response = await fetch('/api/deals', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          profile_id: profileId,
+          deal_name: dealFormData.deal_name,
+          target: dealFormData.target,
+          source: dealFormData.source,
+          stage: dealFormData.stage,
+          target_deal_size: dealFormData.target_deal_size,
+          next_step: dealFormData.next_step,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to create deal")
+      }
+
+      // Refresh deals list
+      const dealsResponse = await fetch(`/api/deals?profile_id=${encodeURIComponent(profileId)}`)
+      const dealsData = await dealsResponse.json()
+      
+      if (dealsResponse.ok && dealsData.deals && Array.isArray(dealsData.deals)) {
+        setDeals(dealsData.deals)
+      }
+
+      // Close modal and reset form
+      setShowCreateDealModal(false)
+      setDealFormData({
+        deal_name: '',
+        target: '',
+        source: '',
+        stage: 'list',
+        target_deal_size: '',
+        next_step: ''
+      })
+      setSelectedSignal(null)
+
+      alert("Deal created successfully!")
+    } catch (error) {
+      console.error("Error creating deal:", error)
+      alert(`Failed to create deal: ${error.message}`)
+    } finally {
+      setCreatingDeal(false)
+    }
+  }
+
+  const handleDeleteDeal = async (dealId) => {
+    if (!dealId) {
+      console.error("Cannot delete: Deal ID not found")
+      toast.error("Deal ID not found")
+      return
+    }
+
+    if (!client) {
+      toast.error("Client data not available")
+      return
+    }
+
+    const profileId = client.id || client.ID || client["id"] || client["ID"]
+    if (!profileId) {
+      toast.error("Cannot delete: Client ID not found")
+      return
+    }
+
+    // Show confirmation toast with action buttons
+    toast.warning("Delete Deal", {
+      description: "Are you sure you want to delete this deal? This action cannot be undone.",
+      action: {
+        label: "Delete",
+        onClick: async () => {
+          setDeletingDeal(dealId)
+          const loadingToast = toast.loading("Deleting deal...")
+          
+          try {
+            // Create abort controller for timeout
+            const controller = new AbortController()
+            const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
+
+            const response = await fetch(`/api/deals/${dealId}`, {
+              method: "DELETE",
+              signal: controller.signal
+            })
+
+            clearTimeout(timeoutId)
+            const data = await response.json()
+            
+            if (!response.ok) {
+              throw new Error(data.error || data.details || "Failed to delete deal")
+            }
+            
+            // Refresh deals list immediately
+            const dealsResponse = await fetch(`/api/deals?profile_id=${encodeURIComponent(profileId)}`)
+            const dealsData = await dealsResponse.json()
+            
+            if (dealsResponse.ok && dealsData.deals && Array.isArray(dealsData.deals)) {
+              setDeals(dealsData.deals)
+            }
+            
+            toast.success("Deal deleted successfully!", { id: loadingToast })
+          } catch (error) {
+            console.error("Error deleting deal:", error)
+            if (error.name === 'AbortError') {
+              toast.error("Delete request timed out. Please check if the deal was deleted.", { id: loadingToast })
+            } else {
+              toast.error(`Failed to delete deal: ${error.message}`, { id: loadingToast })
+            }
+          } finally {
+            setDeletingDeal(null)
+          }
+        }
+      },
+      cancel: {
+        label: "Cancel",
+        onClick: () => {}
+      },
+      duration: 10000
+    })
+  }
 console.log("signal",signals)
-  // Get client name
+  // Get client name (check lowercase first, then uppercase)
   const clientName = client 
-    ? (client["Full Name"] || client["Name"] || client.name || client.full_name || "Client")
+    ? (client.name || client["name"] || client["Full Name"] || client["Name"] || client.full_name || "Client")
     : "Hans Hammer"
 
   // Get client initials for avatar
@@ -83,10 +376,10 @@ console.log("signal",signals)
     return name.substring(0, 2).toUpperCase()
   }
 console.log("client",client)
-  // Get industries from client profile
+  // Get industries from client profile (check lowercase first)
   const getIndustries = () => {
     if (!client) return []
-    const industries = client.Industries || client["Industries"] || ""
+    const industries = client.industries || client["industries"] || client.Industries || client["Industries"] || ""
     
     if (Array.isArray(industries)) {
       return industries
@@ -100,10 +393,10 @@ console.log("client",client)
     return []
   }
 
-  // Get regions from client profile
+  // Get regions from client profile (check lowercase first)
   const getRegions = () => {
     if (!client) return []
-    const regions = client.Regions || client["Regions"] || ""
+    const regions = client.regions || client["regions"] || client.Regions || client["Regions"] || ""
     
     if (Array.isArray(regions)) {
       return regions
@@ -117,10 +410,10 @@ console.log("client",client)
     return []
   }
 
-  // Get partner types from client profile
+  // Get partner types from client profile (check lowercase first)
   const getPartnerTypes = () => {
     if (!client) return []
-    const partnerTypes = client.Partner_types || client["Partner_types"] || client["Partner Types"] || ""
+    const partnerTypes = client.partner_types || client["partner_types"] || client.Partner_types || client["Partner_types"] || client["Partner Types"] || ""
     
     if (Array.isArray(partnerTypes)) {
       return partnerTypes
@@ -134,10 +427,10 @@ console.log("client",client)
     return []
   }
 
-  // Get goals from client profile
+  // Get goals from client profile (check lowercase first)
   const getGoals = () => {
     if (!client) return []
-    const goals = client.Goals || client["Goals"] || ""
+    const goals = client.goals || client["goals"] || client.Goals || client["Goals"] || ""
     if (typeof goals === "string") {
       // Split by common delimiters if it's a string
       return goals.split(/[,\n]/).filter(g => g.trim()).map(g => g.trim())
@@ -173,7 +466,7 @@ console.log("client",client)
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
           <h2 className="text-xl font-semibold mb-4">Client not found</h2>
-          <Button onClick={() => router.push("/dashboard")}>
+          <Button onClick={() => router.push("/")}>
             Back to Dashboard
           </Button>
         </div>
@@ -255,7 +548,7 @@ console.log("client",client)
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => router.push("/dashboard")}
+                onClick={() => router.push("/")}
                 className="flex items-center gap-2 text-[#0a3d3d] hover:bg-[#0a3d3d]/10"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -263,15 +556,96 @@ console.log("client",client)
               </Button>
               <h1 className="text-3xl font-serif text-[#0a3d3d]">{clientName} Dashboard</h1>
             </div>
-            <Avatar className="h-12 w-12">
-              <AvatarImage src="/placeholder-avatar.jpg" alt={clientName} />
-              <AvatarFallback>{getInitials(clientName)}</AvatarFallback>
-            </Avatar>
+            <div className="flex items-center gap-3">
+              {isEditing ? (
+                <>
+                  <Button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="flex items-center gap-2 bg-[#0a3d3d] hover:bg-[#0a3d3d]/90 text-white"
+                  >
+                    {saving ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        Save
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={handleCancel}
+                    disabled={saving}
+                    variant="outline"
+                    className="flex items-center gap-2"
+                  >
+                    <X className="w-4 h-4" />
+                    Cancel
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  onClick={handleEdit}
+                  className="flex items-center gap-2 bg-[#c9a961] hover:bg-[#c9a961]/90 text-[#0a3d3d]"
+                >
+                  <Edit2 className="w-4 h-4" />
+                  Edit Profile
+                </Button>
+              )}
+              <Avatar className="h-12 w-12">
+                <AvatarImage src="/placeholder-avatar.jpg" alt={clientName} />
+                <AvatarFallback>{getInitials(clientName)}</AvatarFallback>
+              </Avatar>
+            </div>
             </div>
           </div>
 
           {/* Content Area */}
           <div className="p-8 pt-4">
+          {/* Basic Information */}
+          {isEditing && (
+            <section className="mb-8">
+              <Card className="bg-white border-none shadow-sm">
+                <CardContent className="p-6">
+                  <h2 className="text-xl font-serif text-[#c9a961] mb-4">Basic Information</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                      <input
+                        type="text"
+                        value={editData.name || ""}
+                        onChange={(e) => setEditData({...editData, name: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                        placeholder="Full name"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                      <input
+                        type="email"
+                        value={editData.email || ""}
+                        onChange={(e) => setEditData({...editData, email: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                        placeholder="your.email@example.com"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Constraints</label>
+                      <textarea
+                        value={editData.constraints || ""}
+                        onChange={(e) => setEditData({...editData, constraints: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[80px]"
+                        placeholder="Any constraints or preferences"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </section>
+          )}
           {/* Select Your Role */}
           <section className="mb-8">
             <h2 className="text-xl font-serif text-[#c9a961] mb-4">Select Your Role</h2>
@@ -279,9 +653,14 @@ console.log("client",client)
               {["Investor", "Entrepreneur", "Asset Manager", "Facilitator"].map((role) => (
                 <Button
                   key={role}
-                  onClick={() => setSelectedRole(role)}
+                  onClick={() => {
+                    setSelectedRole(role)
+                    if (isEditing) {
+                      setEditData({...editData, role: role})
+                    }
+                  }}
                   className={`rounded-full py-6 ${
-                    selectedRole === role
+                    (isEditing ? editData.role : selectedRole) === role
                       ? "bg-[#0a3d3d] hover:bg-[#0a3d3d]/90 text-white"
                       : "bg-[#c9a961] hover:bg-[#c9a961]/90 text-[#0a3d3d]"
                   }`}
@@ -300,38 +679,68 @@ console.log("client",client)
                   {/* Check Size */}
                   <div>
                     <div className="text-sm text-gray-500 mb-2">Check Size</div>
-                    <div className="text-lg font-semibold text-[#0a3d3d]">
-                      {client?.Check_size? <>{client?.Check_size} M</> : "-"}
-                    </div>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editData.check_size || ""}
+                        onChange={(e) => setEditData({...editData, check_size: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
+                        placeholder="e.g., 5-15 million"
+                      />
+                    ) : (
+                      <div className="text-lg font-semibold text-[#0a3d3d]">
+                        {client?.check_size? <>{client?.check_size} M</> : "-"}
+                      </div>
+                    )}
                   </div>
 
                   {/* Company */}
                   <div>
                     <div className="text-sm text-gray-500 mb-2">Company</div>
-                    <div className="text-lg font-semibold text-[#0a3d3d]">
-                      {client?.Company || client?.["Company"] || client?.company || "-"}
-                    </div>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editData.company || ""}
+                        onChange={(e) => setEditData({...editData, company: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
+                        placeholder="Company name"
+                      />
+                    ) : (
+                      <div className="text-lg font-semibold text-[#0a3d3d]">
+                        {client?.company || client?.["company"] || client?.Company || client?.["Company"] || "-"}
+                      </div>
+                    )}
                   </div>
 
                   {/* Partner Types */}
                   <div>
                     <div className="text-sm text-gray-500 mb-2">Partner Types</div>
-                    <div className="text-lg font-semibold text-[#0a3d3d]">
-                      {getPartnerTypes().length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                          {getPartnerTypes().map((type, index) => (
-                            <Badge 
-                              key={index} 
-                              className="bg-[#c9a961] text-[#0a3d3d] hover:bg-[#c9a961]/90"
-                            >
-                              {type}
-                            </Badge>
-                          ))}
-                        </div>
-                      ) : (
-                        "-"
-                      )}
-                    </div>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editData.partner_types || ""}
+                        onChange={(e) => setEditData({...editData, partner_types: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
+                        placeholder="e.g., LPs, Operators (separate with semicolons)"
+                      />
+                    ) : (
+                      <div className="text-lg font-semibold text-[#0a3d3d]">
+                        {getPartnerTypes().length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {getPartnerTypes().map((type, index) => (
+                              <Badge 
+                                key={index} 
+                                className="bg-[#c9a961] text-[#0a3d3d] hover:bg-[#c9a961]/90"
+                              >
+                                {type}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          "-"
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -344,47 +753,61 @@ console.log("client",client)
               <span className="text-[#c9a961]">◎</span>
               Business Goals Overview
             </h2>
-            <div className="grid grid-cols-2 gap-6">
-              {getGoals().slice(0, 2).map((goal, index) => (
-                <Card key={index} className="bg-white border-none shadow-sm">
-                  <CardContent className="p-6">
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-full border-2 border-[#c9a961] flex items-center justify-center flex-shrink-0 mt-1">
-                        <span className="text-[#c9a961] text-sm">{index + 1}</span>
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-[#0a3d3d] mb-1">Goal {index + 1}</h3>
-                        <p className="text-gray-600">{goal}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-              {getGoals().length === 0 && (
-                <>
-                  <Card className="bg-white border-none shadow-sm">
+            {isEditing ? (
+              <Card className="bg-white border-none shadow-sm">
+                <CardContent className="p-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Goals (one per line)</label>
+                  <textarea
+                    value={editData.goals || ""}
+                    onChange={(e) => setEditData({...editData, goals: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[100px]"
+                    placeholder="Enter your business goals, one per line"
+                  />
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-2 gap-6">
+                {getGoals().slice(0, 2).map((goal, index) => (
+                  <Card key={index} className="bg-white border-none shadow-sm">
                     <CardContent className="p-6">
                       <div className="flex items-start gap-3">
                         <div className="w-8 h-8 rounded-full border-2 border-[#c9a961] flex items-center justify-center flex-shrink-0 mt-1">
-                          <span className="text-[#c9a961] text-sm">i</span>
+                          <span className="text-[#c9a961] text-sm">{index + 1}</span>
                         </div>
                         <div>
-                          <h3 className="font-semibold text-[#0a3d3d] mb-1">No goals set</h3>
-                          <p className="text-gray-600">Goals will appear here when available</p>
+                          <h3 className="font-semibold text-[#0a3d3d] mb-1">Goal {index + 1}</h3>
+                          <p className="text-gray-600">{goal}</p>
                         </div>
                       </div>
                     </CardContent>
                   </Card>
-                </>
-              )}
-            </div>
+                ))}
+                {getGoals().length === 0 && (
+                  <>
+                    <Card className="bg-white border-none shadow-sm">
+                      <CardContent className="p-6">
+                        <div className="flex items-start gap-3">
+                          <div className="w-8 h-8 rounded-full border-2 border-[#c9a961] flex items-center justify-center flex-shrink-0 mt-1">
+                            <span className="text-[#c9a961] text-sm">i</span>
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-[#0a3d3d] mb-1">No goals set</h3>
+                            <p className="text-gray-600">Goals will appear here when available</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </>
+                )}
+              </div>
+            )}
           </section>
 
           {/* Live Private Deal Flow */}
           <section className="mb-8">
             <h2 className="text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
               <span className="text-[#c9a961]">⊟</span>
-              Live Private Deal Flow
+              Signals
             </h2>
             <Card className="bg-white border-none shadow-sm">
               <CardContent className="p-6">
@@ -470,6 +893,27 @@ console.log("client",client)
                               </div>
                             </div>
                           )}
+
+                          {/* Create Deal Button */}
+                          <div className="pt-4 border-t border-gray-200">
+                            <Button
+                              onClick={() => {
+                                setSelectedSignal(signal)
+                                setDealFormData({
+                                  deal_name: signal.headline_source || '',
+                                  target: '',
+                                  source: signal.url || '',
+                                  stage: 'list',
+                                  target_deal_size: '',
+                                  next_step: signal.next_step || ''
+                                })
+                                setShowCreateDealModal(true)
+                              }}
+                              className="bg-[#0a3d3d] hover:bg-[#0a3d3d]/90 text-white"
+                            >
+                              Create Deal
+                            </Button>
+                          </div>
                         </div>
                       )
                     })}
@@ -483,59 +927,224 @@ console.log("client",client)
             </Card>
           </section>
 
+          {/* Active Deals */}
+          <section className="mb-8">
+            <h2 className="text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
+              <span className="text-[#c9a961]">💼</span>
+              Active Deals
+            </h2>
+            <Card className="bg-white border-none shadow-sm">
+              <CardContent className="p-6">
+                {deals.length > 0 ? (
+                  <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                    <table className="w-full border-collapse">
+                      <thead className="sticky top-0 bg-white z-20">
+                        <tr className="border-b border-gray-200">
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 bg-white">Deal Name</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 bg-white">Target</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 bg-white">Source</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 bg-white">Stage</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 bg-white">Target Deal Size</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 bg-white">Next Step</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 bg-white">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {deals.map((deal, index) => (
+                          <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                            <td className="py-3 px-4 text-sm text-[#0a3d3d] font-medium">
+                              {deal.deal_name || deal["deal_name"] || "-"}
+                            </td>
+                            <td className="py-3 px-4 text-sm text-gray-700">
+                              {deal.target || deal["target"] || "-"}
+                            </td>
+                            <td className="py-3 px-4 text-sm text-gray-700">
+                              {deal.source || deal["source"] || "-"}
+                            </td>
+                            <td className="py-3 px-4 text-sm">
+                              {(() => {
+                                const dealId = deal.deal_id || deal["deal_id"] || deal.id || deal["id"]
+                                const currentStage = deal.stage || deal["stage"] || "list"
+                                const isUpdating = updatingStage === dealId
+                                
+                                return (
+                                  <select
+                                    value={currentStage}
+                                    onChange={(e) => handleStageChange(dealId, e.target.value)}
+                                    disabled={isUpdating || !dealId}
+                                    style={{ 
+                                      minWidth: '150px',
+                                      zIndex: 1,
+                                      position: 'relative'
+                                    }}
+                                    className={`px-3 py-2 rounded-md border-2 border-gray-300 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] focus:border-[#0a3d3d] ${
+                                      currentStage === "closed" 
+                                        ? "bg-green-100 text-green-800 border-green-300"
+                                        : currentStage === "in negotiation"
+                                        ? "bg-yellow-100 text-yellow-800 border-yellow-300"
+                                        : currentStage === "NDA signed"
+                                        ? "bg-blue-100 text-blue-800 border-blue-300"
+                                        : currentStage === "intro"
+                                        ? "bg-purple-100 text-purple-800 border-purple-300"
+                                        : currentStage === "first call"
+                                        ? "bg-orange-100 text-orange-800 border-orange-300"
+                                        : "bg-gray-100 text-gray-800 border-gray-300"
+                                    } ${isUpdating ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:border-[#0a3d3d]"}`}
+                                  >
+                                    <option value="list" style={{ backgroundColor: '#f3f4f6', color: '#1f2937' }}>list</option>
+                                    <option value="intro" style={{ backgroundColor: '#f3e8ff', color: '#6b21a8' }}>intro</option>
+                                    <option value="first call" style={{ backgroundColor: '#fff7ed', color: '#9a3412' }}>first call</option>
+                                    <option value="NDA signed" style={{ backgroundColor: '#dbeafe', color: '#1e40af' }}>NDA signed</option>
+                                    <option value="in negotiation" style={{ backgroundColor: '#fef3c7', color: '#92400e' }}>in negotiation</option>
+                                    <option value="closed" style={{ backgroundColor: '#d1fae5', color: '#065f46' }}>closed</option>
+                                  </select>
+                                )
+                              })()}
+                            </td>
+                            <td className="py-3 px-4 text-sm text-gray-700">
+                              {deal.target_deal_size || deal["target_deal_size"] || "-"}
+                            </td>
+                            <td className="py-3 px-4 text-sm text-gray-600">
+                              {deal.next_step || deal["next_step"] || "-"}
+                            </td>
+                            <td className="py-3 px-4 text-sm">
+                              {(() => {
+                                const dealId = deal.deal_id || deal["deal_id"] || deal.id || deal["id"]
+                                const isDeleting = deletingDeal === dealId
+                                
+                                return (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteDeal(dealId)}
+                                    disabled={isDeleting || !dealId}
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    {isDeleting ? (
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="w-4 h-4" />
+                                    )}
+                                  </Button>
+                                )
+                              })()}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>No active deals. Deals will appear here once created.</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </section>
+
           {/* Industry & Geographic Focus */}
           <section className="mb-8">
             <h2 className="text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
               <span className="text-[#c9a961]">◇</span>
               Industry & Geographic Focus
             </h2>
-            <div className="flex gap-3 flex-wrap">
-              {getIndustries().map((industry, index) => (
-                <Badge key={index} className="bg-[#e8dcc8] text-[#8b6f3e] hover:bg-[#e8dcc8] px-4 py-2">
-                  {industry}
-                </Badge>
-              ))}
-              {getRegions().map((region, index) => (
-                <Badge key={`region-${index}`} className="bg-[#d0e8e8] text-[#3e6b8b] hover:bg-[#d0e8e8] px-4 py-2">
-                  🌎 {region}
-                </Badge>
-              ))}
-              {getIndustries().length === 0 && getRegions().length === 0 && (
-                <p className="text-gray-500 text-sm">No industries or regions specified</p>
-              )}
-            </div>
+            {isEditing ? (
+              <Card className="bg-white border-none shadow-sm">
+                <CardContent className="p-6 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Industries (separate with semicolons)</label>
+                    <input
+                      type="text"
+                      value={editData.industries || ""}
+                      onChange={(e) => setEditData({...editData, industries: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                      placeholder="e.g., Tech; Healthcare; Finance"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Regions (separate with semicolons)</label>
+                    <input
+                      type="text"
+                      value={editData.regions || ""}
+                      onChange={(e) => setEditData({...editData, regions: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                      placeholder="e.g., US; Europe; MENA"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="flex gap-3 flex-wrap">
+                {getIndustries().map((industry, index) => (
+                  <Badge key={index} className="bg-[#e8dcc8] text-[#8b6f3e] hover:bg-[#e8dcc8] px-4 py-2">
+                    {industry}
+                  </Badge>
+                ))}
+                {getRegions().map((region, index) => (
+                  <Badge key={`region-${index}`} className="bg-[#d0e8e8] text-[#3e6b8b] hover:bg-[#d0e8e8] px-4 py-2">
+                    🌎 {region}
+                  </Badge>
+                ))}
+                {getIndustries().length === 0 && getRegions().length === 0 && (
+                  <p className="text-gray-500 text-sm">No industries or regions specified</p>
+                )}
+              </div>
+            )}
           </section>
 
-          <div className="grid grid-cols-2 gap-6 mb-8">
+          <div className="mb-8">
             {/* Business Requests */}
-            <section>
+            <section className="mb-8">
               <h2 className="text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
                 <span className="text-[#c9a961]">⊞</span>
                 {clientName}'s Business Requests
               </h2>
               <Card className="bg-white border-none shadow-sm">
                 <CardContent className="p-6">
-                  {client.Active_deal || client["Active_deal"] ? (
+                  {isEditing ? (
                     <div className="space-y-4">
-                      <div className="grid grid-cols-12 gap-4 pb-2 border-b text-sm text-gray-600 font-medium">
-                        <div className="col-span-5">Request</div>
-                        <div className="col-span-4">Location</div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Active Deal/Project</label>
+                        <textarea
+                          value={editData.active_deal || ""}
+                          onChange={(e) => setEditData({...editData, active_deal: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[80px]"
+                          placeholder="Describe your active deal or project"
+                        />
                       </div>
-
-                      <div className="grid grid-cols-12 gap-4 items-center py-3">
-                        <div className="col-span-5">
-                          <div className="font-semibold">Active Deal/Project</div>
-                          <div className="text-sm text-gray-600">{client.Active_deal || client["Active_deal"]}</div>
-                        </div>
-                        <div className="col-span-4 text-sm">
-                          {client.city || client["City"] || client.regions?.[0] || client["Regions"]?.[0] || "-"}
-                        </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
+                        <input
+                          type="text"
+                          value={editData.city || ""}
+                          onChange={(e) => setEditData({...editData, city: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                          placeholder="e.g., New York"
+                        />
                       </div>
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      <p>No active deals or requests at this time</p>
-                    </div>
+                    client.active_deal || client["active_deal"] || client.Active_deal || client["Active_deal"] ? (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-12 gap-4 pb-2 border-b text-sm text-gray-600 font-medium">
+                          <div className="col-span-5">Request</div>
+                          <div className="col-span-4">Location</div>
+                        </div>
+
+                        <div className="grid grid-cols-12 gap-4 items-center py-3">
+                          <div className="col-span-5">
+                            <div className="font-semibold">Active Deal/Project</div>
+                            <div className="text-sm text-gray-600">{client.active_deal || client["active_deal"] || client.Active_deal || client["Active_deal"]}</div>
+                          </div>
+                          <div className="col-span-4 text-sm">
+                            {client.city || client["city"] || client["City"] || client.regions?.[0] || client["Regions"]?.[0] || "-"}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 text-sm">No active deals or projects</p>
+                    )
                   )}
                 </CardContent>
               </Card>
@@ -702,6 +1311,160 @@ console.log("client",client)
           </section>
           </div>
         </div>
+
+        {/* Create Deal Modal */}
+        {showCreateDealModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <Card className="w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-serif text-[#0a3d3d]">Create New Deal</h2>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setShowCreateDealModal(false)
+                      setDealFormData({
+                        deal_name: '',
+                        target: '',
+                        source: '',
+                        stage: 'list',
+                        target_deal_size: '',
+                        next_step: ''
+                      })
+                      setSelectedSignal(null)
+                    }}
+                  >
+                    <X className="w-5 h-5" />
+                  </Button>
+                </div>
+
+                <form onSubmit={(e) => { e.preventDefault(); handleCreateDeal(); }}
+                  className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Deal Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={dealFormData.deal_name}
+                      onChange={(e) => setDealFormData({...dealFormData, deal_name: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                      placeholder="Enter deal name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Target
+                    </label>
+                    <input
+                      type="text"
+                      value={dealFormData.target}
+                      onChange={(e) => setDealFormData({...dealFormData, target: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                      placeholder="Enter target"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Source
+                    </label>
+                    <input
+                      type="text"
+                      value={dealFormData.source}
+                      onChange={(e) => setDealFormData({...dealFormData, source: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                      placeholder="Enter source URL or name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Stage *
+                    </label>
+                    <select
+                      required
+                      value={dealFormData.stage}
+                      onChange={(e) => setDealFormData({...dealFormData, stage: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                    >
+                      <option value="list">list</option>
+                      <option value="intro">intro</option>
+                      <option value="first call">first call</option>
+                      <option value="NDA signed">NDA signed</option>
+                      <option value="in negotiation">in negotiation</option>
+                      <option value="closed">closed</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Target Deal Size
+                    </label>
+                    <input
+                      type="text"
+                      value={dealFormData.target_deal_size}
+                      onChange={(e) => setDealFormData({...dealFormData, target_deal_size: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                      placeholder="e.g., $5M - $15M"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Next Step
+                    </label>
+                    <textarea
+                      value={dealFormData.next_step}
+                      onChange={(e) => setDealFormData({...dealFormData, next_step: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[100px]"
+                      placeholder="Enter next step"
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <Button
+                      type="submit"
+                      disabled={creatingDeal}
+                      className="flex-1 bg-[#0a3d3d] hover:bg-[#0a3d3d]/90 text-white"
+                    >
+                      {creatingDeal ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                          Creating...
+                        </>
+                      ) : (
+                        "Create Deal"
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setShowCreateDealModal(false)
+                        setDealFormData({
+                          deal_name: '',
+                          target: '',
+                          source: '',
+                          stage: 'list',
+                          target_deal_size: '',
+                          next_step: ''
+                        })
+                        setSelectedSignal(null)
+                      }}
+                      disabled={creatingDeal}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </main>
     </div>
   )

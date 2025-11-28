@@ -43,16 +43,19 @@ export async function POST(req) {
             );
         }
 
+        // Generate deal_id if not provided
+        const dealId = deal.deal_id || `deal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
         const dealRow = [
+            dealId, // deal_id (first column)
             deal.profile_id || '',
-            deal.company_name || deal.target_name || '',
-            deal.source_signal_id || '',
-            deal.contact_person || '',
-            deal.stage || 'New',
+            deal.deal_name || '',
             deal.owner || '',
+            deal.target || '',
+            deal.source || '',
+            deal.stage || 'list',
+            deal.target_deal_size || '',
             deal.next_step || '',
-            deal.next_step_date || '',
-            deal.estimated_value || '',
         ];
 
         await appendToSheet(SHEETS.DEALS, dealRow);
@@ -60,6 +63,7 @@ export async function POST(req) {
         return NextResponse.json({
             success: true,
             message: "Deal created successfully",
+            deal_id: dealId,
         });
     } catch (error) {
         console.error("Error creating deal:", error);

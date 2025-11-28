@@ -143,12 +143,40 @@ export async function getSheetData(sheetName) {
 }
 
 /**
- * Find a row by ID (assuming first column is ID or profile_id)
+ * Find a row by ID (checking multiple possible ID field names)
  */
 export async function findRowById(sheetName, id) {
     try {
+        if (!id) {
+            return null;
+        }
+
         const data = await getSheetData(sheetName);
-        return data.find(row => row.id === id || row.profile_id === id);
+
+        // Try multiple possible ID field names (case-insensitive)
+        const found = data.find(row => {
+            // Check common ID field names
+            const idFields = ['id', 'ID', 'Id', 'profile_id', 'profileId', 'Profile ID'];
+
+            for (const field of idFields) {
+                if (row[field] && String(row[field]).trim() === String(id).trim()) {
+                    return true;
+                }
+            }
+
+            // Also check all fields case-insensitively
+            for (const key in row) {
+                if (key.toLowerCase() === 'id' || key.toLowerCase() === 'profile_id') {
+                    if (row[key] && String(row[key]).trim() === String(id).trim()) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        });
+
+        return found || null;
     } catch (error) {
         console.error(`Error finding row in ${sheetName}:`, error);
         throw error;
@@ -156,12 +184,38 @@ export async function findRowById(sheetName, id) {
 }
 
 /**
- * Find rows by profile_id
+ * Find rows by profile_id (case-insensitive matching)
  */
 export async function findRowsByProfileId(sheetName, profileId) {
     try {
+        if (!profileId) {
+            return [];
+        }
+
         const data = await getSheetData(sheetName);
-        return data.filter(row => row.profile_id === profileId);
+
+        // Filter by profile_id, checking multiple possible field names
+        return data.filter(row => {
+            // Check common profile_id field names
+            const profileIdFields = ['profile_id', 'profileId', 'Profile ID', 'Profile_ID'];
+
+            for (const field of profileIdFields) {
+                if (row[field] && String(row[field]).trim() === String(profileId).trim()) {
+                    return true;
+                }
+            }
+
+            // Also check all fields case-insensitively
+            for (const key in row) {
+                if (key.toLowerCase() === 'profile_id') {
+                    if (row[key] && String(row[key]).trim() === String(profileId).trim()) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        });
     } catch (error) {
         console.error(`Error finding rows by profile_id in ${sheetName}:`, error);
         throw error;

@@ -7,9 +7,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/app/components/ui/accordion";
 import { CheckCircle2 } from "lucide-react";
 import VoiceWidget from "@/app/components/VoiceWidget";
+import EmailModal from "@/app/components/EmailModal";
 
 export default function Home() {
   const [isWidgetOpen, setIsWidgetOpen] = useState(false);
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const router = useRouter();
 
   const handleStartOnboarding = () => {
@@ -17,7 +19,21 @@ export default function Home() {
   };
 
   const handleGoToDashboard = () => {
-    router.push("/dashboard");
+    setIsEmailModalOpen(true);
+  };
+
+  const handleEmailSuccess = (client) => {
+    // Navigate to client dashboard with the found client ID
+    console.log("Navigating with client:", client);
+    const clientId = client.id || client.ID || client.Id || client.email;
+    console.log("Using client ID:", clientId);
+    
+    if (!clientId) {
+      console.error("No ID found in client object:", client);
+      return;
+    }
+    
+    router.push(`/client/dashboard?id=${encodeURIComponent(clientId)}`);
   };
 
   return (
@@ -517,6 +533,13 @@ export default function Home() {
         isOpen={isWidgetOpen}
         onClose={() => setIsWidgetOpen(false)}
         autoStart={true}
+      />
+
+      {/* Email Modal */}
+      <EmailModal
+        isOpen={isEmailModalOpen}
+        onClose={() => setIsEmailModalOpen(false)}
+        onSuccess={handleEmailSuccess}
       />
     </div>
     </>

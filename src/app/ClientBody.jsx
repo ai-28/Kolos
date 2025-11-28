@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { Toaster } from "sonner";
 
 export default function ClientBody({ children }) {
   // Remove any extension-added classes during hydration
@@ -9,5 +10,10 @@ export default function ClientBody({ children }) {
     document.body.className = "antialiased";
   }, []);
 
-  return <div className="antialiased">{children}</div>;
+  return (
+    <div className="antialiased">
+      {children}
+      <Toaster position="top-right" richColors />
+    </div>
+  );
 }

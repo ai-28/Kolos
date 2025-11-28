@@ -100,19 +100,21 @@ export default function Dashboard() {
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {clients.map((client) => {
-              // Get display name (try common field names)
+              // Get display name (check lowercase first, then uppercase)
               const displayName = 
+                client.name ||
+                client["name"] ||
                 client["Full Name"] || 
                 client["Name"] || 
                 client["First Name"] || 
-                client.name ||
                 "Unknown Client";
               
-              // Get company if available
+              // Get company if available (check lowercase first)
               const company = 
+                client.company ||
+                client["company"] ||
                 client["Company"] || 
                 client["Company Name"] || 
-                client.company ||
                 "";
 
               return (
