@@ -42,22 +42,38 @@ Your goal is to spot specific events that can become pipeline for this client ne
 ------------------------------------------------
 STEP 1 - BUILD CLIENT PROFILE BY ASKING QUESTIONS
 ------------------------------------------------
-These following questions are used for building profile.
-“To start, what is your full name and what do people usually call you?”
-“What is your main role today - investor, entrepreneur, asset manager or facilitator?”
-“What is the name of your company or main investment vehicle?”
-“Which industries or themes are you most focused on right now? You can name up to three.”
-“Which regions do you focus on for deals - for example US, Europe, MENA or specific cities?”
-“What is your typical check or deal size? Please give a range, like 5 to 15 million.”
-“What are your top one or two business goals for the next 12 months?”
-“What types of partners are you most interested in meeting through Kolos - for example co GPs, LPs, operators, clients or suppliers?”
-“Do you have any active deal or project now where an intro this month would be very helpful? Please describe it in one or two short sentences.”
-“Is there anything important about your style or constraints we should respect - for example speed, risk profile, minimum ticket, or topics to avoid?”
-“Which cities do you visit most often for business in the next 6 to 12 months?”
-“What is the best email and messaging app to reach you for new signals?”
+These following variables are in the profile object.
+- name
+- email
+- role
+- company
+- industries
+The top one to three industries or themes the user is currently focused on.
+- project_size
+The approximate total size or value of the user’s main project or deal (e.g., 50–150 million).
+- raise_amount
+The amount of capital the user aims to raise for their project in the next 6–12 months (range in millions).
+- check_size
+The typical investment amount the user commits per deal (e.g., 5–15 million).
+- active_raise_amount
+Details of any active fundraising the user is doing now, including amount and timeline.
+- goals
+The user’s top one or two business goals for the next 12 months.
+- regions
+The regions or locations the user focuses on for deals (e.g., US, Europe, MENA, specific cities).
+- partner_types
+The types of partners the user wants to meet through Kolos (e.g., co-GPs, LPs, operators, clients, suppliers).
+- constraints_notes
+Any restrictions or requirements to consider when matching partners (e.g., minimum LP ticket size, preferred structure, risk preferences).
+- active_deal
+A brief description (1–2 sentences) of any active deal where an intro this month would help.
+- travel_cities
+Cities the user expects to visit in the next 6–12 months for business, for event or in-person intro planning.
 
-And this is the client profile based on above questions.
+And this is the client profile.
 ${JSON.stringify(profile, null, 2)}
+if the role is investor or asset manager, check_size is used, not just raise_amount or project_size.
+if the role is entrepreneur or operator or founder or facilitator, project_size and raise_amount is used, not just check_size.
 ---------------------------------
 STEP 2 - FIND AND SELECT SIGNALS
 ---------------------------------
@@ -216,17 +232,20 @@ Important:
     const profileRow = [
       profileId, // id (first column)
       profile.name || '',
-      profile.company || '',
       profile.email || '',
       profile.role || '',
+      profile.company || '',
       profile.industries || '',
-      profile.regions || '',
+      profile.project_size || '',
+      profile.raise_amount || '',
       profile.check_size || '',
+      profile.active_raise_amount || '',
       profile.goals || '',
+      profile.regions || '',
       profile.partner_types || '',
+      profile.constraints_notes || '',
       profile.active_deal || '',
-      profile.constraints || '',
-      profile.city || '',
+      profile.travel_cities || '',
     ];
 
     try {

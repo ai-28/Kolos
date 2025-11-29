@@ -117,17 +117,20 @@ function ClientDashboardContent() {
     // Initialize edit data with current client values
     setEditData({
       name: client?.name || client?.["name"] || "",
-      company: client?.company || client?.["company"] || "",
       email: client?.email || client?.["email"] || "",
       role: client?.role || client?.["role"] || selectedRole,
+      company: client?.company || client?.["company"] || "",
       industries: client?.industries || client?.["industries"] || "",
-      regions: client?.regions || client?.["regions"] || "",
+      project_size: client?.project_size || client?.["project_size"] || "",
+      raise_amount: client?.raise_amount || client?.["raise_amount"] || "",
       check_size: client?.check_size || client?.["check_size"] || "",
+      active_raise_amount: client?.active_raise_amount || client?.["active_raise_amount"] || "",
       goals: client?.goals || client?.["goals"] || "",
+      regions: client?.regions || client?.["regions"] || "",
       partner_types: client?.partner_types || client?.["partner_types"] || "",
+      constraints_notes: client?.constraints_notes || client?.["constraints_notes"] || client?.constraints || client?.["constraints"] || "",
       active_deal: client?.active_deal || client?.["active_deal"] || "",
-      constraints: client?.constraints || client?.["constraints"] || "",
-      city: client?.city || client?.["city"] || "",
+      travel_cities: client?.travel_cities || client?.["travel_cities"] || client?.city || client?.["city"] || "",
     })
     setIsEditing(true)
   }
@@ -633,12 +636,85 @@ console.log("client",client)
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Constraints</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Constraints Notes</label>
                       <textarea
-                        value={editData.constraints || ""}
-                        onChange={(e) => setEditData({...editData, constraints: e.target.value})}
+                        value={editData.constraints_notes || ""}
+                        onChange={(e) => setEditData({...editData, constraints_notes: e.target.value})}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[80px]"
                         placeholder="Any constraints or preferences"
+                      />
+                    </div>
+                    {/* Project Size - Only for Entrepreneur or Facilitator */}
+                    {(() => {
+                      const currentRole = editData.role || selectedRole;
+                      const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
+                      const showProjectSize = roleNormalized !== "investor" && roleNormalized !== "asset manager";
+                      
+                      if (!showProjectSize) return null;
+                      
+                      return (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Project Size</label>
+                          <input
+                            type="text"
+                            value={editData.project_size || ""}
+                            onChange={(e) => setEditData({...editData, project_size: e.target.value})}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                            placeholder="e.g., 10-50 million"
+                          />
+                        </div>
+                      );
+                    })()}
+                    {/* Raise Amount - Only for Entrepreneur or Facilitator */}
+                    {(() => {
+                      const currentRole = editData.role || selectedRole;
+                      const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
+                      const showRaiseAmount = roleNormalized !== "investor" && roleNormalized !== "asset manager";
+                      
+                      if (!showRaiseAmount) return null;
+                      
+                      return (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Raise Amount</label>
+                          <input
+                            type="text"
+                            value={editData.raise_amount || ""}
+                            onChange={(e) => setEditData({...editData, raise_amount: e.target.value})}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                            placeholder="e.g., 5 million"
+                          />
+                        </div>
+                      );
+                    })()}
+                    {/* Check Size - Only for Investor or Asset Manager */}
+                    {(() => {
+                      const currentRole = editData.role || selectedRole;
+                      const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
+                      const showCheckSize = roleNormalized === "investor" || roleNormalized === "asset manager";
+                      
+                      if (!showCheckSize) return null;
+                      
+                      return (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Check Size</label>
+                          <input
+                            type="text"
+                            value={editData.check_size || ""}
+                            onChange={(e) => setEditData({...editData, check_size: e.target.value})}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                            placeholder="e.g., 5-15 million"
+                          />
+                        </div>
+                      );
+                    })()}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Active Raise Amount</label>
+                      <input
+                        type="text"
+                        value={editData.active_raise_amount || ""}
+                        onChange={(e) => setEditData({...editData, active_raise_amount: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                        placeholder="e.g., 2 million"
                       />
                     </div>
                   </div>
@@ -675,21 +751,105 @@ console.log("client",client)
           <section className="mb-8">
             <Card className="bg-white border-none shadow-sm">
               <CardContent className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* Check Size */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {/* Check Size - Only for Investor or Asset Manager */}
+                  {(() => {
+                    const currentRole = isEditing ? editData.role : selectedRole;
+                    const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
+                    const showCheckSize = roleNormalized === "investor" || roleNormalized === "asset manager";
+                    
+                    if (!showCheckSize) return null;
+                    
+                    return (
+                      <div>
+                        <div className="text-sm text-gray-500 mb-2">Check Size</div>
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editData.check_size || ""}
+                            onChange={(e) => setEditData({...editData, check_size: e.target.value})}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
+                            placeholder="e.g., 5-15 million"
+                          />
+                        ) : (
+                          <div className="text-lg font-semibold text-[#0a3d3d]">
+                            {client?.check_size || client?.["check_size"] ? <>{client?.check_size || client?.["check_size"]} M</> : "-"}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Project Size - Only for Entrepreneur or Facilitator */}
+                  {(() => {
+                    const currentRole = isEditing ? editData.role : selectedRole;
+                    const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
+                    const showProjectSize = roleNormalized !== "investor" && roleNormalized !== "asset manager";
+                    
+                    if (!showProjectSize) return null;
+                    
+                    return (
+                      <div>
+                        <div className="text-sm text-gray-500 mb-2">Project Size</div>
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editData.project_size || ""}
+                            onChange={(e) => setEditData({...editData, project_size: e.target.value})}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
+                            placeholder="e.g., 10-50 million"
+                          />
+                        ) : (
+                          <div className="text-lg font-semibold text-[#0a3d3d]">
+                            {client?.project_size || client?.["project_size"] ? <>{client?.project_size || client?.["project_size"]} M</> : "-"}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Raise Amount - Only for Entrepreneur or Facilitator */}
+                  {(() => {
+                    const currentRole = isEditing ? editData.role : selectedRole;
+                    const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
+                    const showRaiseAmount = roleNormalized !== "investor" && roleNormalized !== "asset manager";
+                    
+                    if (!showRaiseAmount) return null;
+                    
+                    return (
+                      <div>
+                        <div className="text-sm text-gray-500 mb-2">Raise Amount</div>
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editData.raise_amount || ""}
+                            onChange={(e) => setEditData({...editData, raise_amount: e.target.value})}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
+                            placeholder="e.g., 5 million"
+                          />
+                        ) : (
+                          <div className="text-lg font-semibold text-[#0a3d3d]">
+                            {client?.raise_amount || client?.["raise_amount"] ? <>{client?.raise_amount || client?.["raise_amount"]} M</> : "-"}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Active Raise Amount */}
                   <div>
-                    <div className="text-sm text-gray-500 mb-2">Check Size</div>
+                    <div className="text-sm text-gray-500 mb-2">Active Raise Amount</div>
                     {isEditing ? (
                       <input
                         type="text"
-                        value={editData.check_size || ""}
-                        onChange={(e) => setEditData({...editData, check_size: e.target.value})}
+                        value={editData.active_raise_amount || ""}
+                        onChange={(e) => setEditData({...editData, active_raise_amount: e.target.value})}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
-                        placeholder="e.g., 5-15 million"
+                        placeholder="e.g., 2 million"
                       />
                     ) : (
                       <div className="text-lg font-semibold text-[#0a3d3d]">
-                        {client?.check_size? <>{client?.check_size} M</> : "-"}
+                        {client?.active_raise_amount || client?.["active_raise_amount"] ? <>{client?.active_raise_amount || client?.["active_raise_amount"]} M</> : "-"}
                       </div>
                     )}
                   </div>
@@ -1114,13 +1274,13 @@ console.log("client",client)
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Travel Cities</label>
                         <input
                           type="text"
-                          value={editData.city || ""}
-                          onChange={(e) => setEditData({...editData, city: e.target.value})}
+                          value={editData.travel_cities || ""}
+                          onChange={(e) => setEditData({...editData, travel_cities: e.target.value})}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
-                          placeholder="e.g., New York"
+                          placeholder="e.g., New York, London, Dubai"
                         />
                       </div>
                     </div>
@@ -1138,7 +1298,7 @@ console.log("client",client)
                             <div className="text-sm text-gray-600">{client.active_deal || client["active_deal"] || client.Active_deal || client["Active_deal"]}</div>
                           </div>
                           <div className="col-span-4 text-sm">
-                            {client.city || client["city"] || client["City"] || client.regions?.[0] || client["Regions"]?.[0] || "-"}
+                            {client.travel_cities || client["travel_cities"] || client["Travel Cities"] || client.city || client["city"] || client["City"] || client.regions?.[0] || client["Regions"]?.[0] || "-"}
                           </div>
                         </div>
                       </div>
