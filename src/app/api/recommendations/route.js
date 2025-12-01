@@ -238,7 +238,7 @@ Important:
         // }
       }],
       tool_choice: "auto",
-      response_format: { type: "json_object" },
+      text: { format: { type: "json_object" } },  // Responses API uses text.format instead of response_format
       temperature: 0.3
     });
 
