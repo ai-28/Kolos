@@ -224,7 +224,12 @@ Important:
 - If you cannot create a realistic, plausible signal with proper URL format, date, and headline, DO NOT include that signal
 `;
 
-
+const completion = await client.chat.completions.create({
+  model: "gpt-5.1",  // Using gpt-5.1 which worked for you before
+  messages: [{ role: "user", content: prompt }],
+  response_format: { type: "json_object" },  // Force JSON output
+  temperature: 0.3
+});
 
     // Chat Completions API returns content in choices[0].message.content
     const responseContent = completion.choices[0].message.content;
