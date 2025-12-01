@@ -7,7 +7,7 @@ import { Button } from "@/app/components/ui/button"
 import { Card, CardContent } from "@/app/components/ui/card"
 import {KolosLogo} from "@/app/components/svg"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, Loader2, Edit2, Save, X, Trash2 } from "lucide-react"
+import { ArrowLeft, Loader2, Edit2, Save, X, Trash2, Menu } from "lucide-react"
 import { toast } from "sonner"
 
 function ClientDashboardContent() {
@@ -34,6 +34,7 @@ function ClientDashboardContent() {
   })
   const [creatingDeal, setCreatingDeal] = useState(false)
   const [deletingDeal, setDeletingDeal] = useState(null)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   useEffect(() => {
     // Get client ID from URL params and fetch client data
@@ -479,8 +480,18 @@ console.log("client",client)
 
   return (
     <div className="flex min-h-screen">
+      {/* Mobile Menu Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="fixed left-0 top-0 h-screen w-[284px] bg-[#03171a] text-white p-6 flex flex-col overflow-y-auto z-10">
+      <aside className={`fixed left-0 top-0 h-screen w-[284px] bg-[#03171a] text-white p-6 flex flex-col overflow-y-auto z-50 transition-transform duration-300 ${
+        isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+      }`}>
         <div className="mb-8">
             <KolosLogo/>
         </div>
@@ -542,24 +553,33 @@ console.log("client",client)
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 ml-[284px] bg-[#f5f3f0]">
+      <main className="flex-1 lg:ml-[284px] bg-[#f5f3f0]">
         <div className="max-w-[1400px] mx-auto">
           {/* Header - Fixed */}
           <div className="sticky top-0 bg-[#f5f3f0] z-20 border-b border-gray-200 shadow-sm">
-            <div className="flex justify-between items-center p-8 pb-4">
-            <div className="flex items-center gap-4">
+            <div className="flex justify-between items-center p-4 lg:p-8 pb-4">
+            <div className="flex items-center gap-2 lg:gap-4 flex-1 min-w-0">
+              {/* Mobile Menu Button */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="lg:hidden flex items-center gap-2 text-[#0a3d3d] hover:bg-[#0a3d3d]/10"
+              >
+                <Menu className="w-5 h-5" />
+              </Button>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => router.push("/")}
-                className="flex items-center gap-2 text-[#0a3d3d] hover:bg-[#0a3d3d]/10"
+                className="hidden sm:flex items-center gap-2 text-[#0a3d3d] hover:bg-[#0a3d3d]/10"
               >
                 <ArrowLeft className="w-4 h-4" />
-                Back to Dashboard
+                <span className="hidden md:inline">Back to Dashboard</span>
               </Button>
-              <h1 className="text-3xl font-serif text-[#0a3d3d]">{clientName} Dashboard</h1>
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-serif text-[#0a3d3d] truncate">{clientName} Dashboard</h1>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 lg:gap-3 flex-shrink-0">
               {isEditing ? (
                 <>
                   <Button
@@ -598,7 +618,7 @@ console.log("client",client)
                   Edit Profile
                 </Button>
               )}
-              <Avatar className="h-12 w-12">
+              <Avatar className="h-10 w-10 lg:h-12 lg:w-12">
                 <AvatarImage src="/placeholder-avatar.jpg" alt={clientName} />
                 <AvatarFallback>{getInitials(clientName)}</AvatarFallback>
               </Avatar>
@@ -607,14 +627,14 @@ console.log("client",client)
           </div>
 
           {/* Content Area */}
-          <div className="p-8 pt-4">
+          <div className="p-4 sm:p-6 lg:p-8 pt-4">
           {/* Basic Information */}
           {isEditing && (
             <section className="mb-8">
               <Card className="bg-white border-none shadow-sm">
                 <CardContent className="p-6">
-                  <h2 className="text-xl font-serif text-[#c9a961] mb-4">Basic Information</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <h2 className="text-lg sm:text-xl font-serif text-[#c9a961] mb-4">Basic Information</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
                       <input
@@ -724,8 +744,8 @@ console.log("client",client)
           )}
           {/* Select Your Role */}
           <section className="mb-8">
-            <h2 className="text-xl font-serif text-[#c9a961] mb-4">Select Your Role</h2>
-            <div className="grid grid-cols-4 gap-4 font-hedvig">
+            <h2 className="text-lg sm:text-xl font-serif text-[#c9a961] mb-4">Select Your Role</h2>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 font-hedvig">
               {["Investor", "Entrepreneur", "Asset Manager", "Facilitator"].map((role) => (
                 <Button
                   key={role}
@@ -735,7 +755,7 @@ console.log("client",client)
                       setEditData({...editData, role: role})
                     }
                   }}
-                  className={`rounded-full py-6 ${
+                  className={`rounded-full py-4 lg:py-6 text-sm lg:text-base ${
                     (isEditing ? editData.role : selectedRole) === role
                       ? "bg-[#0a3d3d] hover:bg-[#0a3d3d]/90 text-white"
                       : "bg-[#c9a961] hover:bg-[#c9a961]/90 text-[#0a3d3d]"
@@ -751,7 +771,7 @@ console.log("client",client)
           <section className="mb-8">
             <Card className="bg-white border-none shadow-sm">
               <CardContent className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
                   {/* Check Size - Only for Investor or Asset Manager */}
                   {(() => {
                     const currentRole = isEditing ? editData.role : selectedRole;
@@ -909,13 +929,13 @@ console.log("client",client)
 
           {/* Business Goals Overview */}
           <section className="mb-8">
-            <h2 className="text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
+            <h2 className="text-lg sm:text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
               <span className="text-[#c9a961]">◎</span>
               Business Goals Overview
             </h2>
             {isEditing ? (
               <Card className="bg-white border-none shadow-sm">
-                <CardContent className="p-6">
+                <CardContent className="p-4 sm:p-6">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Goals (one per line)</label>
                   <textarea
                     value={editData.goals || ""}
@@ -926,7 +946,7 @@ console.log("client",client)
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6">
                 {getGoals().slice(0, 2).map((goal, index) => (
                   <Card key={index} className="bg-white border-none shadow-sm">
                     <CardContent className="p-6">
@@ -965,22 +985,22 @@ console.log("client",client)
 
           {/* Live Private Deal Flow */}
           <section className="mb-8">
-            <h2 className="text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
+            <h2 className="text-lg sm:text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
               <span className="text-[#c9a961]">⊟</span>
               Signals
             </h2>
             <Card className="bg-white border-none shadow-sm">
-              <CardContent className="p-6">
+              <CardContent className="p-4 sm:p-6">
                 {signals.length > 0 ? (
-                  <div className="space-y-6 max-h-[600px] overflow-y-auto pr-2">
+                  <div className="space-y-4 lg:space-y-6 max-h-[600px] overflow-y-auto pr-2">
                     {signals.map((signal, index) => {
                       const badge = getIndustryBadge(signal.signal_type, signal.category)
                       return (
-                        <div key={index} className="border border-gray-200 rounded-lg p-6 space-y-4 hover:shadow-md transition-shadow">
+                        <div key={index} className="border border-gray-200 rounded-lg p-4 sm:p-6 space-y-4 hover:shadow-md transition-shadow">
                           {/* Header Row */}
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1">
-                              <h3 className="font-semibold text-[#0a3d3d] text-lg mb-2">
+                          <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-[#0a3d3d] text-base sm:text-lg mb-2 break-words">
                                 {signal.headline_source || `Signal ${index + 1}`}
                               </h3>
                               {signal.url && (
@@ -1013,7 +1033,7 @@ console.log("client",client)
                           </div>
 
                           {/* Details Grid */}
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 text-sm">
                             <div>
                               <div className="text-gray-500 mb-1">Date</div>
                               <div className="font-medium text-[#0a3d3d]">
@@ -1089,36 +1109,36 @@ console.log("client",client)
 
           {/* Active Deals */}
           <section className="mb-8">
-            <h2 className="text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
+            <h2 className="text-lg sm:text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
               <span className="text-[#c9a961]">💼</span>
               Active Deals
             </h2>
             <Card className="bg-white border-none shadow-sm">
-              <CardContent className="p-6">
+              <CardContent className="p-4 sm:p-6">
                 {deals.length > 0 ? (
-                  <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
-                    <table className="w-full border-collapse">
+                  <div className="overflow-x-auto max-h-[600px] overflow-y-auto -mx-4 sm:mx-0">
+                    <table className="w-full border-collapse min-w-[800px]">
                       <thead className="sticky top-0 bg-white z-20">
                         <tr className="border-b border-gray-200">
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 bg-white">Deal Name</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 bg-white">Target</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 bg-white">Source</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 bg-white">Stage</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 bg-white">Target Deal Size</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 bg-white">Next Step</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 bg-white">Actions</th>
+                          <th className="text-left py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-gray-700 bg-white">Deal Name</th>
+                          <th className="text-left py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-gray-700 bg-white hidden md:table-cell">Target</th>
+                          <th className="text-left py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-gray-700 bg-white hidden lg:table-cell">Source</th>
+                          <th className="text-left py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-gray-700 bg-white">Stage</th>
+                          <th className="text-left py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-gray-700 bg-white hidden lg:table-cell">Target Deal Size</th>
+                          <th className="text-left py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-gray-700 bg-white hidden xl:table-cell">Next Step</th>
+                          <th className="text-left py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-gray-700 bg-white">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {deals.map((deal, index) => (
                           <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                            <td className="py-3 px-4 text-sm text-[#0a3d3d] font-medium">
+                            <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-[#0a3d3d] font-medium">
                               {deal.deal_name || deal["deal_name"] || "-"}
                             </td>
-                            <td className="py-3 px-4 text-sm text-gray-700">
+                            <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-700 hidden md:table-cell">
                               {deal.target || deal["target"] || "-"}
                             </td>
-                            <td className="py-3 px-4 text-sm text-gray-700">
+                            <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-700 hidden lg:table-cell">
                               {deal.source || deal["source"] || "-"}
                             </td>
                             <td className="py-3 px-4 text-sm">
@@ -1133,11 +1153,11 @@ console.log("client",client)
                                     onChange={(e) => handleStageChange(dealId, e.target.value)}
                                     disabled={isUpdating || !dealId}
                                     style={{ 
-                                      minWidth: '150px',
+                                      minWidth: '120px',
                                       zIndex: 1,
                                       position: 'relative'
                                     }}
-                                    className={`px-3 py-2 rounded-md border-2 border-gray-300 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] focus:border-[#0a3d3d] ${
+                                    className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-md border-2 border-gray-300 text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] focus:border-[#0a3d3d] ${
                                       currentStage === "closed" 
                                         ? "bg-green-100 text-green-800 border-green-300"
                                         : currentStage === "in negotiation"
@@ -1161,13 +1181,13 @@ console.log("client",client)
                                 )
                               })()}
                             </td>
-                            <td className="py-3 px-4 text-sm text-gray-700">
+                            <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-700 hidden lg:table-cell">
                               {deal.target_deal_size || deal["target_deal_size"] || "-"}
                             </td>
-                            <td className="py-3 px-4 text-sm text-gray-600">
+                            <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-600 hidden xl:table-cell">
                               {deal.next_step || deal["next_step"] || "-"}
                             </td>
-                            <td className="py-3 px-4 text-sm">
+                            <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm">
                               {(() => {
                                 const dealId = deal.deal_id || deal["deal_id"] || deal.id || deal["id"]
                                 const isDeleting = deletingDeal === dealId
@@ -1205,7 +1225,7 @@ console.log("client",client)
 
           {/* Industry & Geographic Focus */}
           <section className="mb-8">
-            <h2 className="text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
+            <h2 className="text-lg sm:text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
               <span className="text-[#c9a961]">◇</span>
               Industry & Geographic Focus
             </h2>
@@ -1256,12 +1276,12 @@ console.log("client",client)
           <div className="mb-8">
             {/* Business Requests */}
             <section className="mb-8">
-              <h2 className="text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
+              <h2 className="text-lg sm:text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
                 <span className="text-[#c9a961]">⊞</span>
-                {clientName}'s Business Requests
+                <span className="break-words">{clientName}'s Business Requests</span>
               </h2>
               <Card className="bg-white border-none shadow-sm">
-                <CardContent className="p-6">
+                <CardContent className="p-4 sm:p-6">
                   {isEditing ? (
                     <div className="space-y-4">
                       <div>
@@ -1287,17 +1307,17 @@ console.log("client",client)
                   ) : (
                     client.active_deal || client["active_deal"] || client.Active_deal || client["Active_deal"] ? (
                       <div className="space-y-4">
-                        <div className="grid grid-cols-12 gap-4 pb-2 border-b text-sm text-gray-600 font-medium">
-                          <div className="col-span-5">Request</div>
-                          <div className="col-span-4">Location</div>
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-4 pb-2 border-b text-sm text-gray-600 font-medium">
+                          <div className="col-span-1 sm:col-span-5">Request</div>
+                          <div className="col-span-1 sm:col-span-4">Location</div>
                         </div>
 
-                        <div className="grid grid-cols-12 gap-4 items-center py-3">
-                          <div className="col-span-5">
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-4 items-center py-3">
+                          <div className="col-span-1 sm:col-span-5">
                             <div className="font-semibold">Active Deal/Project</div>
-                            <div className="text-sm text-gray-600">{client.active_deal || client["active_deal"] || client.Active_deal || client["Active_deal"]}</div>
+                            <div className="text-sm text-gray-600 break-words">{client.active_deal || client["active_deal"] || client.Active_deal || client["Active_deal"]}</div>
                           </div>
-                          <div className="col-span-4 text-sm">
+                          <div className="col-span-1 sm:col-span-4 text-sm break-words">
                             {client.travel_cities || client["travel_cities"] || client["Travel Cities"] || client.city || client["city"] || client["City"] || client.regions?.[0] || client["Regions"]?.[0] || "-"}
                           </div>
                         </div>
@@ -1312,12 +1332,12 @@ console.log("client",client)
 
             {/* Potential Business Matches */}
             <section>
-              <h2 className="text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
+              <h2 className="text-lg sm:text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
                 <span className="text-[#c9a961]">⚭</span>
                 Potential Business Matches
               </h2>
               <Card className="bg-white border-none shadow-sm">
-                <CardContent className="p-6">
+                <CardContent className="p-4 sm:p-6">
                   <div className="space-y-4">
                     <div className="pb-2 border-b text-sm text-gray-600 font-medium">
                       Request
@@ -1340,72 +1360,72 @@ console.log("client",client)
 
           {/* OPM Travel Plans */}
           <section className="mb-8">
-            <h2 className="text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
+            <h2 className="text-lg sm:text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
               <span className="text-[#c9a961]">✈</span>
               OPM Travel Plans
             </h2>
             <Card className="bg-white border-none shadow-sm">
-              <CardContent className="p-6">
+              <CardContent className="p-4 sm:p-6">
                 <div className="space-y-4">
-                  <div className="grid grid-cols-12 gap-4 pb-2 border-b text-sm text-gray-600 font-medium">
+                  <div className="hidden sm:grid grid-cols-12 gap-4 pb-2 border-b text-sm text-gray-600 font-medium">
                     <div className="col-span-3">Customer</div>
                     <div className="col-span-2">OPM #</div>
                     <div className="col-span-4">Travel Plans</div>
                     <div className="col-span-3">Date</div>
                   </div>
 
-                  <div className="grid grid-cols-12 gap-4 items-center py-3 border-b border-gray-100">
-                    <div className="col-span-3 flex items-center gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-4 items-start py-3 border-b border-gray-100">
+                    <div className="col-span-1 sm:col-span-3 flex items-center gap-2">
                       <Avatar className="h-8 w-8">
                         <AvatarFallback>VG</AvatarFallback>
                       </Avatar>
                       <span className="text-sm">Vit Goncharuk/AI</span>
                     </div>
-                    <div className="col-span-2">
+                    <div className="col-span-1 sm:col-span-2">
                       <Badge className="bg-[#b8d8d8] text-[#0a3d3d] hover:bg-[#b8d8d8]">OPM62</Badge>
                     </div>
-                    <div className="col-span-4 text-sm">
+                    <div className="col-span-1 sm:col-span-4 text-sm">
                       <div>Washington → Miami</div>
                       <div>Washington → Finland</div>
                     </div>
-                    <div className="col-span-3 text-sm">
+                    <div className="col-span-1 sm:col-span-3 text-sm">
                       <div>February 21 - 23, 2025</div>
                       <div>February 27 - March 5, 2025</div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-12 gap-4 items-center py-3 border-b border-gray-100">
-                    <div className="col-span-3 flex items-center gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-4 items-start py-3 border-b border-gray-100">
+                    <div className="col-span-1 sm:col-span-3 flex items-center gap-2">
                       <Avatar className="h-8 w-8">
                         <AvatarFallback>ZZ</AvatarFallback>
                       </Avatar>
                       <span className="text-sm">Zoe Zhao/Re</span>
                     </div>
-                    <div className="col-span-2">
+                    <div className="col-span-1 sm:col-span-2">
                       <Badge className="bg-[#b8d8d8] text-[#0a3d3d] hover:bg-[#b8d8d8]">OPM55</Badge>
                     </div>
-                    <div className="col-span-4 text-sm">
+                    <div className="col-span-1 sm:col-span-4 text-sm">
                       New York City → Barcelona/YPO Edge
                     </div>
-                    <div className="col-span-3 text-sm">
+                    <div className="col-span-1 sm:col-span-3 text-sm">
                       February 18 - 25, 2025
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-12 gap-4 items-center py-3">
-                    <div className="col-span-3 flex items-center gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-4 items-start py-3">
+                    <div className="col-span-1 sm:col-span-3 flex items-center gap-2">
                       <Avatar className="h-8 w-8">
                         <AvatarFallback>HH</AvatarFallback>
                       </Avatar>
                       <span className="text-sm">Hans Hammer</span>
                     </div>
-                    <div className="col-span-2">
+                    <div className="col-span-1 sm:col-span-2">
                       <Badge className="bg-[#b8d8d8] text-[#0a3d3d] hover:bg-[#b8d8d8]">OPM53</Badge>
                     </div>
-                    <div className="col-span-4 text-sm">
+                    <div className="col-span-1 sm:col-span-4 text-sm">
                       Germany → New York City
                     </div>
-                    <div className="col-span-3 text-sm">
+                    <div className="col-span-1 sm:col-span-3 text-sm">
                       February 18 - 25, 2025
                     </div>
                   </div>
@@ -1416,54 +1436,54 @@ console.log("client",client)
 
           {/* Upcoming Industry Events */}
           <section className="mb-8">
-            <h2 className="text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
+            <h2 className="text-lg sm:text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
               <span className="text-[#c9a961]">📅</span>
               Upcoming Industry Events
             </h2>
             <Card className="bg-white border-none shadow-sm">
-              <CardContent className="p-6">
+              <CardContent className="p-4 sm:p-6">
                 <div className="space-y-4">
-                  <div className="grid grid-cols-12 gap-4 pb-2 border-b text-sm text-gray-600 font-medium">
+                  <div className="hidden sm:grid grid-cols-12 gap-4 pb-2 border-b text-sm text-gray-600 font-medium">
                     <div className="col-span-4">Event</div>
                     <div className="col-span-3">Industry</div>
                     <div className="col-span-3">Location</div>
                     <div className="col-span-2">Event Date</div>
                   </div>
 
-                  <div className="grid grid-cols-12 gap-4 items-center py-3 border-b border-gray-100">
-                    <div className="col-span-4 text-[#c9a961] font-semibold">Ken Hersh Private Equity & Sports</div>
-                    <div className="col-span-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-4 items-start py-3 border-b border-gray-100">
+                    <div className="col-span-1 sm:col-span-4 text-[#c9a961] font-semibold break-words">Ken Hersh Private Equity & Sports</div>
+                    <div className="col-span-1 sm:col-span-3">
                       <Badge className="bg-[#e8d8c8] text-[#8b5f3e] hover:bg-[#e8d8c8]">💼 Finance & Privat Equity</Badge>
                     </div>
-                    <div className="col-span-3 text-sm">Virtual</div>
-                    <div className="col-span-2 text-sm">March 8, 2025 (11 AM ET)</div>
+                    <div className="col-span-1 sm:col-span-3 text-sm">Virtual</div>
+                    <div className="col-span-1 sm:col-span-2 text-sm">March 8, 2025 (11 AM ET)</div>
                   </div>
 
-                  <div className="grid grid-cols-12 gap-4 items-center py-3 border-b border-gray-100">
-                    <div className="col-span-4 font-semibold">DFW State of the Market</div>
-                    <div className="col-span-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-4 items-start py-3 border-b border-gray-100">
+                    <div className="col-span-1 sm:col-span-4 font-semibold break-words">DFW State of the Market</div>
+                    <div className="col-span-1 sm:col-span-3">
                       <Badge className="bg-[#e8dcc8] text-[#8b6f3e] hover:bg-[#e8dcc8]">🏗 Real Estate & Infrastructure</Badge>
                     </div>
-                    <div className="col-span-3 text-sm">Dallas, TX</div>
-                    <div className="col-span-2 text-sm">March 5, 2025</div>
+                    <div className="col-span-1 sm:col-span-3 text-sm">Dallas, TX</div>
+                    <div className="col-span-1 sm:col-span-2 text-sm">March 5, 2025</div>
                   </div>
 
-                  <div className="grid grid-cols-12 gap-4 items-center py-3 border-b border-gray-100">
-                    <div className="col-span-4 font-semibold">IREI Spring Conference</div>
-                    <div className="col-span-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-4 items-start py-3 border-b border-gray-100">
+                    <div className="col-span-1 sm:col-span-4 font-semibold break-words">IREI Spring Conference</div>
+                    <div className="col-span-1 sm:col-span-3">
                       <Badge className="bg-[#e8dcc8] text-[#8b6f3e] hover:bg-[#e8dcc8]">🏗 Real Estate & Infrastructure</Badge>
                     </div>
-                    <div className="col-span-3 text-sm">Dallas, TX</div>
-                    <div className="col-span-2 text-sm">March 25 - 26, 2025</div>
+                    <div className="col-span-1 sm:col-span-3 text-sm">Dallas, TX</div>
+                    <div className="col-span-1 sm:col-span-2 text-sm">March 25 - 26, 2025</div>
                   </div>
 
-                  <div className="grid grid-cols-12 gap-4 items-center py-3">
-                    <div className="col-span-4 font-semibold">Global Energy Meet (GEM) 2025</div>
-                    <div className="col-span-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-4 items-start py-3">
+                    <div className="col-span-1 sm:col-span-4 font-semibold break-words">Global Energy Meet (GEM) 2025</div>
+                    <div className="col-span-1 sm:col-span-3">
                       <Badge className="bg-[#f0e8d0] text-[#8b7537] hover:bg-[#f0e8d0]">⚡ Renewable Energy</Badge>
                     </div>
-                    <div className="col-span-3 text-sm">Houston, TX</div>
-                    <div className="col-span-2 text-sm">March 5-6, 2025</div>
+                    <div className="col-span-1 sm:col-span-3 text-sm">Houston, TX</div>
+                    <div className="col-span-1 sm:col-span-2 text-sm">March 5-6, 2025</div>
                   </div>
                 </div>
               </CardContent>
@@ -1474,9 +1494,9 @@ console.log("client",client)
 
         {/* Create Deal Modal */}
         {showCreateDealModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <Card className="w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
-              <CardContent className="p-6">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+              <CardContent className="p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-2xl font-serif text-[#0a3d3d]">Create New Deal</h2>
                   <Button

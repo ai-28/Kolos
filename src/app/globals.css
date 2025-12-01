@@ -2,7 +2,7 @@
 
 @theme {
   /* Define custom colors for Tailwind utility classes (bg-primary, text-foreground, etc.) */
-  --color-background: hsl(40 20% 95%);
+  --color-background: hsl(0 20% 95%);
   --color-foreground: hsl(240 10% 3.9%);
   --color-card: hsl(0 0% 100%);
   --color-card-foreground: hsl(240 10% 3.9%);
@@ -51,6 +51,7 @@
   --chart-3: 197 37% 24%;
   --chart-4: 43 74% 66%;
   --chart-5: 27 87% 67%;
+  --fancy-border-angle: 45deg;
 }
 
 .dark {
@@ -85,7 +86,7 @@
 }
 
 body {
-  background-color: hsl(var(--background));
+  background-color: #ffffff;
   color: hsl(var(--foreground));
 }
 

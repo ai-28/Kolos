@@ -324,18 +324,24 @@ export default function VoiceWidget({ isOpen, onClose, autoStart = true }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-2xl w-full max-w-md flex flex-col h-[700px]">
+      <div 
+        className="w-full max-w-md rounded-[20px] p-[3px]"
+        style={{
+          background: 'linear-gradient(var(--fancy-border-angle, 45deg), #bc82f3 0%, #f5b9ea 20%, #8d99ff 40%, #aa6eee 60%, #ff6778 80%, #ffba71 103%)',
+        }}
+      >
+        <div className="bg-white rounded-[17px] shadow-2xl w-full flex flex-col h-[700px] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
+        <div className="flex items-center bg-[#191919] justify-between p-4 border-b flex-shrink-0">
           <div className="flex items-center gap-3">
             <img
-              src="https://storage.mlcdn.com/account_image/1108377/l1IcJ0rEULJH2abWtkQaEOpl3jJqZRVMyJloBUMd.jpg"
-              alt="Jessica"
+              src="https://uat-cdn.nextlevel.ai/widgets/images/agent.jpg"
+              alt="jessica"      
               className="w-10 h-10 rounded-full"
             />
             <div>
-              <h3 className="font-semibold text-gray-900">Jessica</h3>
-              <p className="text-xs text-gray-500">{agentStatus}</p>
+              <h3 className="font-semibold text-white">Jessica</h3>
+              <p className="text-xs text-white">{agentStatus}</p>
             </div>
           </div>
           <button
@@ -441,6 +447,7 @@ export default function VoiceWidget({ isOpen, onClose, autoStart = true }) {
               ? "Check browser settings → Privacy → Microphone → Allow access"
               : "Connecting to voice agent..."}
           </p>
+        </div>
         </div>
       </div>
     </div>
