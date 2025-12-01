@@ -9,6 +9,7 @@ import {KolosLogo} from "@/app/components/svg"
 import { useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, Loader2, Edit2, Save, X, Trash2, Menu } from "lucide-react"
 import { toast } from "sonner"
+import { DashboardIcon, BusinessGoalsIcon,SignalsIcon, IndustryFocusIcon, BusinessMatchIcon, BusinessRequestsIcon,TravelPlanIcon, UpcomingEventIcon } from "@/app/components/svg"
 
 function ClientDashboardContent() {
   const router = useRouter()
@@ -497,36 +498,36 @@ console.log("client",client)
         </div>
 
         <nav className="space-y-1 flex-1 text-[16px] font-hedvig">
-          <a href="#" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-white/10 transition-colors">
-            <span className="text-[#c9a961]">◫</span>
-            <span>Dashboard</span>
+          <a href="#" className="flex items-center gap-3 py-3 rounded hover:bg-white/10 transition-colors">
+              <DashboardIcon/>
+            <span className="font-thin">Dashboard</span>
           </a>
-          <a href="#" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-white/10 transition-colors">
-            <span className="text-[#c9a961]">◎</span>
+          <a href="#business-goals" className="flex items-center gap-3 py-3 rounded hover:bg-white/10 transition-colors">
+            <BusinessGoalsIcon/>
             <span>Business Goals</span>
           </a>
-          <a href="#" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-white/10 transition-colors">
-            <span className="text-[#c9a961]">⊟</span>
-            <span>Live Private Deal Flow</span>
+          <a href="#signals" className="flex items-center gap-3 py-3 rounded hover:bg-white/10 transition-colors">
+            <SignalsIcon/>
+            <span>Signals</span>
           </a>
-          <a href="#" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-white/10 transition-colors">
-            <span className="text-[#c9a961]">◇</span>
+          <a href="#industry-focus" className="flex items-center gap-3 py-3 rounded hover:bg-white/10 transition-colors">
+            <IndustryFocusIcon/>
             <span>Industry Focus</span>
           </a>
-          <a href="#" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-white/10 transition-colors">
-            <span className="text-[#c9a961]">⊙</span>
+          <a href="#business-requests" className="flex items-center gap-3 py-3 rounded hover:bg-white/10 transition-colors">
+            <BusinessRequestsIcon/>
             <span>Business Requests</span>
           </a>
-          <a href="#" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-white/10 transition-colors">
-            <span className="text-[#c9a961]">⚭</span>
+          <a href="#business-matches" className="flex items-center gap-3 py-3 rounded hover:bg-white/10 transition-colors">
+            <BusinessMatchIcon/>
             <span>Business Match</span>
           </a>
-          <a href="#" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-white/10 transition-colors">
-            <span className="text-[#c9a961]">✈</span>
+          <a href="#opm-travel-plans" className="flex items-center gap-3 py-3 rounded hover:bg-white/10 transition-colors">
+            <TravelPlanIcon/>
             <span>Travel Planning</span>
           </a>
-          <a href="#" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-white/10 transition-colors">
-            <span className="text-[#c9a961]">⊟</span>
+          <a href="#upcoming-industry-events" className="flex items-center gap-3 py-3 rounded hover:bg-white/10 transition-colors">
+            <UpcomingEventIcon/>
             <span>Upcoming Events</span>
           </a>
         </nav>
@@ -618,10 +619,10 @@ console.log("client",client)
                   Edit Profile
                 </Button>
               )}
-              <Avatar className="h-10 w-10 lg:h-12 lg:w-12">
+              {/* <Avatar className="h-10 w-10 lg:h-12 lg:w-12">
                 <AvatarImage src="/placeholder-avatar.jpg" alt={clientName} />
                 <AvatarFallback>{getInitials(clientName)}</AvatarFallback>
-              </Avatar>
+              </Avatar> */}
             </div>
             </div>
           </div>
@@ -928,7 +929,7 @@ console.log("client",client)
           </section>
 
           {/* Business Goals Overview */}
-          <section className="mb-8">
+          <section className="mb-8" id="business-goals">
             <h2 className="text-lg sm:text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
               <span className="text-[#c9a961]">◎</span>
               Business Goals Overview
@@ -984,7 +985,7 @@ console.log("client",client)
           </section>
 
           {/* Live Private Deal Flow */}
-          <section className="mb-8">
+          <section className="mb-8" id="signals">
             <h2 className="text-lg sm:text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
               <span className="text-[#c9a961]">⊟</span>
               Signals
@@ -1108,7 +1109,7 @@ console.log("client",client)
           </section>
 
           {/* Active Deals */}
-          <section className="mb-8">
+          <section className="mb-8" id="active-deals">
             <h2 className="text-lg sm:text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
               <span className="text-[#c9a961]">💼</span>
               Active Deals
@@ -1273,7 +1274,7 @@ console.log("client",client)
             )}
           </section>
 
-          <div className="mb-8">
+          <div className="mb-8" id="business-requests">
             {/* Business Requests */}
             <section className="mb-8">
               <h2 className="text-lg sm:text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
@@ -1331,7 +1332,7 @@ console.log("client",client)
             </section>
 
             {/* Potential Business Matches */}
-            <section>
+            <section id="business-matches">
               <h2 className="text-lg sm:text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
                 <span className="text-[#c9a961]">⚭</span>
                 Potential Business Matches
@@ -1359,7 +1360,7 @@ console.log("client",client)
           </div>
 
           {/* OPM Travel Plans */}
-          <section className="mb-8">
+          <section className="mb-8" id="opm-travel-plans">
             <h2 className="text-lg sm:text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
               <span className="text-[#c9a961]">✈</span>
               OPM Travel Plans
@@ -1435,7 +1436,7 @@ console.log("client",client)
           </section>
 
           {/* Upcoming Industry Events */}
-          <section className="mb-8">
+          <section className="mb-8" id="upcoming-industry-events">
             <h2 className="text-lg sm:text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
               <span className="text-[#c9a961]">📅</span>
               Upcoming Industry Events

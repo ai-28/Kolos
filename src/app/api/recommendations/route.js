@@ -81,14 +81,16 @@ STEP 2 - FIND AND SELECT SIGNALS
 Using the CLIENT_PROFILE:
 
 1) Search or reason through recent news and events that match the client’s regions, sectors, and triggers.  
+it must be vaild, not just fake.
 2) Only keep items that are directly useful to create conversations or deals for this client.  
    - For Colaberry(client's company name): things like mass layoffs, new data center build, grid expansion, utility digitalization, veteran hiring programs, workforce boards initiatives.  
 3) Ignore:
    - Macro opinion pieces with no named company or project.
    - Very small local stories with no enterprise angle.
    - Items older than the recency window unless they are still clearly actionable.
+   - Fake link URL or content
 
-Aim for 10–15 strong items.
+Aim for 8 strong actual valid signals.
 
 -----------------------------------
 STEP 3 - SCORE R, O, A FOR EACH ROW
@@ -120,7 +122,7 @@ Then:
 STEP 4 - FILL THE ROWS LIKE EXAMPLE
 ------------------------------------
 
-For each signal create one row with these definitions:
+For each valid signal create one row with these definitions:
 
 - date:  
   - Event or publication date in client time zone (for Kolos use CT).  
@@ -133,6 +135,7 @@ For each signal create one row with these definitions:
 
 - url:  
   - Direct link to the original article or event page.
+  - It must be vaild, not just fake.
 
 - category:  
   - Use fixed value <client_slug>_opportunity.  
@@ -194,7 +197,7 @@ Important:
 - All dates must be strings in YYYY-MM-DD format
 - All numeric values (time_window_days, overall) must be numbers, not strings
 - scores_R_O_A must be a string like "5,5,4"
-  
+- Every signals must be vaild, not just fake.
 `;
 
     const completion = await client.chat.completions.create({
