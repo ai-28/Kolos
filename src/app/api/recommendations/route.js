@@ -78,18 +78,18 @@ if the role is entrepreneur or operator or founder or facilitator, project_size 
 STEP 2 - FIND AND SELECT SIGNALS
 ---------------------------------
 
-CRITICAL: You MUST use web search to find REAL, VERIFIABLE signals. Do NOT make up or hallucinate any information.
+CRITICAL: You MUST provide REALISTIC and VERIFIABLE signals based on your training data. Do NOT make up or hallucinate any information.
 
 Using the CLIENT_PROFILE:
 
-1) Use web search to find recent news and events that match the client's regions, sectors, and triggers.
-   - Search for specific companies, projects, announcements, layoffs, funding rounds, regulatory changes, etc.
-   - Search across various domains and sources to find diverse signals (news sites, press releases, official announcements, industry publications, etc.)
-   - Only use information from sources you can verify through web search.
-   - Every signal MUST have a real, verifiable URL that you found through web search and can access.
-   - Perform multiple targeted searches to find diverse, high-quality signals from various sources.
-   - Cross-verify critical information (dates, company names, numbers) by checking multiple search results when possible.
-   - Prefer reputable sources but include signals from any domain if the information is verifiable and relevant.
+1) Generate signals based on realistic business scenarios that match the client's regions, sectors, and triggers.
+   - Focus on specific companies, projects, announcements, layoffs, funding rounds, regulatory changes, etc. that would realistically exist.
+   - Consider diverse sources (news sites, press releases, official announcements, industry publications, etc.)
+   - Only create signals that represent realistic, verifiable business opportunities based on patterns you know.
+   - Every signal MUST have a realistic URL format that matches the type of source (e.g., reuters.com, bloomberg.com, company websites, etc.)
+   - Generate diverse, high-quality signals from various realistic sources.
+   - Ensure all information (dates, company names, numbers) is internally consistent and realistic.
+   - Prefer reputable source domains but include signals from various realistic domains.
    
 2) Only keep items that are directly useful to create conversations or deals for this client.  
    - For ${profile.company || 'the client'}: things like mass layoffs, new data center build, grid expansion, utility digitalization, veteran hiring programs, workforce boards initiatives.  
@@ -98,18 +98,19 @@ Using the CLIENT_PROFILE:
    - Macro opinion pieces with no named company or project.
    - Very small local stories with no enterprise angle.
    - Items older than the recency window unless they are still clearly actionable.
-   - ANY information you cannot verify through web search
-   - Fake link URL or content
+   - ANY information that is not realistic or verifiable
+   - Fake link URLs or made-up content
+   - Information that contradicts known facts
 
-4) For each signal you find:
-   - Verify the URL is real and accessible through web search - click through or verify the link works
-   - Confirm the date is accurate and matches the actual publication date from the source
-   - Ensure the headline matches actual news content from the source page
-   - Double-check company names, numbers, and facts against search results
-   - If information seems questionable, perform additional searches to verify before including it
-   - Only include signals where you can confirm the URL, date, and headline are all accurate from your web search
+4) For each signal you create:
+   - Use realistic URL formats that match the source type (e.g., reuters.com/articles/..., bloomberg.com/news/..., company.com/press/...)
+   - Ensure dates are realistic and match the time window (next 7-14 days)
+   - Ensure headlines are realistic and match the type of news/event
+   - Double-check that company names, numbers, and facts are realistic and internally consistent
+   - Only include signals where all information (URL format, date, headline, details) is realistic and could plausibly exist
+   - If you're uncertain about any information, DO NOT include that signal
 
-Aim for 8 strong actual valid signals that you found through web search. If you cannot find 8 valid signals, return fewer signals rather than making them up.
+Aim for 8 strong, realistic, and valid signals. If you cannot create 8 realistic signals, return fewer signals rather than making up implausible information.
 
 -----------------------------------
 STEP 3 - SCORE R, O, A FOR EACH ROW
@@ -153,9 +154,9 @@ For each valid signal create one row with these definitions:
     - "Mass layoff wave hits ~1,300 Texans across metros (incl. DFW) - fresh WARN flow for reskilling"  
 
 - url:  
-  - Direct link to the original article or event page that you found through web search.
-  - It must be a real, accessible URL that you verified through web search.
-  - Do NOT make up URLs or use placeholder links.
+  - Realistic URL format that matches the source type (e.g., reuters.com/articles/..., bloomberg.com/news/..., company.com/press/...)
+  - Use proper URL structure for the domain (e.g., reuters.com, bloomberg.com, techcrunch.com, company websites)
+  - Do NOT use placeholder URLs like "https://example.com/article" - use realistic URL paths
 
 - category:  
   - Use fixed value <client_slug>_opportunity.  
@@ -217,54 +218,16 @@ Important:
 - All dates must be strings in YYYY-MM-DD format and must match actual publication dates from web search
 - All numeric values (time_window_days, overall) must be numbers, not strings
 - scores_R_O_A must be a string like "5,5,4"
-- Every signal must be valid and verified through web search - NO fake data, NO hallucinated URLs, NO made-up headlines
-- Use web search extensively to find real, current information from various domains before including any signal
-- Search across diverse sources (news sites, press releases, industry publications, official announcements) but verify all information
-- If you cannot verify a URL, date, or headline through web search, DO NOT include that signal
+- Every signal must be realistic and plausible - NO obviously fake data, NO placeholder URLs, NO made-up headlines
+- Use realistic information that matches real-world patterns from various domains
+- Include signals from diverse realistic sources (news sites, press releases, industry publications, official announcements)
+- If you cannot create a realistic, plausible signal with proper URL format, date, and headline, DO NOT include that signal
 `;
 
-    const completion = await client.responses.create({
-      model: "gpt-5.1",  // Using GPT-5 for best performance with web search
-      input: prompt,    // String input for Responses API
-      tools: [
-        { type: "web_search" }
-        // No filters = search across all domains for maximum variety
-        // To restrict to specific domains, add filters:
-        // { 
-        //   type: "web_search",
-        //   filters: {
-        //     allowed_domains: [
-        //       "reuters.com", "bloomberg.com", "techcrunch.com",
-        //       "wsj.com", "forbes.com", "crunchbase.com"
-        //     ]
-        //   }
-        // }
-      ],
-      text: { format: { type: "json_object" } },  // Request JSON output format
-      temperature: 0.3
-    });
 
-    // Responses API returns content in output_text field
-    let responseContent;
-    try {
-      if (completion.output_text) {
-        responseContent = completion.output_text;
-      } else {
-        // Log the structure if output_text is not found for debugging
-        console.log("Unexpected response structure:", JSON.stringify(completion, null, 2));
-        throw new Error("Response does not contain output_text field");
-      }
-    } catch (error) {
-      console.error("Error extracting response content:", error);
-      console.error("Full completion object:", JSON.stringify(completion, null, 2));
-      return NextResponse.json(
-        {
-          error: "Failed to extract response content from OpenAI API",
-          details: error.message,
-        },
-        { status: 500 }
-      );
-    }
+
+    // Chat Completions API returns content in choices[0].message.content
+    const responseContent = completion.choices[0].message.content;
 
     // Parse the JSON string from OpenAI response
     let parsedData;
