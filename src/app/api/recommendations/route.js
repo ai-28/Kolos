@@ -223,40 +223,70 @@ Important:
 - If you cannot verify a URL, date, or headline through web search, DO NOT include that signal
 `;
 
-    const completion = await client.chat.completions.create({
-      model: "gpt-4o", // Using gpt-4o which supports web search (gpt-5.1 may not be available)
-      messages: [{ role: "user", content: prompt }],
-      tools: [
-        {
-          type: "web_search",
-          // Optional: filter to specific domains for better quality
-          // Uncomment and customize if you want to restrict to specific news sources
-          // filters: {
-          //   allowed_domains: [
-          //     "reuters.com",
-          //     "bloomberg.com",
-          //     "techcrunch.com",
-          //     "wsj.com",
-          //     "forbes.com",
-          //     "crunchbase.com"
-          //   ]
-          // }
-        }
-      ],
+    const completion = await client.responses.create({
+      model: "gpt-4o-search-preview",  // Optimized for web search tasks
+      input: prompt,    // String, not messages array
+      tools: [{
+        type: "web_search",
+        // No filters = search across all domains for maximum variety
+        // Uncomment below if you want to restrict to specific domains:
+        // filters: {
+        //   allowed_domains: [
+        //     "reuters.com", "bloomberg.com", "techcrunch.com",
+        //     "wsj.com", "forbes.com", "crunchbase.com"
+        //   ]
+        // }
+      }],
       tool_choice: "auto",
-      temperature: 0.3,
       response_format: { type: "json_object" },
+      temperature: 0.3
     });
 
-    const responseContent = completion.choices[0].message.content;
+    // Handle different response structures (Responses API vs Chat Completions API)
+    let responseContent;
+    try {
+      // Try Responses API structure first
+      if (completion.output_text) {
+        responseContent = completion.output_text;
+      }
+      // Try Chat Completions structure
+      else if (completion.choices && completion.choices[0] && completion.choices[0].message) {
+        responseContent = completion.choices[0].message.content;
+      }
+      // Try alternative Responses API structure
+      else if (completion.output && Array.isArray(completion.output)) {
+        responseContent = completion.output[0]?.content || completion.output[0];
+      }
+      // Fallback: log the structure to debug
+      else {
+        console.log("Unexpected response structure:", JSON.stringify(completion, null, 2));
+        throw new Error("Unknown response structure from OpenAI API");
+      }
+    } catch (error) {
+      console.error("Error extracting response content:", error);
+      console.error("Full completion object:", JSON.stringify(completion, null, 2));
+      return NextResponse.json(
+        {
+          error: "Failed to extract response content from OpenAI API",
+          details: error.message,
+        },
+        { status: 500 }
+      );
+    }
 
     // Parse the JSON string from OpenAI response
     let parsedData;
     try {
-      parsedData = JSON.parse(responseContent);
+      // If responseContent is already an object, use it directly
+      if (typeof responseContent === 'object') {
+        parsedData = responseContent;
+      } else {
+        parsedData = JSON.parse(responseContent);
+      }
     } catch (parseError) {
       console.error("Error parsing OpenAI JSON response:", parseError);
-      console.error("Raw response:", responseContent);
+      console.error("Raw response content:", responseContent);
+      console.error("Response type:", typeof responseContent);
       return NextResponse.json(
         {
           error: "Failed to parse AI response as JSON",
