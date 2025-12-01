@@ -126,16 +126,16 @@ export default function Home() {
               </p>
 
               {/* Buttons */}
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-2 sm:pt-4">
+              <div className=" flex flex-col sm:flex-row gap-3 sm:gap-4 pt-2 sm:pt-4">
                 <button
-                  className="px-6 sm:px-8 py-2.5 sm:py-3 rounded-md font-medium text-sm sm:text-base text-white transition-opacity hover:opacity-90 w-full sm:w-auto"
+                  className="px-6 hover:cursor-pointer sm:px-8 py-2.5 sm:py-3 rounded-md font-medium text-sm sm:text-base text-white transition-opacity hover:opacity-90 w-full sm:w-auto"
                   style={{ backgroundColor: '#0D2D25' }}
                   onClick={handleStartOnboarding}
                 >
                   Start AI Onboarding
                 </button>
                 <button
-                  className="px-6 sm:px-8 py-2.5 sm:py-3 rounded-md font-medium text-sm sm:text-base transition-opacity hover:opacity-90 w-full sm:w-auto"
+                  className="px-6 hover:cursor-pointer sm:px-8 py-2.5 sm:py-3 rounded-md font-medium text-sm sm:text-base transition-opacity hover:opacity-90 w-full sm:w-auto"
                   style={{
                     backgroundColor: 'transparent',
                     color: '#000000',
@@ -143,7 +143,7 @@ export default function Home() {
                   }}
                   onClick={handleGoToDashboard}
                   >
-Go To Dashboard                </button>
+                      Go To Dashboard                </button>
               </div>
             </div>
 
