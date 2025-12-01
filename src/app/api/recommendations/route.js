@@ -224,7 +224,7 @@ Important:
 `;
 
     const completion = await client.responses.create({
-      model: "gpt-5",  // Using GPT-5 for best performance with web search
+      model: "gpt-5.1",  // Using GPT-5 for best performance with web search
       input: prompt,    // String input for Responses API
       tools: [
         { type: "web_search" }
