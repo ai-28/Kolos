@@ -224,43 +224,35 @@ Important:
 `;
 
     const completion = await client.responses.create({
-      model: "gpt-4o-search-preview",  // Optimized for web search tasks
-      input: prompt,    // String, not messages array
-      tools: [{
-        type: "web_search",
+      model: "gpt-5",  // Using GPT-5 for best performance with web search
+      input: prompt,    // String input for Responses API
+      tools: [
+        { type: "web_search" }
         // No filters = search across all domains for maximum variety
-        // Uncomment below if you want to restrict to specific domains:
-        // filters: {
-        //   allowed_domains: [
-        //     "reuters.com", "bloomberg.com", "techcrunch.com",
-        //     "wsj.com", "forbes.com", "crunchbase.com"
-        //   ]
+        // To restrict to specific domains, add filters:
+        // { 
+        //   type: "web_search",
+        //   filters: {
+        //     allowed_domains: [
+        //       "reuters.com", "bloomberg.com", "techcrunch.com",
+        //       "wsj.com", "forbes.com", "crunchbase.com"
+        //     ]
+        //   }
         // }
-      }],
-      tool_choice: "auto",
-      text: { format: { type: "json_object" } },  // Responses API uses text.format instead of response_format
+      ],
+      text: { format: { type: "json_object" } },  // Request JSON output format
       temperature: 0.3
     });
 
-    // Handle different response structures (Responses API vs Chat Completions API)
+    // Responses API returns content in output_text field
     let responseContent;
     try {
-      // Try Responses API structure first
       if (completion.output_text) {
         responseContent = completion.output_text;
-      }
-      // Try Chat Completions structure
-      else if (completion.choices && completion.choices[0] && completion.choices[0].message) {
-        responseContent = completion.choices[0].message.content;
-      }
-      // Try alternative Responses API structure
-      else if (completion.output && Array.isArray(completion.output)) {
-        responseContent = completion.output[0]?.content || completion.output[0];
-      }
-      // Fallback: log the structure to debug
-      else {
+      } else {
+        // Log the structure if output_text is not found for debugging
         console.log("Unexpected response structure:", JSON.stringify(completion, null, 2));
-        throw new Error("Unknown response structure from OpenAI API");
+        throw new Error("Response does not contain output_text field");
       }
     } catch (error) {
       console.error("Error extracting response content:", error);
