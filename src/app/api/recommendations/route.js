@@ -190,7 +190,7 @@ Avoid vague text like “monitor” or “stay in touch”.
 STEP 5 - OUTPUT
 -----------------
 
-You MUST return a valid JSON object. Your entire response must be valid JSON only, no other text.
+CRITICAL: You MUST return ONLY valid JSON. Your entire response must be valid JSON only - no markdown, no code blocks, no explanations, no other text whatsoever. Start with { and end with }.
 
 Required structure:
 
@@ -241,7 +241,8 @@ Important:
         //   }
         // }
       ],
-      text: { format: { type: "json_object" } },  // Request JSON output format
+      // Note: Cannot use text.format with web_search tool - JSON mode is not supported with web search
+      // The model will return JSON based on prompt instructions below
       temperature: 0.3
     });
 
@@ -255,10 +256,20 @@ Important:
       if (typeof responseContent === 'object') {
         parsedData = responseContent;
       } else {
-        parsedData = JSON.parse(responseContent);
+        let jsonString = responseContent.trim();
+
+        // Remove markdown code blocks if present (even though we asked for pure JSON)
+        if (jsonString.startsWith('```json')) {
+          jsonString = jsonString.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+        } else if (jsonString.startsWith('```')) {
+          jsonString = jsonString.replace(/^```\s*/, '').replace(/\s*```$/, '');
+        }
+
+        parsedData = JSON.parse(jsonString);
       }
     } catch (parseError) {
       console.error("Error parsing OpenAI JSON response:", parseError);
+      console.error("Raw response content:", responseContent);
       return NextResponse.json(
         {
           error: "Failed to parse AI response as JSON",
