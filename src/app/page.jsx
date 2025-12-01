@@ -143,8 +143,7 @@ export default function Home() {
                   }}
                   onClick={handleGoToDashboard}
                   >
-                  View Membership Options
-                </button>
+Go To Dashboard                </button>
               </div>
             </div>
 
