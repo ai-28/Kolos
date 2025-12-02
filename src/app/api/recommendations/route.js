@@ -16,13 +16,15 @@ export async function POST(req) {
 
     const prompt = `
         
+CRITICAL OUTPUT REQUIREMENT: You MUST return ONLY valid JSON. No text, no explanations, no markdown. Start with { and end with }. If you cannot complete the task, return valid JSON with empty arrays. NEVER return error messages or "I'm unable" text.
+
 ROLE
 
 You are the Kolos Signals engine for B2B clients.
 
 You take:
 - a short client profile
-- a time window (usually “next 7 days” or “next 14 days”)
+- a time window (usually "next 7 days" or "next 14 days")
 - optional priority themes or keywords
 
 You output:
@@ -272,6 +274,20 @@ STEP 7 - OUTPUT
 
 CRITICAL: You MUST return ONLY valid JSON. Your entire response must be valid JSON only - no markdown, no code blocks, no explanations, no other text whatsoever. Start with { and end with }.
 
+ABSOLUTELY NO TEXT BEFORE OR AFTER THE JSON. NO APOLOGIES, NO EXPLANATIONS, NO "I'M UNABLE" MESSAGES. ONLY THE JSON OBJECT.
+
+If you cannot complete the task, return a valid JSON object with empty arrays:
+{
+  "client_name": "<CLIENT_NAME>",
+  "run_date": "<YYYY-MM-DD>",
+  "time_window_days": 7,
+  "signals": [],
+  "opm_travel_plans": [],
+  "upcoming_industry_events": []
+}
+
+DO NOT return any text that is not valid JSON. DO NOT explain why you cannot complete the task. ONLY return the JSON structure above, even if arrays are empty.
+
 Required structure:
 
 {
@@ -367,18 +383,50 @@ Important:
           jsonString = jsonString.replace(/^```\s*/, '').replace(/\s*```$/, '');
         }
 
+        // Try to extract JSON if there's text before/after it
+        // Look for the first { and last }
+        const firstBrace = jsonString.indexOf('{');
+        const lastBrace = jsonString.lastIndexOf('}');
+
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+          jsonString = jsonString.substring(firstBrace, lastBrace + 1);
+        }
+
+        // Remove any leading/trailing non-JSON text
+        jsonString = jsonString.trim();
+
         parsedData = JSON.parse(jsonString);
       }
     } catch (parseError) {
       console.error("Error parsing OpenAI JSON response:", parseError);
-      console.error("Raw response content:", responseContent);
-      return NextResponse.json(
-        {
-          error: "Failed to parse AI response as JSON",
-          details: parseError.message,
-        },
-        { status: 500 }
-      );
+      console.error("Raw response content (first 500 chars):", responseContent?.substring(0, 500));
+
+      // Try to provide a more helpful error message
+      let errorMessage = parseError.message;
+      if (responseContent && typeof responseContent === 'string') {
+        if (responseContent.includes("I'm unable") || responseContent.includes("I cannot")) {
+          errorMessage = "AI returned an error message instead of JSON. The AI may be unable to complete the request. Please try again or check the client profile data.";
+        } else if (!responseContent.includes('{')) {
+          errorMessage = "AI response does not contain valid JSON. The response may be empty or in an unexpected format.";
+        }
+      }
+
+      // As a last resort, try to return empty structure so the API doesn't completely fail
+      console.warn("⚠️ Failed to parse JSON, returning empty structure as fallback");
+      parsedData = {
+        client_name: profile.name || "Unknown",
+        run_date: new Date().toISOString().split('T')[0],
+        time_window_days: 7,
+        signals: [],
+        opm_travel_plans: [],
+        upcoming_industry_events: []
+      };
+
+      // Still log the error for debugging
+      console.error("Parse error details:", {
+        message: errorMessage,
+        preview: responseContent?.substring(0, 200) || "No response content"
+      });
     }
 
     // Import Google Sheets utility
@@ -453,11 +501,19 @@ Important:
       console.log(`✅ ${signalsSaved} signals saved to Google Sheets`);
     }
 
+    // Check if we're using fallback empty data
+    const isFallback = parsedData.signals?.length === 0 &&
+      parsedData.opm_travel_plans?.length === 0 &&
+      parsedData.upcoming_industry_events?.length === 0 &&
+      responseContent && typeof responseContent === 'string' &&
+      (responseContent.includes("I'm unable") || responseContent.includes("I cannot") || !responseContent.includes('"signals"'));
+
     // Return the recommendations
     return NextResponse.json({
-      status: "success",
+      status: isFallback ? "partial_success" : "success",
       recommendations: parsedData,
       profile_id: profileId,
+      warning: isFallback ? "AI response parsing had issues. Returning empty data structure. Please check the logs for details." : undefined,
     });
   } catch (error) {
     console.error("Error generating recommendations:", error);
