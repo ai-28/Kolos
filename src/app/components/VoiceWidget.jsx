@@ -323,41 +323,42 @@ export default function VoiceWidget({ isOpen, onClose, autoStart = true }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-3 md:p-4">
       <div 
         className="w-full max-w-md rounded-[20px] p-[3px]"
         style={{
           background: 'linear-gradient(var(--fancy-border-angle, 45deg), #bc82f3 0%, #f5b9ea 20%, #8d99ff 40%, #aa6eee 60%, #ff6778 80%, #ffba71 103%)',
         }}
       >
-        <div className="bg-white rounded-[17px] shadow-2xl w-full flex flex-col h-[700px] overflow-hidden">
+        <div className="bg-white rounded-[17px] shadow-2xl w-full flex flex-col h-[85vh] sm:h-[700px] max-h-[700px] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center bg-[#191919] justify-between p-4 border-b flex-shrink-0">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center bg-[#191919] justify-between p-2.5 sm:p-3 md:p-4 border-b flex-shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
             <img
               src="https://uat-cdn.nextlevel.ai/widgets/images/agent.jpg"
               alt="jessica"      
-              className="w-10 h-10 rounded-full"
+              className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex-shrink-0"
             />
-            <div>
-              <h3 className="font-semibold text-white">Jessica</h3>
-              <p className="text-xs text-white">{agentStatus}</p>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-semibold text-white text-sm sm:text-base truncate">Jessica</h3>
+              <p className="text-xs text-white truncate">{agentStatus}</p>
             </div>
           </div>
           <button
             onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center ml-2"
+            aria-label="Close widget"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+        <div className="flex-1 overflow-y-auto p-2.5 sm:p-3 md:p-4 space-y-2 sm:space-y-3 md:space-y-4 bg-gray-50">
           {isConnecting && (
-            <div className="flex items-center justify-center gap-2 text-gray-500">
+            <div className="flex items-center justify-center gap-2 text-gray-500 py-2">
               <Loader2 className="w-4 h-4 animate-spin" />
-              <span className="text-sm">Connecting to AI agent...</span>
+              <span className="text-xs sm:text-sm">Connecting to AI agent...</span>
             </div>
           )}
 
@@ -369,12 +370,12 @@ export default function VoiceWidget({ isOpen, onClose, autoStart = true }) {
               }`}
             >
               <div
-                className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                className={`max-w-[85%] sm:max-w-[80%] rounded-lg px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm ${
                   message.role === "user"
                     ? "bg-primary text-white"
                     : message.role === "assistant"
                     ? "bg-white text-gray-900 shadow-sm"
-                    : "bg-gray-200 text-gray-600 text-sm italic"
+                    : "bg-gray-200 text-gray-600 italic"
                 }`}
               >
                 {message.content}
@@ -385,9 +386,9 @@ export default function VoiceWidget({ isOpen, onClose, autoStart = true }) {
           {/* Current streaming agent message */}
           {isAgentSpeaking && currentAgentMessage && (
             <div className="flex justify-start">
-              <div className="max-w-[80%] rounded-lg px-4 py-2 bg-white text-gray-900 shadow-sm">
+              <div className="max-w-[85%] sm:max-w-[80%] rounded-lg px-3 py-1.5 sm:px-4 sm:py-2 bg-white text-gray-900 shadow-sm text-xs sm:text-sm">
                 {currentAgentMessage}
-                <span className="inline-block w-1 h-4 ml-1 bg-gray-900 animate-pulse"></span>
+                <span className="inline-block w-1 h-3 sm:h-4 ml-1 bg-gray-900 animate-pulse"></span>
               </div>
             </div>
           )}
@@ -395,9 +396,9 @@ export default function VoiceWidget({ isOpen, onClose, autoStart = true }) {
           {/* Current streaming user message */}
           {isUserSpeaking && currentUserMessage && (
             <div className="flex justify-end">
-              <div className="max-w-[80%] rounded-lg px-4 py-2 bg-primary text-white">
+              <div className="max-w-[85%] sm:max-w-[80%] rounded-lg px-3 py-1.5 sm:px-4 sm:py-2 bg-primary text-white text-xs sm:text-sm">
                 {currentUserMessage}
-                <span className="inline-block w-1 h-4 ml-1 bg-white animate-pulse"></span>
+                <span className="inline-block w-1 h-3 sm:h-4 ml-1 bg-white animate-pulse"></span>
               </div>
             </div>
           )}
@@ -406,41 +407,41 @@ export default function VoiceWidget({ isOpen, onClose, autoStart = true }) {
         </div>
 
         {/* Voice Status */}
-        <div className="p-4 border-t bg-white flex-shrink-0">
-          <div className="flex items-center justify-center gap-3">
+        <div className="p-2.5 sm:p-3 md:p-4 border-t bg-white flex-shrink-0">
+          <div className="flex items-center justify-center gap-2 sm:gap-3">
             {isConnected ? (
               <>
                 {micPermissionGranted ? (
-                  <div className="flex items-center gap-2 text-green-600">
-                    <Mic className="w-5 h-5" />
-                    <span className="text-sm font-medium">Microphone active - Speak to answer</span>
+                  <div className="flex items-center gap-1.5 sm:gap-2 text-green-600">
+                    <Mic className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                    <span className="text-xs sm:text-sm font-medium">Microphone active - Speak to answer</span>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 text-amber-600">
-                    <MicOff className="w-5 h-5" />
-                    <span className="text-sm">Please allow microphone access</span>
+                  <div className="flex items-center gap-1.5 sm:gap-2 text-amber-600">
+                    <MicOff className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                    <span className="text-xs sm:text-sm">Please allow microphone access</span>
                   </div>
                 )}
               </>
             ) : agentStatus.includes("Microphone") || agentStatus.includes("not found") ? (
               <div className="flex flex-col items-center gap-2 text-red-600">
-                <MicOff className="w-5 h-5" />
-                <span className="text-sm font-medium">{agentStatus}</span>
+                <MicOff className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="text-xs sm:text-sm font-medium text-center">{agentStatus}</span>
                 <button
                   onClick={() => window.location.reload()}
-                  className="text-xs px-3 py-1 bg-primary text-white rounded hover:bg-primary/90 transition-colors"
+                  className="text-xs px-3 py-1.5 sm:py-1 bg-primary text-white rounded hover:bg-primary/90 transition-colors min-h-[44px]"
                 >
                   Refresh & Retry
                 </button>
               </div>
             ) : (
               <div className="flex items-center gap-2 text-gray-500">
-                <Loader2 className="w-5 h-5 animate-spin" />
-                <span className="text-sm">{agentStatus}</span>
+                <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin flex-shrink-0" />
+                <span className="text-xs sm:text-sm">{agentStatus}</span>
               </div>
             )}
           </div>
-          <p className="text-xs text-gray-500 mt-2 text-center">
+          <p className="text-xs text-gray-500 mt-1.5 sm:mt-2 text-center leading-relaxed px-1">
             {isConnected 
               ? "The agent will ask questions. Answer by speaking into your microphone."
               : agentStatus.includes("Microphone") || agentStatus.includes("not found")

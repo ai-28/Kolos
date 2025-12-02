@@ -26,7 +26,7 @@ You take:
 - optional priority themes or keywords
 
 You output:
-- 10–15 high value “signals” that look like the Colaberry example
+- 8 high value "signals" that look like the Colaberry example
 - each signal is a row with fields:
   - date
   - headline_source
@@ -36,6 +36,8 @@ You output:
   - scores_R_O_A
   - overall
   - next_step
+- 5 OPM Travel Plans (other clients' travel plans that might be relevant for networking)
+- 5 Upcoming Industry Events (industry events that match the client's focus areas)
 
 Your goal is to spot specific events that can become pipeline for this client next week, not generic news.
 
@@ -184,10 +186,88 @@ Next_step should always answer:
 - how it ties to the news item  
 - ideal time frame (this week / this month).
 
-Avoid vague text like “monitor” or “stay in touch”.
+Avoid vague text like "monitor" or "stay in touch".
+
+------------------------------------
+STEP 5 - GENERATE OPM TRAVEL PLANS
+------------------------------------
+
+CRITICAL: All travel plan dates MUST be in the FUTURE and VALID. Use the current date (run_date) as reference - all dates must be AFTER the run_date.
+
+Generate 5 OPM Travel Plans based on the client profile. These should represent other clients or contacts in the Kolos network who have upcoming travel that might be relevant for networking or in-person introductions.
+
+For each travel plan, include:
+- customer: 
+  - Customer name or initials (e.g., "Vit Goncharuk/AI", "Zoe Zhao/Re", "Hans Hammer")
+  - Use realistic names that fit the client's industry and regions
+- opm_number:
+  - OPM cohort number (e.g., "OPM62", "OPM55", "OPM53")
+  - Format: "OPM" followed by 2-digit number (50-99 range)
+- travel_plans:
+  - Travel route description (e.g., "Washington → Miami", "New York City → Barcelona/YPO Edge", "Germany → New York City")
+  - Can include multiple routes per customer (separate with newline character \n)
+  - Should align with client's regions, industries, or partner_types when possible
+- date:
+  - Travel date range (e.g., "February 21 - 23, 2025", "February 18 - 25, 2025")
+  - MUST be future dates - all dates must be AFTER the run_date
+  - Use dates within the next 6-12 months from run_date
+  - Format: "Month DD - DD, YYYY" or "Month DD - Month DD, YYYY" for multi-month spans
+  - If multiple date ranges, separate with newline character (\n)
+  - Verify dates are valid (e.g., February has 28/29 days, months have correct number of days)
+
+Focus on travel that could enable:
+- In-person networking opportunities
+- Regional alignment with client's focus areas
+- Industry event attendance
+- Strategic partnership meetings
+
+------------------------------------
+STEP 6 - GENERATE UPCOMING INDUSTRY EVENTS
+------------------------------------
+
+CRITICAL: All event dates MUST be in the FUTURE and VALID. Use the current date (run_date) as reference - all dates must be AFTER the run_date.
+
+Use web search to find REAL, VERIFIABLE upcoming industry events. Search for actual conferences, summits, webinars, and industry gatherings that are scheduled for the future.
+
+Generate 5 Upcoming Industry Events that match the client's industries, regions, and business goals.
+
+For each event, include:
+- event_name:
+  - Full event name from actual event listings found through web search
+  - Should be a real, verifiable event that you found through web search
+  - Must match the client's industry focus
+- industry:
+  - Industry category with emoji badge. Use one of:
+    - "💼 Finance & Private Equity" (for finance, PE, investment events)
+    - "🏗 Real Estate & Infrastructure" (for real estate, construction, infrastructure events)
+    - "⚡ Renewable Energy" (for energy, renewables, sustainability events)
+    - Or other relevant industry categories based on client profile
+- location:
+  - Event location (e.g., "Virtual", "Dallas, TX", "Houston, TX", "New York, NY")
+  - Use "Virtual" for online events
+  - Use city and state format for in-person events
+  - Should align with client's regions when possible
+  - Must match the actual event location from web search
+- event_date:
+  - Event date or date range from the actual event listing
+  - MUST be future dates - all dates must be AFTER the run_date
+  - Include time if available (especially for virtual events)
+  - Use dates within the next 6-12 months from run_date
+  - Format: "Month DD, YYYY" or "Month DD - DD, YYYY" with optional time (e.g., "March 8, 2025 (11 AM ET)")
+  - Verify dates are valid (e.g., February has 28/29 days, months have correct number of days)
+  - Only use dates from verified event listings found through web search
+
+Focus on events that:
+- Are REAL events found through web search - verify the event exists and has the stated date
+- Match the client's primary industries
+- Are in regions the client focuses on (or virtual)
+- Could provide networking, learning, or business development opportunities
+- Are actual industry events (conferences, summits, meetups, webinars) with verifiable information
+
+If you cannot find 5 real, verifiable future events through web search, return fewer events rather than making them up.
 
 -----------------
-STEP 5 - OUTPUT
+STEP 7 - OUTPUT
 -----------------
 
 CRITICAL: You MUST return ONLY valid JSON. Your entire response must be valid JSON only - no markdown, no code blocks, no explanations, no other text whatsoever. Start with { and end with }.
@@ -209,18 +289,44 @@ Required structure:
       "overall": 5,
       "next_step": "Pull latest TWC WARN list; offer 2–4 week AI/Data reskill cohorts to affected employers + boards; align WIOA funding paths."
     }
+  ],
+  "opm_travel_plans": [
+    {
+      "customer": "Vit Goncharuk/AI",
+      "opm_number": "OPM62",
+      "travel_plans": "Washington → Miami\nWashington → Finland",
+      "date": "February 21 - 23, 2025\nFebruary 27 - March 5, 2025"
+    }
+  ],
+  "upcoming_industry_events": [
+    {
+      "event_name": "Ken Hersh Private Equity & Sports",
+      "industry": "💼 Finance & Private Equity",
+      "location": "Virtual",
+      "event_date": "March 8, 2025 (11 AM ET)"
+    }
   ]
 }
 
 Important:
 - Return 8 top signals in the signals array (or fewer if you cannot find 8 valid signals through web search)
-- All dates must be strings in YYYY-MM-DD format and must match actual publication dates from web search
+- Return exactly 5 OPM Travel Plans in the opm_travel_plans array
+- Return exactly 5 Upcoming Industry Events in the upcoming_industry_events array
+- All signal dates must be strings in YYYY-MM-DD format and must match actual publication dates from web search
 - All numeric values (time_window_days, overall) must be numbers, not strings
 - scores_R_O_A must be a string like "5,5,4"
 - Every signal must be valid and verified through web search - NO fake data, NO hallucinated URLs, NO made-up headlines
 - Use web search extensively to find real, current information from various domains before including any signal
 - Search across diverse sources (news sites, press releases, industry publications, official announcements) but verify all information
 - If you cannot verify a URL, date, or headline through web search, DO NOT include that signal
+- CRITICAL: All travel plan and event dates MUST be in the FUTURE relative to run_date - verify all dates are valid and after the run_date
+- For Industry Events: Use web search to find REAL, VERIFIABLE upcoming events - do NOT make up event names or dates
+- For OPM Travel Plans: Create realistic entries that align with the client profile - ensure all dates are valid future dates
+- Travel plan dates should be in the format shown in examples (e.g., "February 21 - 23, 2025") and must be valid calendar dates
+- Event dates should include time for virtual events when available (e.g., "March 8, 2025 (11 AM ET)") and must be valid calendar dates
+- For travel_plans with multiple routes, separate with newline character (\n)
+- For date fields with multiple dates, separate with newline character (\n)
+- Verify all dates are valid (correct number of days in month, valid month names, etc.)
 `;
 
     // Use Responses API with web search tool
@@ -229,8 +335,6 @@ Important:
       input: prompt,  // Responses API uses input (string) instead of messages
       tools: [
         { type: "web_search" }
-        // No filters = search across all domains for maximum variety
-        // To restrict to specific domains, add filters:
         // { 
         //   type: "web_search",
         //   filters: {
@@ -241,8 +345,6 @@ Important:
         //   }
         // }
       ],
-      // Note: Cannot use text.format with web_search tool - JSON mode is not supported with web search
-      // The model will return JSON based on prompt instructions below
       temperature: 0.3
     });
 
@@ -286,6 +388,14 @@ Important:
     const profileId = `profile_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     // 1. Save Profile to Profiles table
+    // Convert travel plans and events arrays to JSON strings for storage
+    const opmTravelPlansJson = parsedData.opm_travel_plans && Array.isArray(parsedData.opm_travel_plans)
+      ? JSON.stringify(parsedData.opm_travel_plans)
+      : '';
+    const upcomingEventsJson = parsedData.upcoming_industry_events && Array.isArray(parsedData.upcoming_industry_events)
+      ? JSON.stringify(parsedData.upcoming_industry_events)
+      : '';
+
     const profileRow = [
       profileId, // id (first column)
       profile.name || '',
@@ -303,6 +413,8 @@ Important:
       profile.constraints_notes || '',
       profile.active_deal || '',
       profile.travel_cities || '',
+      opmTravelPlansJson, // opm_travel_plans (JSON string)
+      upcomingEventsJson, // upcoming_industry_events (JSON string)
     ];
 
     try {

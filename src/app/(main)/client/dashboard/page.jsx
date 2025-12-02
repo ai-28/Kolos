@@ -443,6 +443,46 @@ console.log("client",client)
     return Array.isArray(goals) ? goals : []
   }
 
+  // Get OPM Travel Plans from client profile
+  const getOPMTravelPlans = () => {
+    if (!client) return []
+    try {
+      const travelPlansStr = client.opm_travel_plans || client["opm_travel_plans"] || client["OPM Travel Plans"] || client["OPM_travel_plans"] || ""
+      if (!travelPlansStr || typeof travelPlansStr !== "string") return []
+      
+      const parsed = JSON.parse(travelPlansStr)
+      return Array.isArray(parsed) ? parsed : []
+    } catch (error) {
+      console.error("Error parsing OPM travel plans:", error)
+      return []
+    }
+  }
+
+  // Get Upcoming Industry Events from client profile
+  const getUpcomingIndustryEvents = () => {
+    if (!client) return []
+    try {
+      const eventsStr = client.upcoming_industry_events || client["upcoming_industry_events"] || client["Upcoming Industry Events"] || client["Upcoming_industry_events"] || ""
+      if (!eventsStr || typeof eventsStr !== "string") return []
+      
+      const parsed = JSON.parse(eventsStr)
+      return Array.isArray(parsed) ? parsed : []
+    } catch (error) {
+      console.error("Error parsing upcoming industry events:", error)
+      return []
+    }
+  }
+
+  // Helper function to get initials from customer name
+  const getCustomerInitials = (customerName) => {
+    if (!customerName) return "??"
+    const parts = customerName.split(/[\/\s]/).filter(p => p.trim())
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase()
+    }
+    return customerName.substring(0, 2).toUpperCase()
+  }
+
   // Map signal_type to industry badge
   const getIndustryBadge = (signalType, category) => {
     const type = signalType?.toLowerCase() || ""
@@ -490,82 +530,82 @@ console.log("client",client)
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed left-0 top-0 h-screen w-[284px] bg-[#03171a] text-white p-6 flex flex-col overflow-y-auto z-50 transition-transform duration-300 ${
+      <aside className={`fixed left-0 top-0 h-screen w-[280px] sm:w-[284px] bg-[#03171a] text-white p-4 sm:p-6 flex flex-col overflow-y-auto z-50 transition-transform duration-300 ${
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       }`}>
-        <div className="mb-8">
+        <div className="mb-6 sm:mb-8">
             <KolosLogo/>
         </div>
 
-        <nav className="space-y-1 flex-1 text-[16px] font-hedvig">
-          <a href="#" className="flex items-center gap-3 py-3 rounded hover:bg-white/10 transition-colors">
+        <nav className="space-y-1 flex-1 text-sm sm:text-[16px] font-hedvig">
+          <a href="#" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2 sm:gap-3 py-2.5 sm:py-3 rounded hover:bg-white/10 transition-colors min-h-[44px]">
               <DashboardIcon/>
             <span className="font-thin">Dashboard</span>
           </a>
-          <a href="#business-goals" className="flex items-center gap-3 py-3 rounded hover:bg-white/10 transition-colors">
+          <a href="#business-goals" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2 sm:gap-3 py-2.5 sm:py-3 rounded hover:bg-white/10 transition-colors min-h-[44px]">
             <BusinessGoalsIcon/>
             <span>Business Goals</span>
           </a>
-          <a href="#signals" className="flex items-center gap-3 py-3 rounded hover:bg-white/10 transition-colors">
+          <a href="#signals" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2 sm:gap-3 py-2.5 sm:py-3 rounded hover:bg-white/10 transition-colors min-h-[44px]">
             <SignalsIcon/>
             <span>Signals</span>
           </a>
-          <a href="#industry-focus" className="flex items-center gap-3 py-3 rounded hover:bg-white/10 transition-colors">
+          <a href="#industry-focus" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2 sm:gap-3 py-2.5 sm:py-3 rounded hover:bg-white/10 transition-colors min-h-[44px]">
             <IndustryFocusIcon/>
             <span>Industry Focus</span>
           </a>
-          <a href="#business-requests" className="flex items-center gap-3 py-3 rounded hover:bg-white/10 transition-colors">
+          <a href="#business-requests" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2 sm:gap-3 py-2.5 sm:py-3 rounded hover:bg-white/10 transition-colors min-h-[44px]">
             <BusinessRequestsIcon/>
             <span>Business Requests</span>
           </a>
-          <a href="#business-matches" className="flex items-center gap-3 py-3 rounded hover:bg-white/10 transition-colors">
+          <a href="#business-matches" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2 sm:gap-3 py-2.5 sm:py-3 rounded hover:bg-white/10 transition-colors min-h-[44px]">
             <BusinessMatchIcon/>
             <span>Business Match</span>
           </a>
-          <a href="#opm-travel-plans" className="flex items-center gap-3 py-3 rounded hover:bg-white/10 transition-colors">
+          <a href="#opm-travel-plans" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2 sm:gap-3 py-2.5 sm:py-3 rounded hover:bg-white/10 transition-colors min-h-[44px]">
             <TravelPlanIcon/>
             <span>Travel Planning</span>
           </a>
-          <a href="#upcoming-industry-events" className="flex items-center gap-3 py-3 rounded hover:bg-white/10 transition-colors">
+          <a href="#upcoming-industry-events" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2 sm:gap-3 py-2.5 sm:py-3 rounded hover:bg-white/10 transition-colors min-h-[44px]">
             <UpcomingEventIcon/>
             <span>Upcoming Events</span>
           </a>
         </nav>
 
-        <div className="border-t border-gray-600 pt-4 mt-4 space-y-3">
-          <div className="text-sm">
-            <div className="text-gray-400 mb-1">Your OPM Cohort</div>
-            <div className="font-semibold">42</div>
+        <div className="border-t border-gray-600 pt-3 sm:pt-4 mt-3 sm:mt-4 space-y-2 sm:space-y-3">
+          <div className="text-xs sm:text-sm">
+            <div className="text-gray-400 mb-1">Your Havard OPM Cohort</div>
+            <div className="font-semibold">59</div>
           </div>
-          <div className="text-sm">
+          <div className="text-xs sm:text-sm">
             <div className="text-gray-400 mb-1">Your primary location</div>
-            <div className="font-semibold text-xs">Washington DC, USA 20852</div>
+            <div className="font-semibold text-xs">Dallas, TX, USA 75093</div>
           </div>
-          <div className="text-sm">
+          <div className="text-xs sm:text-sm">
             <div className="text-gray-400 mb-1">Live Virtual Assistant</div>
             <div className="text-xs">Not available under Basic</div>
           </div>
         </div>
 
-        <div className="border-t border-gray-600 pt-4 mt-4 space-y-2">
-          <a href="#" className="block text-sm hover:text-[#c9a961] transition-colors">OPM WA Group</a>
-          <a href="#" className="block text-sm hover:text-[#c9a961] transition-colors">Updates & FAQ</a>
+        <div className="border-t border-gray-600 pt-3 sm:pt-4 mt-3 sm:mt-4 space-y-2">
+          <a href="#" onClick={() => setIsMobileMenuOpen(false)} className="block text-xs sm:text-sm hover:text-[#c9a961] transition-colors min-h-[44px] flex items-center">Havard OPM Group</a>
+          <a href="#" onClick={() => setIsMobileMenuOpen(false)} className="block text-xs sm:text-sm hover:text-[#c9a961] transition-colors min-h-[44px] flex items-center">Updates & FAQ</a>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 lg:ml-[284px] bg-[#f5f3f0]">
+      <main className="flex-1 lg:ml-[284px] bg-[#f5f3f0] min-h-screen" style={{ scrollBehavior: 'smooth', scrollPaddingTop: '100px' }}>
         <div className="max-w-[1400px] mx-auto">
           {/* Header - Fixed */}
           <div className="sticky top-0 bg-[#f5f3f0] z-20 border-b border-gray-200 shadow-sm">
-            <div className="flex justify-between items-center p-4 lg:p-8 pb-4">
-            <div className="flex items-center gap-2 lg:gap-4 flex-1 min-w-0">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0 p-3 sm:p-4 lg:p-8 pb-3 sm:pb-4">
+            <div className="flex items-center gap-2 lg:gap-4 flex-1 min-w-0 w-full sm:w-auto flex-wrap sm:flex-nowrap">
               {/* Mobile Menu Button */}
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="lg:hidden flex items-center gap-2 text-[#0a3d3d] hover:bg-[#0a3d3d]/10"
+                className="lg:hidden flex items-center gap-2 text-[#0a3d3d] hover:bg-[#0a3d3d]/10 min-w-[44px] min-h-[44px] flex-shrink-0"
               >
                 <Menu className="w-5 h-5" />
               </Button>
@@ -573,30 +613,30 @@ console.log("client",client)
                 variant="ghost"
                 size="sm"
                 onClick={() => router.push("/")}
-                className="hidden sm:flex items-center gap-2 text-[#0a3d3d] hover:bg-[#0a3d3d]/10"
+                className="hidden sm:flex items-center gap-2 text-[#0a3d3d] hover:bg-[#0a3d3d]/10 min-h-[44px] flex-shrink-0"
               >
                 <ArrowLeft className="w-4 h-4" />
                 <span className="hidden md:inline">Back to Dashboard</span>
               </Button>
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-serif text-[#0a3d3d] truncate">{clientName} Dashboard</h1>
+              <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-serif text-[#0a3d3d] break-words sm:truncate flex-1 min-w-0 w-full sm:w-auto">{clientName} Dashboard</h1>
             </div>
-            <div className="flex items-center gap-2 lg:gap-3 flex-shrink-0">
+            <div className="flex items-center gap-2 lg:gap-3 flex-shrink-0 w-full sm:w-auto">
               {isEditing ? (
                 <>
                   <Button
                     onClick={handleSave}
                     disabled={saving}
-                    className="flex items-center gap-2 bg-[#0a3d3d] hover:bg-[#0a3d3d]/90 text-white"
+                    className="flex items-center gap-2 bg-[#0a3d3d] hover:bg-[#0a3d3d]/90 text-white flex-1 sm:flex-initial min-h-[44px] text-sm sm:text-base"
                   >
                     {saving ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Saving...
+                        <span>Saving...</span>
                       </>
                     ) : (
                       <>
                         <Save className="w-4 h-4" />
-                        Save
+                        <span>Save</span>
                       </>
                     )}
                   </Button>
@@ -604,19 +644,20 @@ console.log("client",client)
                     onClick={handleCancel}
                     disabled={saving}
                     variant="outline"
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-2 min-h-[44px] text-sm sm:text-base"
                   >
                     <X className="w-4 h-4" />
-                    Cancel
+                    <span>Cancel</span>
                   </Button>
                 </>
               ) : (
                 <Button
                   onClick={handleEdit}
-                  className="flex items-center gap-2 bg-[#c9a961] hover:bg-[#c9a961]/90 text-[#0a3d3d]"
+                  className="flex items-center gap-2 bg-[#c9a961] hover:bg-[#c9a961]/90 text-[#0a3d3d] w-full sm:w-auto min-h-[44px] text-sm sm:text-base"
                 >
                   <Edit2 className="w-4 h-4" />
-                  Edit Profile
+                  <span className="hidden sm:inline">Edit Profile</span>
+                  <span className="sm:hidden">Edit</span>
                 </Button>
               )}
               {/* <Avatar className="h-10 w-10 lg:h-12 lg:w-12">
@@ -628,40 +669,40 @@ console.log("client",client)
           </div>
 
           {/* Content Area */}
-          <div className="p-4 sm:p-6 lg:p-8 pt-4">
+          <div className="p-3 sm:p-4 md:p-6 lg:p-8 pt-3 sm:pt-4">
           {/* Basic Information */}
           {isEditing && (
-            <section className="mb-8">
+            <section className="mb-6 sm:mb-8">
               <Card className="bg-white border-none shadow-sm">
-                <CardContent className="p-6">
-                  <h2 className="text-lg sm:text-xl font-serif text-[#c9a961] mb-4">Basic Information</h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <CardContent className="p-4 sm:p-6">
+                  <h2 className="text-base sm:text-lg md:text-xl font-serif text-[#c9a961] mb-3 sm:mb-4">Basic Information</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Name</label>
                       <input
                         type="text"
                         value={editData.name || ""}
                         onChange={(e) => setEditData({...editData, name: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                        className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-sm sm:text-base min-h-[44px]"
                         placeholder="Full name"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Email</label>
                       <input
                         type="email"
                         value={editData.email || ""}
                         onChange={(e) => setEditData({...editData, email: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                        className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-sm sm:text-base min-h-[44px]"
                         placeholder="your.email@example.com"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Constraints Notes</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Constraints Notes</label>
                       <textarea
                         value={editData.constraints_notes || ""}
                         onChange={(e) => setEditData({...editData, constraints_notes: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[80px]"
+                        className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[80px] text-sm sm:text-base"
                         placeholder="Any constraints or preferences"
                       />
                     </div>
@@ -675,12 +716,12 @@ console.log("client",client)
                       
                       return (
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Project Size</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Project Size</label>
                           <input
                             type="text"
                             value={editData.project_size || ""}
                             onChange={(e) => setEditData({...editData, project_size: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                            className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-sm sm:text-base min-h-[44px]"
                             placeholder="e.g., 10-50 million"
                           />
                         </div>
@@ -696,12 +737,12 @@ console.log("client",client)
                       
                       return (
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Raise Amount</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Raise Amount</label>
                           <input
                             type="text"
                             value={editData.raise_amount || ""}
                             onChange={(e) => setEditData({...editData, raise_amount: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                            className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-sm sm:text-base min-h-[44px]"
                             placeholder="e.g., 5 million"
                           />
                         </div>
@@ -717,24 +758,24 @@ console.log("client",client)
                       
                       return (
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Check Size</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Check Size</label>
                           <input
                             type="text"
                             value={editData.check_size || ""}
                             onChange={(e) => setEditData({...editData, check_size: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                            className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-sm sm:text-base min-h-[44px]"
                             placeholder="e.g., 5-15 million"
                           />
                         </div>
                       );
                     })()}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Active Raise Amount</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Active Raise Amount</label>
                       <input
                         type="text"
                         value={editData.active_raise_amount || ""}
                         onChange={(e) => setEditData({...editData, active_raise_amount: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                        className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-sm sm:text-base min-h-[44px]"
                         placeholder="e.g., 2 million"
                       />
                     </div>
@@ -744,9 +785,9 @@ console.log("client",client)
             </section>
           )}
           {/* Select Your Role */}
-          <section className="mb-8">
-            <h2 className="text-lg sm:text-xl font-serif text-[#c9a961] mb-4">Select Your Role</h2>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 font-hedvig">
+          <section className="mb-4 sm:mb-6 md:mb-8">
+            <h2 className="text-base sm:text-lg md:text-xl font-serif text-[#c9a961] mb-2 sm:mb-3 md:mb-4">Select Your Role</h2>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 font-hedvig">
               {["Investor", "Entrepreneur", "Asset Manager", "Facilitator"].map((role) => (
                 <Button
                   key={role}
@@ -756,7 +797,7 @@ console.log("client",client)
                       setEditData({...editData, role: role})
                     }
                   }}
-                  className={`rounded-full py-4 lg:py-6 text-sm lg:text-base ${
+                  className={`rounded-full py-2.5 sm:py-3 md:py-4 lg:py-6 text-xs sm:text-sm lg:text-base min-h-[44px] font-medium ${
                     (isEditing ? editData.role : selectedRole) === role
                       ? "bg-[#0a3d3d] hover:bg-[#0a3d3d]/90 text-white"
                       : "bg-[#c9a961] hover:bg-[#c9a961]/90 text-[#0a3d3d]"
@@ -769,10 +810,10 @@ console.log("client",client)
           </section>
 
           {/* Client Information Card */}
-          <section className="mb-8">
+          <section className="mb-4 sm:mb-6 md:mb-8">
             <Card className="bg-white border-none shadow-sm">
-              <CardContent className="p-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+              <CardContent className="p-4 sm:p-5 md:p-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
                   {/* Check Size - Only for Investor or Asset Manager */}
                   {(() => {
                     const currentRole = isEditing ? editData.role : selectedRole;
@@ -929,28 +970,28 @@ console.log("client",client)
           </section>
 
           {/* Business Goals Overview */}
-          <section className="mb-8" id="business-goals">
-            <h2 className="text-lg sm:text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
+          <section className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="business-goals">
+            <h2 className="text-base sm:text-lg md:text-xl font-serif text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
               <span className="text-[#c9a961]">◎</span>
-              Business Goals Overview
+              <span>Business Goals Overview</span>
             </h2>
             {isEditing ? (
               <Card className="bg-white border-none shadow-sm">
-                <CardContent className="p-4 sm:p-6">
+                <CardContent className="p-4 sm:p-5 md:p-6">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Goals (one per line)</label>
                   <textarea
                     value={editData.goals || ""}
                     onChange={(e) => setEditData({...editData, goals: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[100px]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[100px] text-sm sm:text-base"
                     placeholder="Enter your business goals, one per line"
                   />
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
                 {getGoals().slice(0, 2).map((goal, index) => (
                   <Card key={index} className="bg-white border-none shadow-sm">
-                    <CardContent className="p-6">
+                    <CardContent className="p-4 sm:p-5 md:p-6">
                       <div className="flex items-start gap-3">
                         <div className="w-8 h-8 rounded-full border-2 border-[#c9a961] flex items-center justify-center flex-shrink-0 mt-1">
                           <span className="text-[#c9a961] text-sm">{index + 1}</span>
@@ -985,23 +1026,24 @@ console.log("client",client)
           </section>
 
           {/* Live Private Deal Flow */}
-          <section className="mb-8" id="signals">
-            <h2 className="text-lg sm:text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
+          {!isEditing && (
+          <section className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="signals">
+            <h2 className="text-base sm:text-lg md:text-xl font-serif text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
               <span className="text-[#c9a961]">⊟</span>
-              Signals
+              <span>Signals</span>
             </h2>
             <Card className="bg-white border-none shadow-sm">
-              <CardContent className="p-4 sm:p-6">
+              <CardContent className="p-3 sm:p-4 md:p-6">
                 {signals.length > 0 ? (
-                  <div className="space-y-4 lg:space-y-6 max-h-[600px] overflow-y-auto pr-2">
+                  <div className="space-y-3 sm:space-y-4 lg:space-y-6 max-h-[600px] overflow-y-auto pr-1 sm:pr-2">
                     {signals.map((signal, index) => {
                       const badge = getIndustryBadge(signal.signal_type, signal.category)
                       return (
-                        <div key={index} className="border border-gray-200 rounded-lg p-4 sm:p-6 space-y-4 hover:shadow-md transition-shadow">
+                        <div key={index} className="border border-gray-200 rounded-lg p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4 hover:shadow-md transition-shadow">
                           {/* Header Row */}
-                          <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4">
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-[#0a3d3d] text-base sm:text-lg mb-2 break-words">
+                          <div className="flex flex-col sm:flex-row items-start justify-between gap-2 sm:gap-3 md:gap-4">
+                            <div className="flex-1 min-w-0 w-full sm:w-auto">
+                              <h3 className="font-semibold text-[#0a3d3d] text-sm sm:text-base md:text-lg mb-1 sm:mb-2 break-words">
                                 {signal.headline_source || `Signal ${index + 1}`}
                               </h3>
                               {signal.url && (
@@ -1009,7 +1051,7 @@ console.log("client",client)
                                   href={signal.url} 
                                   target="_blank" 
                                   rel="noopener noreferrer"
-                                  className="text-sm text-[#c9a961] hover:underline inline-flex items-center gap-1"
+                                  className="text-xs sm:text-sm text-[#c9a961] hover:underline inline-flex items-center gap-1"
                                 >
                                   <span>View Source</span>
                                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1018,23 +1060,23 @@ console.log("client",client)
                                 </a>
                               )}
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                               {signal.overall && (
                                 <div className="flex items-center gap-1">
-                                  <span className="text-xs text-gray-500">Overall:</span>
-                                  <Badge className="bg-[#0a3d3d] text-white">
+                                  <span className="text-xs text-gray-500 hidden sm:inline">Overall:</span>
+                                  <Badge className="bg-[#0a3d3d] text-white text-xs">
                                     {signal.overall}/5
                                   </Badge>
                                 </div>
                               )}
-                              <Badge className={`${badge.bg} ${badge.text}`}>
+                              <Badge className={`${badge.bg} ${badge.text} text-xs sm:text-sm`}>
                                 {badge.label}
                               </Badge>
                             </div>
                           </div>
 
                           {/* Details Grid */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 text-sm">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4 text-xs sm:text-sm">
                             <div>
                               <div className="text-gray-500 mb-1">Date</div>
                               <div className="font-medium text-[#0a3d3d]">
@@ -1076,7 +1118,7 @@ console.log("client",client)
                           )}
 
                           {/* Create Deal Button */}
-                          <div className="pt-4 border-t border-gray-200">
+                          <div className="pt-3 sm:pt-4 border-t border-gray-200">
                             <Button
                               onClick={() => {
                                 setSelectedSignal(signal)
@@ -1090,7 +1132,7 @@ console.log("client",client)
                                 })
                                 setShowCreateDealModal(true)
                               }}
-                              className="bg-[#0a3d3d] hover:bg-[#0a3d3d]/90 text-white"
+                              className="bg-[#0a3d3d] hover:bg-[#0a3d3d]/90 text-white w-full sm:w-auto min-h-[44px] text-sm sm:text-base"
                             >
                               Create Deal
                             </Button>
@@ -1107,58 +1149,166 @@ console.log("client",client)
               </CardContent>
             </Card>
           </section>
+          )}
 
           {/* Active Deals */}
-          <section className="mb-8" id="active-deals">
-            <h2 className="text-lg sm:text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
+          {!isEditing && (
+          <section className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="active-deals">
+            <h2 className="text-base sm:text-lg md:text-xl font-serif text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
               <span className="text-[#c9a961]">💼</span>
               Active Deals
             </h2>
             <Card className="bg-white border-none shadow-sm">
-              <CardContent className="p-4 sm:p-6">
+              <CardContent className="p-3 sm:p-4 md:p-6">
                 {deals.length > 0 ? (
-                  <div className="overflow-x-auto max-h-[600px] overflow-y-auto -mx-4 sm:mx-0">
-                    <table className="w-full border-collapse min-w-[800px]">
-                      <thead className="sticky top-0 bg-white z-20">
-                        <tr className="border-b border-gray-200">
-                          <th className="text-left py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-gray-700 bg-white">Deal Name</th>
-                          <th className="text-left py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-gray-700 bg-white hidden md:table-cell">Target</th>
-                          <th className="text-left py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-gray-700 bg-white hidden lg:table-cell">Source</th>
-                          <th className="text-left py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-gray-700 bg-white">Stage</th>
-                          <th className="text-left py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-gray-700 bg-white hidden lg:table-cell">Target Deal Size</th>
-                          <th className="text-left py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-gray-700 bg-white hidden xl:table-cell">Next Step</th>
-                          <th className="text-left py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-gray-700 bg-white">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {deals.map((deal, index) => (
-                          <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                            <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-[#0a3d3d] font-medium">
-                              {deal.deal_name || deal["deal_name"] || "-"}
-                            </td>
-                            <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-700 hidden md:table-cell">
-                              {deal.target || deal["target"] || "-"}
-                            </td>
-                            <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-700 hidden lg:table-cell">
-                              {deal.source || deal["source"] || "-"}
-                            </td>
-                            <td className="py-3 px-4 text-sm">
-                              {(() => {
-                                const dealId = deal.deal_id || deal["deal_id"] || deal.id || deal["id"]
-                                const currentStage = deal.stage || deal["stage"] || "list"
-                                const isUpdating = updatingStage === dealId
-                                
-                                return (
+                  <>
+                    {/* Mobile Card View */}
+                    <div className="md:hidden space-y-3 max-h-[600px] overflow-y-auto">
+                      {deals.map((deal, index) => {
+                        const dealId = deal.deal_id || deal["deal_id"] || deal.id || deal["id"]
+                        const currentStage = deal.stage || deal["stage"] || "list"
+                        const isUpdating = updatingStage === dealId
+                        const isDeleting = deletingDeal === dealId
+                        
+                        return (
+                          <div key={index} className="border border-gray-200 rounded-lg p-3 space-y-2.5 bg-white">
+                            {/* Deal Name & Actions */}
+                            <div className="flex items-start justify-between gap-2">
+                              <h3 className="text-sm font-semibold text-[#0a3d3d] flex-1 break-words">
+                                {deal.deal_name || deal["deal_name"] || "-"}
+                              </h3>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteDeal(dealId)}
+                                disabled={isDeleting || !dealId}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50 flex-shrink-0 min-h-[44px] min-w-[44px] p-0"
+                              >
+                                {isDeleting ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="w-4 h-4" />
+                                )}
+                              </Button>
+                            </div>
+                            
+                            {/* Stage */}
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">Stage</div>
+                              <select
+                                value={currentStage}
+                                onChange={(e) => handleStageChange(dealId, e.target.value)}
+                                disabled={isUpdating || !dealId}
+                                className={`w-full px-3 py-2 rounded-md border-2 border-gray-300 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] focus:border-[#0a3d3d] min-h-[44px] ${
+                                  currentStage === "closed" 
+                                    ? "bg-green-100 text-green-800 border-green-300"
+                                    : currentStage === "in negotiation"
+                                    ? "bg-yellow-100 text-yellow-800 border-yellow-300"
+                                    : currentStage === "NDA signed"
+                                    ? "bg-blue-100 text-blue-800 border-blue-300"
+                                    : currentStage === "intro"
+                                    ? "bg-purple-100 text-purple-800 border-purple-300"
+                                    : currentStage === "first call"
+                                    ? "bg-orange-100 text-orange-800 border-orange-300"
+                                    : "bg-gray-100 text-gray-800 border-gray-300"
+                                } ${isUpdating ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                              >
+                                <option value="list" style={{ backgroundColor: '#f3f4f6', color: '#1f2937' }}>list</option>
+                                <option value="intro" style={{ backgroundColor: '#f3e8ff', color: '#6b21a8' }}>intro</option>
+                                <option value="first call" style={{ backgroundColor: '#fff7ed', color: '#9a3412' }}>first call</option>
+                                <option value="NDA signed" style={{ backgroundColor: '#dbeafe', color: '#1e40af' }}>NDA signed</option>
+                                <option value="in negotiation" style={{ backgroundColor: '#fef3c7', color: '#92400e' }}>in negotiation</option>
+                                <option value="closed" style={{ backgroundColor: '#d1fae5', color: '#065f46' }}>closed</option>
+                              </select>
+                            </div>
+                            
+                            {/* Target */}
+                            {(deal.target || deal["target"]) && (
+                              <div>
+                                <div className="text-xs text-gray-500 mb-1">Target</div>
+                                <div className="text-sm text-gray-700 break-words">
+                                  {deal.target || deal["target"]}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Source */}
+                            {(deal.source || deal["source"]) && (
+                              <div>
+                                <div className="text-xs text-gray-500 mb-1">Source</div>
+                                <div className="text-sm text-gray-700 break-words">
+                                  {deal.source || deal["source"]}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Target Deal Size */}
+                            {(deal.target_deal_size || deal["target_deal_size"]) && (
+                              <div>
+                                <div className="text-xs text-gray-500 mb-1">Target Deal Size</div>
+                                <div className="text-sm text-gray-700">
+                                  {deal.target_deal_size || deal["target_deal_size"]}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Next Step */}
+                            {(deal.next_step || deal["next_step"]) && (
+                              <div>
+                                <div className="text-xs text-gray-500 mb-1">Next Step</div>
+                                <div className="text-sm text-gray-600 break-words">
+                                  {deal.next_step || deal["next_step"]}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block overflow-x-auto max-h-[600px] overflow-y-auto">
+                      <table className="w-full border-collapse">
+                        <thead className="top-0 bg-white z-20">
+                          <tr className="border-b border-gray-200">
+                            <th className="text-left py-2 sm:py-3 px-2 sm:px-3 md:px-4 text-xs sm:text-sm font-semibold text-gray-700 bg-white">Deal Name</th>
+                            <th className="text-left py-2 sm:py-3 px-2 sm:px-3 md:px-4 text-xs sm:text-sm font-semibold text-gray-700 bg-white">Target</th>
+                            <th className="text-left py-2 sm:py-3 px-2 sm:px-3 md:px-4 text-xs sm:text-sm font-semibold text-gray-700 bg-white hidden lg:table-cell">Source</th>
+                            <th className="text-left py-2 sm:py-3 px-2 sm:px-3 md:px-4 text-xs sm:text-sm font-semibold text-gray-700 bg-white">Stage</th>
+                            <th className="text-left py-2 sm:py-3 px-2 sm:px-3 md:px-4 text-xs sm:text-sm font-semibold text-gray-700 bg-white hidden lg:table-cell">Target Deal Size</th>
+                            <th className="text-left py-2 sm:py-3 px-2 sm:px-3 md:px-4 text-xs sm:text-sm font-semibold text-gray-700 bg-white hidden xl:table-cell">Next Step</th>
+                            <th className="text-left py-2 sm:py-3 px-2 sm:px-3 md:px-4 text-xs sm:text-sm font-semibold text-gray-700 bg-white">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {deals.map((deal, index) => {
+                            const dealId = deal.deal_id || deal["deal_id"] || deal.id || deal["id"]
+                            const currentStage = deal.stage || deal["stage"] || "list"
+                            const isUpdating = updatingStage === dealId
+                            const isDeleting = deletingDeal === dealId
+                            
+                            return (
+                              <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                                <td className="py-2 sm:py-3 px-2 sm:px-3 md:px-4 text-xs sm:text-sm text-[#0a3d3d] font-medium break-words">
+                                  {deal.deal_name || deal["deal_name"] || "-"}
+                                </td>
+                                <td className="py-2 sm:py-3 px-2 sm:px-3 md:px-4 text-xs sm:text-sm text-gray-700 break-words">
+                                  {deal.target || deal["target"] || "-"}
+                                </td>
+                                <td className="py-2 sm:py-3 px-2 sm:px-3 md:px-4 text-xs sm:text-sm text-gray-700 hidden lg:table-cell break-words max-w-[200px]">
+                                  {deal.source || deal["source"] || "-"}
+                                </td>
+                                <td className="py-2 sm:py-3 px-2 sm:px-3 md:px-4 text-xs sm:text-sm">
                                   <select
                                     value={currentStage}
                                     onChange={(e) => handleStageChange(dealId, e.target.value)}
                                     disabled={isUpdating || !dealId}
                                     style={{ 
-                                      minWidth: '120px',
+                                      minWidth: '100px',
                                       zIndex: 1,
                                       position: 'relative'
                                     }}
-                                    className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-md border-2 border-gray-300 text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] focus:border-[#0a3d3d] ${
+                                    className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-md border-2 border-gray-300 text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] focus:border-[#0a3d3d] min-h-[44px] ${
                                       currentStage === "closed" 
                                         ? "bg-green-100 text-green-800 border-green-300"
                                         : currentStage === "in negotiation"
@@ -1179,27 +1329,20 @@ console.log("client",client)
                                     <option value="in negotiation" style={{ backgroundColor: '#fef3c7', color: '#92400e' }}>in negotiation</option>
                                     <option value="closed" style={{ backgroundColor: '#d1fae5', color: '#065f46' }}>closed</option>
                                   </select>
-                                )
-                              })()}
-                            </td>
-                            <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-700 hidden lg:table-cell">
-                              {deal.target_deal_size || deal["target_deal_size"] || "-"}
-                            </td>
-                            <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-600 hidden xl:table-cell">
-                              {deal.next_step || deal["next_step"] || "-"}
-                            </td>
-                            <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm">
-                              {(() => {
-                                const dealId = deal.deal_id || deal["deal_id"] || deal.id || deal["id"]
-                                const isDeleting = deletingDeal === dealId
-                                
-                                return (
+                                </td>
+                                <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-700 hidden lg:table-cell break-words">
+                                  {deal.target_deal_size || deal["target_deal_size"] || "-"}
+                                </td>
+                                <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-600 hidden xl:table-cell break-words">
+                                  {deal.next_step || deal["next_step"] || "-"}
+                                </td>
+                                <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm">
                                   <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => handleDeleteDeal(dealId)}
                                     disabled={isDeleting || !dealId}
-                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 min-h-[44px] min-w-[44px]"
                                   >
                                     {isDeleting ? (
                                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -1207,14 +1350,14 @@ console.log("client",client)
                                       <Trash2 className="w-4 h-4" />
                                     )}
                                   </Button>
-                                )
-                              })()}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
                 ) : (
                   <div className="text-center py-8 text-gray-500">
                     <p>No active deals. Deals will appear here once created.</p>
@@ -1223,84 +1366,85 @@ console.log("client",client)
               </CardContent>
             </Card>
           </section>
+          )}
 
           {/* Industry & Geographic Focus */}
-          <section className="mb-8">
-            <h2 className="text-lg sm:text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
+          <section className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="industry-focus">
+            <h2 className="text-base sm:text-lg md:text-xl font-serif text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
               <span className="text-[#c9a961]">◇</span>
               Industry & Geographic Focus
             </h2>
             {isEditing ? (
               <Card className="bg-white border-none shadow-sm">
-                <CardContent className="p-6 space-y-4">
+                <CardContent className="p-4 sm:p-5 md:p-6 space-y-3 sm:space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Industries (separate with semicolons)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Industries (separate with semicolons)</label>
                     <input
                       type="text"
                       value={editData.industries || ""}
                       onChange={(e) => setEditData({...editData, industries: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                      className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-sm sm:text-base min-h-[44px]"
                       placeholder="e.g., Tech; Healthcare; Finance"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Regions (separate with semicolons)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Regions (separate with semicolons)</label>
                     <input
                       type="text"
                       value={editData.regions || ""}
                       onChange={(e) => setEditData({...editData, regions: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                      className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-sm sm:text-base min-h-[44px]"
                       placeholder="e.g., US; Europe; MENA"
                     />
                   </div>
                 </CardContent>
               </Card>
             ) : (
-              <div className="flex gap-3 flex-wrap">
+              <div className="flex gap-2 sm:gap-3 flex-wrap">
                 {getIndustries().map((industry, index) => (
-                  <Badge key={index} className="bg-[#e8dcc8] text-[#8b6f3e] hover:bg-[#e8dcc8] px-4 py-2">
+                  <Badge key={index} className="bg-[#e8dcc8] text-[#8b6f3e] hover:bg-[#e8dcc8] px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm">
                     {industry}
                   </Badge>
                 ))}
                 {getRegions().map((region, index) => (
-                  <Badge key={`region-${index}`} className="bg-[#d0e8e8] text-[#3e6b8b] hover:bg-[#d0e8e8] px-4 py-2">
+                  <Badge key={`region-${index}`} className="bg-[#d0e8e8] text-[#3e6b8b] hover:bg-[#d0e8e8] px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm">
                     🌎 {region}
                   </Badge>
                 ))}
                 {getIndustries().length === 0 && getRegions().length === 0 && (
-                  <p className="text-gray-500 text-sm">No industries or regions specified</p>
+                  <p className="text-gray-500 text-xs sm:text-sm">No industries or regions specified</p>
                 )}
               </div>
             )}
           </section>
 
-          <div className="mb-8" id="business-requests">
+          <div className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="business-requests">
             {/* Business Requests */}
-            <section className="mb-8">
-              <h2 className="text-lg sm:text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
+            <section className="mb-4 sm:mb-6 md:mb-8">
+              <h2 className="text-base sm:text-lg md:text-xl font-serif text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
                 <span className="text-[#c9a961]">⊞</span>
                 <span className="break-words">{clientName}'s Business Requests</span>
               </h2>
               <Card className="bg-white border-none shadow-sm">
-                <CardContent className="p-4 sm:p-6">
+                <CardContent className="p-3 sm:p-4 md:p-6">
                   {isEditing ? (
-                    <div className="space-y-4">
+                    <div className="space-y-3 sm:space-y-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Active Deal/Project</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Active Deal/Project</label>
                         <textarea
                           value={editData.active_deal || ""}
                           onChange={(e) => setEditData({...editData, active_deal: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[80px]"
+                          className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[80px] text-sm sm:text-base"
                           placeholder="Describe your active deal or project"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Travel Cities</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Travel Cities</label>
                         <input
                           type="text"
                           value={editData.travel_cities || ""}
                           onChange={(e) => setEditData({...editData, travel_cities: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                          className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-sm sm:text-base min-h-[44px]"
                           placeholder="e.g., New York, London, Dubai"
                         />
                       </div>
@@ -1308,17 +1452,17 @@ console.log("client",client)
                   ) : (
                     client.active_deal || client["active_deal"] || client.Active_deal || client["Active_deal"] ? (
                       <div className="space-y-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-4 pb-2 border-b text-sm text-gray-600 font-medium">
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-3 md:gap-4 pb-2 border-b text-xs sm:text-sm text-gray-600 font-medium">
                           <div className="col-span-1 sm:col-span-5">Request</div>
                           <div className="col-span-1 sm:col-span-4">Location</div>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-4 items-center py-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-3 md:gap-4 items-start sm:items-center py-2 sm:py-3">
                           <div className="col-span-1 sm:col-span-5">
-                            <div className="font-semibold">Active Deal/Project</div>
-                            <div className="text-sm text-gray-600 break-words">{client.active_deal || client["active_deal"] || client.Active_deal || client["Active_deal"]}</div>
+                            <div className="font-semibold text-sm sm:text-base">Active Deal/Project</div>
+                            <div className="text-xs sm:text-sm text-gray-600 break-words mt-1">{client.active_deal || client["active_deal"] || client.Active_deal || client["Active_deal"]}</div>
                           </div>
-                          <div className="col-span-1 sm:col-span-4 text-sm break-words">
+                          <div className="col-span-1 sm:col-span-4 text-xs sm:text-sm break-words">
                             {client.travel_cities || client["travel_cities"] || client["Travel Cities"] || client.city || client["city"] || client["City"] || client.regions?.[0] || client["Regions"]?.[0] || "-"}
                           </div>
                         </div>
@@ -1332,174 +1476,183 @@ console.log("client",client)
             </section>
 
             {/* Potential Business Matches */}
-            <section id="business-matches">
-              <h2 className="text-lg sm:text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
+            {!isEditing && (
+            <section id="business-matches" className="scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28">
+              <h2 className="text-base sm:text-lg md:text-xl font-serif text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
                 <span className="text-[#c9a961]">⚭</span>
                 Potential Business Matches
               </h2>
               <Card className="bg-white border-none shadow-sm">
-                <CardContent className="p-4 sm:p-6">
-                  <div className="space-y-4">
-                    <div className="pb-2 border-b text-sm text-gray-600 font-medium">
+                <CardContent className="p-3 sm:p-4 md:p-6">
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="pb-2 border-b text-xs sm:text-sm text-gray-600 font-medium">
                       Request
                     </div>
 
-                    <div className="py-3 border-b border-gray-100">
-                      <div className="font-semibold mb-1">High-net-worth investor</div>
-                      <div className="text-sm text-gray-600">Interested in Texas multifamily assets</div>
+                    <div className="py-2 sm:py-3 border-b border-gray-100">
+                      <div className="font-semibold mb-1 text-sm sm:text-base">High-net-worth investor</div>
+                      <div className="text-xs sm:text-sm text-gray-600">Interested in Texas multifamily assets</div>
                     </div>
 
-                    <div className="py-3">
-                      <div className="font-semibold mb-1">Institutional partner</div>
-                      <div className="text-sm text-gray-600">Seeking US-based RE developments</div>
+                    <div className="py-2 sm:py-3">
+                      <div className="font-semibold mb-1 text-sm sm:text-base">Institutional partner</div>
+                      <div className="text-xs sm:text-sm text-gray-600">Seeking US-based RE developments</div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             </section>
+            )}
           </div>
 
           {/* OPM Travel Plans */}
-          <section className="mb-8" id="opm-travel-plans">
-            <h2 className="text-lg sm:text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
+          {!isEditing && (
+          <section className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="opm-travel-plans">
+            <h2 className="text-base sm:text-lg md:text-xl font-serif text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
               <span className="text-[#c9a961]">✈</span>
               OPM Travel Plans
             </h2>
             <Card className="bg-white border-none shadow-sm">
-              <CardContent className="p-4 sm:p-6">
-                <div className="space-y-4">
-                  <div className="hidden sm:grid grid-cols-12 gap-4 pb-2 border-b text-sm text-gray-600 font-medium">
-                    <div className="col-span-3">Customer</div>
-                    <div className="col-span-2">OPM #</div>
-                    <div className="col-span-4">Travel Plans</div>
-                    <div className="col-span-3">Date</div>
-                  </div>
+              <CardContent className="p-3 sm:p-4 md:p-6">
+                {getOPMTravelPlans().length > 0 ? (
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="hidden sm:grid grid-cols-12 gap-3 sm:gap-4 pb-2 border-b text-xs sm:text-sm text-gray-600 font-medium">
+                      <div className="col-span-3">Customer</div>
+                      <div className="col-span-2">OPM #</div>
+                      <div className="col-span-4">Travel Plans</div>
+                      <div className="col-span-3">Date</div>
+                    </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-4 items-start py-3 border-b border-gray-100">
-                    <div className="col-span-1 sm:col-span-3 flex items-center gap-2">
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback>VG</AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm">Vit Goncharuk/AI</span>
-                    </div>
-                    <div className="col-span-1 sm:col-span-2">
-                      <Badge className="bg-[#b8d8d8] text-[#0a3d3d] hover:bg-[#b8d8d8]">OPM62</Badge>
-                    </div>
-                    <div className="col-span-1 sm:col-span-4 text-sm">
-                      <div>Washington → Miami</div>
-                      <div>Washington → Finland</div>
-                    </div>
-                    <div className="col-span-1 sm:col-span-3 text-sm">
-                      <div>February 21 - 23, 2025</div>
-                      <div>February 27 - March 5, 2025</div>
-                    </div>
-                  </div>
+                    {getOPMTravelPlans().map((plan, index) => {
+                      const customerName = plan.customer || ""
+                      const initials = getCustomerInitials(customerName)
+                      const travelPlans = plan.travel_plans || ""
+                      const dates = plan.date || ""
+                      const travelPlansList = travelPlans.split('\n').filter(p => p.trim())
+                      const datesList = dates.split('\n').filter(d => d.trim())
 
-                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-4 items-start py-3 border-b border-gray-100">
-                    <div className="col-span-1 sm:col-span-3 flex items-center gap-2">
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback>ZZ</AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm">Zoe Zhao/Re</span>
-                    </div>
-                    <div className="col-span-1 sm:col-span-2">
-                      <Badge className="bg-[#b8d8d8] text-[#0a3d3d] hover:bg-[#b8d8d8]">OPM55</Badge>
-                    </div>
-                    <div className="col-span-1 sm:col-span-4 text-sm">
-                      New York City → Barcelona/YPO Edge
-                    </div>
-                    <div className="col-span-1 sm:col-span-3 text-sm">
-                      February 18 - 25, 2025
-                    </div>
+                      return (
+                        <div 
+                          key={index} 
+                          className={`grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-3 md:gap-4 items-start py-2 sm:py-3 ${
+                            index < getOPMTravelPlans().length - 1 ? 'border-b border-gray-100' : ''
+                          }`}
+                        >
+                          <div className="col-span-1 sm:col-span-3 flex items-center gap-2">
+                            <Avatar className="h-7 w-7 sm:h-8 sm:w-8">
+                              <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+                            </Avatar>
+                            <span className="text-xs sm:text-sm break-words">{customerName}</span>
+                          </div>
+                          <div className="col-span-1 sm:col-span-2">
+                            <Badge className="bg-[#b8d8d8] text-[#0a3d3d] hover:bg-[#b8d8d8] text-xs">
+                              {plan.opm_number || ""}
+                            </Badge>
+                          </div>
+                          <div className="col-span-1 sm:col-span-4 text-xs sm:text-sm break-words">
+                            {travelPlansList.length > 0 ? (
+                              travelPlansList.map((planText, i) => (
+                                <div key={i}>{planText.trim()}</div>
+                              ))
+                            ) : (
+                              <div className="text-gray-400">-</div>
+                            )}
+                          </div>
+                          <div className="col-span-1 sm:col-span-3 text-xs sm:text-sm">
+                            {datesList.length > 0 ? (
+                              datesList.map((dateText, i) => (
+                                <div key={i}>{dateText.trim()}</div>
+                              ))
+                            ) : (
+                              <div className="text-gray-400">-</div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-4 items-start py-3">
-                    <div className="col-span-1 sm:col-span-3 flex items-center gap-2">
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback>HH</AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm">Hans Hammer</span>
-                    </div>
-                    <div className="col-span-1 sm:col-span-2">
-                      <Badge className="bg-[#b8d8d8] text-[#0a3d3d] hover:bg-[#b8d8d8]">OPM53</Badge>
-                    </div>
-                    <div className="col-span-1 sm:col-span-4 text-sm">
-                      Germany → New York City
-                    </div>
-                    <div className="col-span-1 sm:col-span-3 text-sm">
-                      February 18 - 25, 2025
-                    </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <p className="text-sm">No travel plans available. Travel plans will appear here once generated.</p>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </section>
+          )}
 
           {/* Upcoming Industry Events */}
-          <section className="mb-8" id="upcoming-industry-events">
-            <h2 className="text-lg sm:text-xl font-serif text-[#c9a961] mb-4 flex items-center gap-2">
+          {!isEditing && (
+          <section className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="upcoming-industry-events">
+            <h2 className="text-base sm:text-lg md:text-xl font-serif text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
               <span className="text-[#c9a961]">📅</span>
               Upcoming Industry Events
             </h2>
             <Card className="bg-white border-none shadow-sm">
-              <CardContent className="p-4 sm:p-6">
-                <div className="space-y-4">
-                  <div className="hidden sm:grid grid-cols-12 gap-4 pb-2 border-b text-sm text-gray-600 font-medium">
-                    <div className="col-span-4">Event</div>
-                    <div className="col-span-3">Industry</div>
-                    <div className="col-span-3">Location</div>
-                    <div className="col-span-2">Event Date</div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-4 items-start py-3 border-b border-gray-100">
-                    <div className="col-span-1 sm:col-span-4 text-[#c9a961] font-semibold break-words">Ken Hersh Private Equity & Sports</div>
-                    <div className="col-span-1 sm:col-span-3">
-                      <Badge className="bg-[#e8d8c8] text-[#8b5f3e] hover:bg-[#e8d8c8]">💼 Finance & Privat Equity</Badge>
+              <CardContent className="p-3 sm:p-4 md:p-6">
+                {getUpcomingIndustryEvents().length > 0 ? (
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="hidden sm:grid grid-cols-12 gap-3 sm:gap-4 pb-2 border-b text-xs sm:text-sm text-gray-600 font-medium">
+                      <div className="col-span-4">Event</div>
+                      <div className="col-span-3">Industry</div>
+                      <div className="col-span-3">Location</div>
+                      <div className="col-span-2">Event Date</div>
                     </div>
-                    <div className="col-span-1 sm:col-span-3 text-sm">Virtual</div>
-                    <div className="col-span-1 sm:col-span-2 text-sm">March 8, 2025 (11 AM ET)</div>
-                  </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-4 items-start py-3 border-b border-gray-100">
-                    <div className="col-span-1 sm:col-span-4 font-semibold break-words">DFW State of the Market</div>
-                    <div className="col-span-1 sm:col-span-3">
-                      <Badge className="bg-[#e8dcc8] text-[#8b6f3e] hover:bg-[#e8dcc8]">🏗 Real Estate & Infrastructure</Badge>
-                    </div>
-                    <div className="col-span-1 sm:col-span-3 text-sm">Dallas, TX</div>
-                    <div className="col-span-1 sm:col-span-2 text-sm">March 5, 2025</div>
-                  </div>
+                    {getUpcomingIndustryEvents().map((event, index) => {
+                      // Determine badge styling based on industry
+                      const industry = event.industry || ""
+                      let badgeClass = "bg-[#e8dcc8] text-[#8b6f3e] hover:bg-[#e8dcc8]"
+                      if (industry.includes("Finance") || industry.includes("Private Equity")) {
+                        badgeClass = "bg-[#e8d8c8] text-[#8b5f3e] hover:bg-[#e8d8c8]"
+                      } else if (industry.includes("Renewable Energy") || industry.includes("Energy")) {
+                        badgeClass = "bg-[#f0e8d0] text-[#8b7537] hover:bg-[#f0e8d0]"
+                      }
 
-                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-4 items-start py-3 border-b border-gray-100">
-                    <div className="col-span-1 sm:col-span-4 font-semibold break-words">IREI Spring Conference</div>
-                    <div className="col-span-1 sm:col-span-3">
-                      <Badge className="bg-[#e8dcc8] text-[#8b6f3e] hover:bg-[#e8dcc8]">🏗 Real Estate & Infrastructure</Badge>
-                    </div>
-                    <div className="col-span-1 sm:col-span-3 text-sm">Dallas, TX</div>
-                    <div className="col-span-1 sm:col-span-2 text-sm">March 25 - 26, 2025</div>
+                      return (
+                        <div 
+                          key={index}
+                          className={`grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-3 md:gap-4 items-start py-2 sm:py-3 ${
+                            index < getUpcomingIndustryEvents().length - 1 ? 'border-b border-gray-100' : ''
+                          }`}
+                        >
+                          <div className="col-span-1 sm:col-span-4 font-semibold break-words text-sm sm:text-base">
+                            {event.event_name || "-"}
+                          </div>
+                          <div className="col-span-1 sm:col-span-3">
+                            <Badge className={`${badgeClass} text-xs`}>
+                              {industry || "-"}
+                            </Badge>
+                          </div>
+                          <div className="col-span-1 sm:col-span-3 text-xs sm:text-sm break-words">
+                            {event.location || "-"}
+                          </div>
+                          <div className="col-span-1 sm:col-span-2 text-xs sm:text-sm">
+                            {event.event_date || "-"}
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-4 items-start py-3">
-                    <div className="col-span-1 sm:col-span-4 font-semibold break-words">Global Energy Meet (GEM) 2025</div>
-                    <div className="col-span-1 sm:col-span-3">
-                      <Badge className="bg-[#f0e8d0] text-[#8b7537] hover:bg-[#f0e8d0]">⚡ Renewable Energy</Badge>
-                    </div>
-                    <div className="col-span-1 sm:col-span-3 text-sm">Houston, TX</div>
-                    <div className="col-span-1 sm:col-span-2 text-sm">March 5-6, 2025</div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <p className="text-sm">No upcoming events available. Events will appear here once generated.</p>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </section>
+          )}
           </div>
         </div>
 
         {/* Create Deal Modal */}
         {showCreateDealModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-serif text-[#0a3d3d]">Create New Deal</h2>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+            <Card className="w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+              <CardContent className="p-4 sm:p-5 md:p-6">
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-serif text-[#0a3d3d]">Create New Deal</h2>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -1515,15 +1668,16 @@ console.log("client",client)
                       })
                       setSelectedSignal(null)
                     }}
+                    className="min-w-[44px] min-h-[44px]"
                   >
                     <X className="w-5 h-5" />
                   </Button>
                 </div>
 
                 <form onSubmit={(e) => { e.preventDefault(); handleCreateDeal(); }}
-                  className="space-y-4">
+                  className="space-y-3 sm:space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                       Deal Name *
                     </label>
                     <input
@@ -1531,46 +1685,46 @@ console.log("client",client)
                       required
                       value={dealFormData.deal_name}
                       onChange={(e) => setDealFormData({...dealFormData, deal_name: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                      className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-sm sm:text-base min-h-[44px]"
                       placeholder="Enter deal name"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                       Target
                     </label>
                     <input
                       type="text"
                       value={dealFormData.target}
                       onChange={(e) => setDealFormData({...dealFormData, target: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                      className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-sm sm:text-base min-h-[44px]"
                       placeholder="Enter target"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                       Source
                     </label>
                     <input
                       type="text"
                       value={dealFormData.source}
                       onChange={(e) => setDealFormData({...dealFormData, source: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                      className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-sm sm:text-base min-h-[44px]"
                       placeholder="Enter source URL or name"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                       Stage *
                     </label>
                     <select
                       required
                       value={dealFormData.stage}
                       onChange={(e) => setDealFormData({...dealFormData, stage: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                      className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-sm sm:text-base min-h-[44px]"
                     >
                       <option value="list">list</option>
                       <option value="intro">intro</option>
@@ -1582,35 +1736,35 @@ console.log("client",client)
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                       Target Deal Size
                     </label>
                     <input
                       type="text"
                       value={dealFormData.target_deal_size}
                       onChange={(e) => setDealFormData({...dealFormData, target_deal_size: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                      className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-sm sm:text-base min-h-[44px]"
                       placeholder="e.g., $5M - $15M"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                       Next Step
                     </label>
                     <textarea
                       value={dealFormData.next_step}
                       onChange={(e) => setDealFormData({...dealFormData, next_step: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[100px]"
+                      className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[100px] text-sm sm:text-base"
                       placeholder="Enter next step"
                     />
                   </div>
 
-                  <div className="flex gap-3 pt-4">
+                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-3 sm:pt-4">
                     <Button
                       type="submit"
                       disabled={creatingDeal}
-                      className="flex-1 bg-[#0a3d3d] hover:bg-[#0a3d3d]/90 text-white"
+                      className="flex-1 bg-[#0a3d3d] hover:bg-[#0a3d3d]/90 text-white min-h-[44px] text-sm sm:text-base"
                     >
                       {creatingDeal ? (
                         <>
@@ -1637,6 +1791,7 @@ console.log("client",client)
                         setSelectedSignal(null)
                       }}
                       disabled={creatingDeal}
+                      className="min-h-[44px] text-sm sm:text-base"
                     >
                       Cancel
                     </Button>

@@ -45,38 +45,39 @@ export default function ClientDetailModal({ client, isOpen, onClose }) {
     });
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-3 md:p-4">
+      <div className="bg-white rounded-lg shadow-2xl w-full max-w-3xl max-h-[95vh] sm:max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b flex-shrink-0">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Client Details</h2>
-            <p className="text-sm text-gray-500 mt-1">ID: {id}</p>
+        <div className="flex items-center justify-between p-3 sm:p-4 md:p-6 border-b flex-shrink-0">
+          <div className="flex-1 min-w-0 pr-2">
+            <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 truncate">Client Details</h2>
+            <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1 truncate">ID: {id}</p>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center"
+            aria-label="Close modal"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="space-y-4">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
+          <div className="space-y-3 sm:space-y-4">
             {displayFields.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">No details available</p>
+              <p className="text-gray-500 text-center py-6 sm:py-8 text-sm sm:text-base">No details available</p>
             ) : (
               displayFields.map((field, index) => (
-                <div key={index} className="border-b pb-4 last:border-b-0">
-                  <div className="flex flex-col sm:flex-row sm:items-start gap-2">
+                <div key={index} className="border-b pb-3 sm:pb-4 last:border-b-0">
+                  <div className="flex flex-col sm:flex-row sm:items-start gap-1.5 sm:gap-2">
                     <div className="sm:w-1/3 flex-shrink-0">
-                      <p className="text-sm font-semibold text-gray-700">
+                      <p className="text-xs sm:text-sm font-semibold text-gray-700">
                         {field.label}
                       </p>
                     </div>
                     <div className="sm:w-2/3 flex-1">
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap break-words">
+                      <p className="text-xs sm:text-sm text-gray-900 whitespace-pre-wrap break-words">
                         {String(field.value)}
                       </p>
                     </div>
@@ -88,7 +89,7 @@ export default function ClientDetailModal({ client, isOpen, onClose }) {
 
           {/* Metadata */}
           {createdAt && (
-            <div className="mt-8 pt-6 border-t">
+            <div className="mt-4 sm:mt-6 md:mt-8 pt-4 sm:pt-5 md:pt-6 border-t">
               <p className="text-xs text-gray-400">
                 Created: {new Date(createdAt).toLocaleString()}
               </p>
@@ -97,10 +98,10 @@ export default function ClientDetailModal({ client, isOpen, onClose }) {
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t flex-shrink-0">
+        <div className="p-3 sm:p-4 md:p-6 border-t flex-shrink-0">
           <button
             onClick={onClose}
-            className="w-full px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+            className="w-full px-4 py-2.5 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm sm:text-base font-medium min-h-[44px]"
           >
             Close
           </button>
