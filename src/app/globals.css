@@ -93,3 +93,7 @@ body {
 .font-hedvig {
   font-family: var(--font-hedvig-letters-serif), serif;
 }
+
+.font-montserrat {
+  font-family: var(--font-montserrat), sans-serif;
+}

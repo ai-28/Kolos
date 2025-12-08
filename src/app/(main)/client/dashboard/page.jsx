@@ -521,7 +521,7 @@ console.log("client",client)
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen font-montserrat">
       {/* Mobile Menu Overlay */}
       {isMobileMenuOpen && (
         <div 
@@ -538,7 +538,7 @@ console.log("client",client)
             <KolosLogo/>
         </div>
 
-        <nav className="space-y-1 flex-1 text-sm sm:text-[16px] font-hedvig">
+        <nav className="space-y-1 flex-1 text-sm sm:text-[16px]">
           <a href="#" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2 sm:gap-3 py-2.5 sm:py-3 rounded hover:bg-white/10 transition-colors min-h-[44px]">
               <DashboardIcon/>
             <span className="font-thin">Dashboard</span>
@@ -598,7 +598,7 @@ console.log("client",client)
       <main className="flex-1 lg:ml-[284px] bg-[#f5f3f0] min-h-screen" style={{ scrollBehavior: 'smooth', scrollPaddingTop: '100px' }}>
         <div className="max-w-[1400px] mx-auto">
           {/* Header - Fixed */}
-          <div className="sticky top-0 bg-[#f5f3f0] z-20 border-b border-gray-200 shadow-sm">
+          <div className="sticky top-0 bg-[#f5f3f0] z-20">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0 p-3 sm:p-4 lg:p-8 pb-3 sm:pb-4">
             <div className="flex items-center gap-2 lg:gap-4 flex-1 min-w-0 w-full sm:w-auto flex-wrap sm:flex-nowrap">
               {/* Mobile Menu Button */}
@@ -617,9 +617,9 @@ console.log("client",client)
                 className="hidden sm:flex items-center gap-2 text-[#0a3d3d] hover:bg-[#0a3d3d]/10 min-h-[44px] flex-shrink-0"
               >
                 <ArrowLeft className="w-4 h-4" />
-                <span className="hidden md:inline">Back to Dashboard</span>
+                <span className="hidden md:inline">Back</span>
               </Button>
-              <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-serif text-[#0a3d3d] break-words sm:truncate flex-1 min-w-0 w-full sm:w-auto">{clientName} Dashboard</h1>
+              <h1 className="text-[40px] font-bold text-[#532418] sm:text-xl md:text-2xl lg:text-3xl font-montserrat text-[#0a3d3d] break-words sm:truncate flex-1 min-w-0 w-full sm:w-auto">{clientName}</h1>
             </div>
             <div className="flex items-center gap-2 lg:gap-3 flex-shrink-0 w-full sm:w-auto">
               {isEditing ? (
@@ -656,9 +656,9 @@ console.log("client",client)
                   onClick={handleEdit}
                   className="flex items-center gap-2 bg-[#c9a961] hover:bg-[#c9a961]/90 text-[#0a3d3d] w-full sm:w-auto min-h-[44px] text-sm sm:text-base"
                 >
-                  <Edit2 className="w-4 h-4" />
-                  <span className="hidden sm:inline">Edit Profile</span>
-                  <span className="sm:hidden">Edit</span>
+                  <Edit2 className="w-4 h-4 text-[#532418]"/>
+                  <span className="hidden sm:inline text-[#532418]">Edit Profile</span>
+                  <span className="sm:hidden text-[#532418]">Edit</span>
                 </Button>
               )}
               {/* <Avatar className="h-10 w-10 lg:h-12 lg:w-12">
@@ -676,7 +676,7 @@ console.log("client",client)
             <section className="mb-6 sm:mb-8">
               <Card className="bg-white border-none shadow-sm">
                 <CardContent className="p-4 sm:p-6">
-                  <h2 className="text-base sm:text-lg md:text-xl font-serif text-[#c9a961] mb-3 sm:mb-4">Basic Information</h2>
+                  <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-3 sm:mb-4">Basic Information</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Name</label>
@@ -785,29 +785,9 @@ console.log("client",client)
               </Card>
             </section>
           )}
-          {/* Select Your Role */}
+          {/* Role */}
           <section className="mb-4 sm:mb-6 md:mb-8">
-            <h2 className="text-base sm:text-lg md:text-xl font-serif text-[#c9a961] mb-2 sm:mb-3 md:mb-4">Select Your Role</h2>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 font-hedvig">
-              {["Investor", "Entrepreneur", "Asset Manager", "Facilitator"].map((role) => (
-                <Button
-                  key={role}
-                  onClick={() => {
-                    setSelectedRole(role)
-                    if (isEditing) {
-                      setEditData({...editData, role: role})
-                    }
-                  }}
-                  className={`rounded-full py-2.5 sm:py-3 md:py-4 lg:py-6 text-xs sm:text-sm lg:text-base min-h-[44px] font-medium ${
-                    (isEditing ? editData.role : selectedRole) === role
-                      ? "bg-[#0a3d3d] hover:bg-[#0a3d3d]/90 text-white"
-                      : "bg-[#c9a961] hover:bg-[#c9a961]/90 text-[#0a3d3d]"
-                  }`}
-                >
-                  {role}
-                </Button>
-              ))}
-            </div>
+            <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-2 sm:mb-3 md:mb-4">Role : {client?.role}, Founder of {client?.company}</h2>
           </section>
 
           {/* Client Information Card */}
@@ -972,7 +952,7 @@ console.log("client",client)
 
           {/* Business Goals Overview */}
           <section className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="business-goals">
-            <h2 className="text-base sm:text-lg md:text-xl font-serif text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
+            <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
               <span className="text-[#c9a961]">◎</span>
               <span>Business Goals Overview</span>
             </h2>
@@ -989,49 +969,30 @@ console.log("client",client)
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
-                {getGoals().slice(0, 2).map((goal, index) => (
-                  <Card key={index} className="bg-white border-none shadow-sm">
-                    <CardContent className="p-4 sm:p-5 md:p-6">
-                      <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-full border-2 border-[#c9a961] flex items-center justify-center flex-shrink-0 mt-1">
-                          <span className="text-[#c9a961] text-sm">{index + 1}</span>
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-[#0a3d3d] mb-1">Goal {index + 1}</h3>
-                          <p className="text-gray-600">{goal}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-                {getGoals().length === 0 && (
-                  <>
-                    <Card className="bg-white border-none shadow-sm">
-                      <CardContent className="p-6">
-                        <div className="flex items-start gap-3">
-                          <div className="w-8 h-8 rounded-full border-2 border-[#c9a961] flex items-center justify-center flex-shrink-0 mt-1">
-                            <span className="text-[#c9a961] text-sm">i</span>
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-[#0a3d3d] mb-1">No goals set</h3>
-                            <p className="text-gray-600">Goals will appear here when available</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </>
-                )}
-              </div>
+              <Card className="bg-white border-none shadow-sm">
+                <CardContent className="p-4 sm:p-5 md:p-6">
+                  {getGoals().length > 0 ? (
+                    <div className="space-y-2">
+                      {getGoals().map((goal, index) => (
+                        <p key={index} className="text-gray-700">
+                          {goal}
+                        </p>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500">No goals set. Goals will appear here when available.</p>
+                  )}
+                </CardContent>
+              </Card>
             )}
           </section>
 
           {/* Live Private Deal Flow */}
           {!isEditing && (
           <section className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="signals">
-            <h2 className="text-base sm:text-lg md:text-xl font-serif text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
+            <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
               <span className="text-[#c9a961]">⊟</span>
-              <span>Signals</span>
+              <span> Prime Location Signals</span>
             </h2>
             <Card className="bg-white border-none shadow-sm">
               <CardContent className="p-3 sm:p-4 md:p-6">
@@ -1088,7 +1049,7 @@ console.log("client",client)
                                 }) : '-'}
                               </div>
                             </div>
-                            <div>
+                            {/* <div>
                               <div className="text-gray-500 mb-1">Signal Type</div>
                               <div className="font-medium text-[#0a3d3d] capitalize">
                                 {signal.signal_type || '-'}
@@ -1099,7 +1060,7 @@ console.log("client",client)
                               <div className="font-medium text-[#0a3d3d]">
                                 {signal.category ? signal.category.replace("_opportunity", "").replace(/_/g, " ") : '-'}
                               </div>
-                            </div>
+                            </div> */}
                             <div>
                               <div className="text-gray-500 mb-1">Scores (R,O,A)</div>
                               <div className="font-medium text-[#0a3d3d]">
@@ -1155,7 +1116,7 @@ console.log("client",client)
           {/* Active Deals */}
           {!isEditing && (
           <section className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="active-deals">
-            <h2 className="text-base sm:text-lg md:text-xl font-serif text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
+            <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
               <span className="text-[#c9a961]">💼</span>
               Active Deals
             </h2>
@@ -1371,7 +1332,7 @@ console.log("client",client)
 
           {/* Industry & Geographic Focus */}
           <section className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="industry-focus">
-            <h2 className="text-base sm:text-lg md:text-xl font-serif text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
+            <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
               <span className="text-[#c9a961]">◇</span>
               Industry & Geographic Focus
             </h2>
@@ -1422,7 +1383,7 @@ console.log("client",client)
           <div className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="business-requests">
             {/* Business Requests */}
             <section className="mb-4 sm:mb-6 md:mb-8">
-              <h2 className="text-base sm:text-lg md:text-xl font-serif text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
+              <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
                 <span className="text-[#c9a961]">⊞</span>
                 <span className="break-words">{clientName}'s Business Requests</span>
               </h2>
@@ -1479,7 +1440,7 @@ console.log("client",client)
             {/* Potential Business Matches */}
             {!isEditing && (
             <section id="business-matches" className="scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28">
-              <h2 className="text-base sm:text-lg md:text-xl font-serif text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
+              <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
                 <span className="text-[#c9a961]">⚭</span>
                 Potential Business Matches
               </h2>
@@ -1509,7 +1470,7 @@ console.log("client",client)
           {/* OPM Travel Plans */}
           {!isEditing && (
           <section className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="opm-travel-plans">
-            <h2 className="text-base sm:text-lg md:text-xl font-serif text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
+            <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
               <span className="text-[#c9a961]">✈</span>
               OPM Travel Plans
             </h2>
@@ -1585,7 +1546,7 @@ console.log("client",client)
           {/* Upcoming Industry Events */}
           {!isEditing && (
           <section className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="upcoming-industry-events">
-            <h2 className="text-base sm:text-lg md:text-xl font-serif text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
+            <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
               <span className="text-[#c9a961]">📅</span>
               Upcoming Industry Events
             </h2>
@@ -1653,7 +1614,7 @@ console.log("client",client)
             <Card className="w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
               <CardContent className="p-4 sm:p-5 md:p-6">
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
-                  <h2 className="text-lg sm:text-xl md:text-2xl font-serif text-[#0a3d3d]">Create New Deal</h2>
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-montserrat text-[#0a3d3d]">Create New Deal</h2>
                   <Button
                     variant="ghost"
                     size="icon"
