@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { RetellWebClient } from "retell-client-js-sdk";
 import { X, Loader2, Mic, MicOff } from "lucide-react";
 
-export default function VoiceWidget({ isOpen, onClose, autoStart = true }) {
+export default function VoiceWidget({ isOpen, onClose, autoStart = true, initialVariables }) {
   const [messages, setMessages] = useState([]);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
@@ -203,12 +203,13 @@ export default function VoiceWidget({ isOpen, onClose, autoStart = true }) {
         }
       });
 
-      // Get access token from your API
+      // Get access token from your API with initial variables
       const response = await fetch("/api/retell/get-token", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
+        body: JSON.stringify(initialVariables || {}),
       });
 
       const data = await response.json();

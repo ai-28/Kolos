@@ -8,14 +8,23 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { CheckCircle2, Menu, X } from "lucide-react";
 import VoiceWidget from "@/app/components/VoiceWidget";
 import EmailModal from "@/app/components/EmailModal";
+import OnboardingModal from "@/app/components/OnboardingModal";
 
 export default function Home() {
   const [isWidgetOpen, setIsWidgetOpen] = useState(false);
+  const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
+  const [initialVariables, setInitialVariables] = useState(null);
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const router = useRouter();
 
   const handleStartOnboarding = () => {
+    setIsOnboardingModalOpen(true);
+  };
+
+  const handleOnboardingStart = (variables) => {
+    setInitialVariables(variables);
+    setIsOnboardingModalOpen(false);
     setIsWidgetOpen(true);
   };
 
@@ -213,11 +222,22 @@ export default function Home() {
         </div>
       </footer>
 
+      {/* Onboarding Modal */}
+      <OnboardingModal
+        isOpen={isOnboardingModalOpen}
+        onClose={() => setIsOnboardingModalOpen(false)}
+        onStart={handleOnboardingStart}
+      />
+
       {/* Voice Widget */}
       <VoiceWidget
         isOpen={isWidgetOpen}
-        onClose={() => setIsWidgetOpen(false)}
+        onClose={() => {
+          setIsWidgetOpen(false);
+          setInitialVariables(null);
+        }}
         autoStart={true}
+        initialVariables={initialVariables}
       />
 
       {/* Email Modal */}
