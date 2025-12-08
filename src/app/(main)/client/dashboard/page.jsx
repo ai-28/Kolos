@@ -573,7 +573,7 @@ console.log("client",client)
           </a>
         </nav>
 
-        <div className="border-t border-gray-600 pt-3 sm:pt-4 mt-3 sm:mt-4 space-y-2 sm:space-y-3">
+        {/* <div className="border-t border-gray-600 pt-3 sm:pt-4 mt-3 sm:mt-4 space-y-2 sm:space-y-3">
           <div className="text-xs sm:text-sm">
             <div className="text-gray-400 mb-1">Your Havard OPM Cohort</div>
             <div className="font-semibold">59</div>
@@ -586,7 +586,7 @@ console.log("client",client)
             <div className="text-gray-400 mb-1">Live Virtual Assistant</div>
             <div className="text-xs">Not available under Basic</div>
           </div>
-        </div>
+        </div> */}
 
         <div className="border-t border-gray-600 pt-3 sm:pt-4 mt-3 sm:mt-4 space-y-2">
           <a href="#" onClick={() => setIsMobileMenuOpen(false)} className="block text-xs sm:text-sm hover:text-[#c9a961] transition-colors min-h-[44px] flex items-center">Havard OPM Group</a>
