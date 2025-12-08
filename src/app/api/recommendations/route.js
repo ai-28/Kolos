@@ -480,6 +480,7 @@ Important:
       profile.deal_size || '',
       profile.ideal_ceo_profile || '',
       profile.ideal_intro || '',
+      profile.linkedin_url || '',
       opmTravelPlansJson, // opm_travel_plans (JSON string)
       upcomingEventsJson, // upcoming_industry_events (JSON string)
     ];
