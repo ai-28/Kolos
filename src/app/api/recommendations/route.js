@@ -33,7 +33,6 @@ You output:
   - date
   - headline_source
   - url
-  - category
   - signal_type
   - scores_R_O_A
   - overall
@@ -178,10 +177,6 @@ For each valid signal create one row with these definitions:
   - It must be a real, accessible URL that you verified through web search.
   - Do NOT make up URLs or use placeholder links.
 
-- category:  
-  - Use fixed value <client_slug>_opportunity.  
-  - For Colaberry example: colaberry_opportunity.  
-
 - signal_type:  
   - Choose one of: funding, event, regulation, partner, trend, opportunity.  
   - Be consistent within one report.
@@ -316,7 +311,6 @@ Required structure:
       "date": "2025-11-07",
       "headline_source": "Mass layoff wave hits ~1,300 Texans across metros (incl. DFW) - fresh WARN flow for reskilling",
       "url": "https://example.com/article",
-      "category": "colaberry_opportunity",
       "signal_type": "event",
       "scores_R_O_A": "5,5,4",
       "overall": 5,
@@ -462,6 +456,32 @@ Important:
       : '';
 
     const profileRow = [
+      profileId, // id (first column)
+      profile.name || '',
+      profile.email || '',
+      profile.role || '',
+      profile.company || '',
+      profile.industries || '',
+      profile.project_size || '',
+      profile.raise_amount || '',
+      profile.check_size || '',
+      profile.active_raise_amount || '',
+      profile.goals || '',
+      profile.regions || '',
+      profile.partner_types || '',
+      profile.constraints_notes || '',
+      profile.active_deal || '',
+      profile.travel_cities || '',
+      profile.strategy_focus || '',
+      profile.business_stage || '',
+      profile.revenue_range || '',
+      profile.facilitator_clients || '',
+      profile.deal_type || '',
+      profile.deal_size || '',
+      profile.ideal_ceo_profile || '',
+      profile.ideal_intro || '',
+      opmTravelPlansJson, // opm_travel_plans (JSON string)
+      upcomingEventsJson, // upcoming_industry_events (JSON string)
     ];
 
     try {
@@ -482,7 +502,6 @@ Important:
           signal.date || '',
           signal.headline_source || '',
           signal.url || '',
-          signal.category || '',
           signal.signal_type || '',
           signal.scores_R_O_A || '',
           signal.overall || '',
