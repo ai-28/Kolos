@@ -83,10 +83,10 @@ export async function appendToSheet(sheetName, values) {
         const sheets = getSheetsClient();
 
         // Append will automatically find the next empty row after existing data
-        // Using A:Z range to cover all columns we might write to
+        // Using A:AZ range to cover all columns we might write to (including 27th column AA)
         const response = await sheets.spreadsheets.values.append({
             spreadsheetId: SPREADSHEET_ID,
-            range: `${sheetName}!A:Z`, // Full range - append will find next empty row
+            range: `${sheetName}!A:AZ`, // Full range - append will find next empty row
             valueInputOption: 'USER_ENTERED',
             insertDataOption: 'INSERT_ROWS',
             resource: {
@@ -116,7 +116,7 @@ export async function getSheetData(sheetName) {
 
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: `${sheetName}!A:Z`,
+            range: `${sheetName}!A:AZ`,
         });
 
         const rows = response.data.values || [];

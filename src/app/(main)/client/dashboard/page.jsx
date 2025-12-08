@@ -457,6 +457,7 @@ console.log("client",client)
       return []
     }
   }
+  console.log("client", client)
 
   // Get Upcoming Industry Events from client profile
   const getUpcomingIndustryEvents = () => {
