@@ -73,11 +73,28 @@ Any restrictions or requirements to consider when matching partners (e.g., minim
 A brief description (1–2 sentences) of any active deal where an intro this month would help.
 - travel_cities
 Cities the user expects to visit in the next 6–12 months for business, for event or in-person intro planning.
+- strategy_focus
+The investment strategy focus of the user (e.g., VC, growth, buyout, credit).
+- business_stage
+The current business stage of the user's company or target companies (e.g., idea, early revenue, growth, scaling).
+- revenue_range
+The current annual revenue range of the user's business or target businesses.
+- facilitator_clients
+The primary types of clients the user serves or works with (e.g., CEOs, family offices, funds, corporates).
+- deal_type
+The types of deals the user supports or focuses on (e.g., M&A, capital raise, buy side, sell side, equity, debt).
+- deal_size
+The typical deal size range the user works with or targets.
+- ideal_ceo_profile
+The characteristics of the ideal CEO or business owner match for the user (size, situation, industry, etc.).
+- ideal_intro
+The single most valuable introduction the user needs right now.
 
 And this is the client profile.
 ${JSON.stringify(profile, null, 2)}
-if the role is investor or asset manager, check_size is used, not just raise_amount or project_size.
-if the role is entrepreneur or operator or founder or facilitator, project_size and raise_amount is used, not just check_size.
+For the investor or asset manager, strategy_focus, check_size, active_raise_amount are distinctly used than other roles.
+For the entrepreneur or founder, business_stage, revenue_range, project_size, raise_amount,active_raise amount are distinctly used than other roles.
+For the facilitator, facilitator_clients, deal_type, deal_size, ideal_ceo_profile, ideal_intro are distinctly used than other roles.
 ---------------------------------
 STEP 2 - FIND AND SELECT SIGNALS
 ---------------------------------
@@ -113,7 +130,7 @@ Using the CLIENT_PROFILE:
    - If information seems questionable, perform additional searches to verify before including it
    - Only include signals where you can confirm the URL, date, and headline are all accurate from your web search
 
-Aim for 8 strong actual valid signals that you found through web search. If you cannot find 8 valid signals, return fewer signals rather than making them up.
+Aim for 8~10 strong actual valid signals that you found through web search.
 
 -----------------------------------
 STEP 3 - SCORE R, O, A FOR EACH ROW
@@ -325,7 +342,7 @@ Required structure:
 }
 
 Important:
-- Return 8 top signals in the signals array (or fewer if you cannot find 8 valid signals through web search)
+- Return 8 top high (overall score is more than 4) signals in the signals array
 - Return exactly 5 OPM Travel Plans in the opm_travel_plans array
 - Return exactly 5 Upcoming Industry Events in the upcoming_industry_events array
 - All signal dates must be strings in YYYY-MM-DD format and must match actual publication dates from web search
@@ -445,24 +462,6 @@ Important:
       : '';
 
     const profileRow = [
-      profileId, // id (first column)
-      profile.name || '',
-      profile.email || '',
-      profile.role || '',
-      profile.company || '',
-      profile.industries || '',
-      profile.project_size || '',
-      profile.raise_amount || '',
-      profile.check_size || '',
-      profile.active_raise_amount || '',
-      profile.goals || '',
-      profile.regions || '',
-      profile.partner_types || '',
-      profile.constraints_notes || '',
-      profile.active_deal || '',
-      profile.travel_cities || '',
-      opmTravelPlansJson, // opm_travel_plans (JSON string)
-      upcomingEventsJson, // upcoming_industry_events (JSON string)
     ];
 
     try {
