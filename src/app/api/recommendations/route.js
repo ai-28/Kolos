@@ -37,8 +37,8 @@ You output:
   - scores_R_O_A
   - overall
   - next_step
-- 5 OPM Travel Plans (other clients' travel plans that might be relevant for networking)
-- 5 Upcoming Industry Events (industry events that match the client's focus areas)
+- 3 OPM Travel Plans (other clients' travel plans that might be relevant for networking)
+- 3 Upcoming Industry Events (industry events that match the client's focus areas)
 
 Your goal is to spot specific events that can become pipeline for this client next week, not generic news.
 
@@ -208,7 +208,7 @@ STEP 5 - GENERATE OPM TRAVEL PLANS
 
 CRITICAL: All travel plan dates MUST be in the FUTURE and VALID. Use the current date (run_date) as reference - all dates must be AFTER the run_date.
 
-Generate 5 OPM Travel Plans based on the client profile. These should represent other clients or contacts in the Kolos network who have upcoming travel that might be relevant for networking or in-person introductions.
+Generate 3 OPM Travel Plans based on the client profile. These should represent other clients or contacts in the Kolos network who have upcoming travel that might be relevant for networking or in-person introductions.
 
 For each travel plan, include:
 - customer: 
@@ -243,7 +243,7 @@ CRITICAL: All event dates MUST be in the FUTURE and VALID. Use the current date 
 
 Use web search to find REAL, VERIFIABLE upcoming industry events. Search for actual conferences, summits, webinars, and industry gatherings that are scheduled for the future.
 
-Generate 5 Upcoming Industry Events that match the client's industries, regions, and business goals.
+Generate 3 Upcoming Industry Events that match the client's industries, regions, and business goals.
 
 For each event, include:
 - event_name:
@@ -278,7 +278,7 @@ Focus on events that:
 - Could provide networking, learning, or business development opportunities
 - Are actual industry events (conferences, summits, meetups, webinars) with verifiable information
 
-If you cannot find 5 real, verifiable future events through web search, return fewer events rather than making them up.
+If you cannot find 3 real, verifiable future events through web search, return fewer events rather than making them up.
 
 -----------------
 STEP 7 - OUTPUT
@@ -337,8 +337,8 @@ Required structure:
 
 Important:
 - Return 8 top high (overall score is more than 4) signals in the signals array
-- Return exactly 5 OPM Travel Plans in the opm_travel_plans array
-- Return exactly 5 Upcoming Industry Events in the upcoming_industry_events array
+- Return exactly 3 OPM Travel Plans in the opm_travel_plans array
+- Return exactly 3 Upcoming Industry Events in the upcoming_industry_events array
 - All signal dates must be strings in YYYY-MM-DD format and must match actual publication dates from web search
 - All numeric values (time_window_days, overall) must be numbers, not strings
 - scores_R_O_A must be a string like "5,5,4"
