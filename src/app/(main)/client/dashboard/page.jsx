@@ -1096,7 +1096,7 @@ console.log("client",client)
                               }}
                               className="bg-[#0a3d3d] hover:bg-[#0a3d3d]/90 text-white w-full sm:w-auto min-h-[44px] text-sm sm:text-base"
                             >
-                              Create Deal
+                              Activate Kolos
                             </Button>
                           </div>
                         </div>
