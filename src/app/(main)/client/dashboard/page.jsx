@@ -1473,10 +1473,11 @@ console.log("client",client)
                 {getOPMTravelPlans().length > 0 ? (
                   <div className="space-y-3 sm:space-y-4">
                     <div className="hidden sm:grid grid-cols-12 gap-3 sm:gap-4 pb-2 border-b text-xs sm:text-sm text-gray-600 font-medium">
-                      <div className="col-span-3">Connection</div>
+                      <div className="col-span-2">Connection</div>
                       <div className="col-span-2">OPM #</div>
-                      <div className="col-span-4">Travel Plans</div>
-                      <div className="col-span-3">Date</div>
+                      <div className="col-span-3">Travel Plans</div>
+                      <div className="col-span-2">Date</div>
+                      <div className="col-span-3">How they can help</div>
                     </div>
 
                     {getOPMTravelPlans().map((plan, index) => {
@@ -1494,7 +1495,7 @@ console.log("client",client)
                             index < getOPMTravelPlans().length - 1 ? 'border-b border-gray-100' : ''
                           }`}
                         >
-                          <div className="col-span-1 sm:col-span-3 flex items-center gap-2">
+                          <div className="col-span-1 sm:col-span-2 flex items-center gap-2">
                             <Avatar className="h-7 w-7 sm:h-8 sm:w-8">
                               <AvatarFallback className="text-xs">{initials}</AvatarFallback>
                             </Avatar>
@@ -1505,7 +1506,7 @@ console.log("client",client)
                               {plan.opm_number || ""}
                             </Badge>
                           </div>
-                          <div className="col-span-1 sm:col-span-4 text-xs sm:text-sm break-words">
+                          <div className="col-span-1 sm:col-span-3 text-xs sm:text-sm break-words">
                             {travelPlansList.length > 0 ? (
                               travelPlansList.map((planText, i) => (
                                 <div key={i}>{planText.trim()}</div>
@@ -1514,7 +1515,7 @@ console.log("client",client)
                               <div className="text-gray-400">-</div>
                             )}
                           </div>
-                          <div className="col-span-1 sm:col-span-3 text-xs sm:text-sm">
+                          <div className="col-span-1 sm:col-span-2 text-xs sm:text-sm">
                             {datesList.length > 0 ? (
                               datesList.map((dateText, i) => (
                                 <div key={i}>{dateText.trim()}</div>
@@ -1522,6 +1523,9 @@ console.log("client",client)
                             ) : (
                               <div className="text-gray-400">-</div>
                             )}
+                          </div>
+                          <div className="col-span-1 sm:col-span-3 text-xs sm:text-sm break-words text-gray-600">
+                            {plan.how_they_can_help || plan["how_they_can_help"] || plan["How they can help"] || "-"}
                           </div>
                         </div>
                       )
@@ -1732,7 +1736,7 @@ console.log("client",client)
                           Creating...
                         </>
                       ) : (
-                        "Create Deal"
+                        "Activate Kolos"
                       )}
                     </Button>
                     <Button
