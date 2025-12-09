@@ -1450,12 +1450,6 @@ console.log("client",client)
                     <div className="pb-2 border-b text-xs sm:text-sm text-gray-600 font-medium">
                       Request
                     </div>
-
-                    <div className="py-2 sm:py-3 border-b border-gray-100">
-                      <div className="font-semibold mb-1 text-sm sm:text-base">High-net-worth investor</div>
-                      <div className="text-xs sm:text-sm text-gray-600">Interested in Texas multifamily assets</div>
-                    </div>
-
                     <div className="py-2 sm:py-3">
                       <div className="font-semibold mb-1 text-sm sm:text-base">Institutional partner</div>
                       <div className="text-xs sm:text-sm text-gray-600">Seeking US-based RE developments</div>
@@ -1472,14 +1466,14 @@ console.log("client",client)
           <section className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="opm-travel-plans">
             <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
               <span className="text-[#c9a961]">✈</span>
-              OPM Travel Plans
+              OPM Travel Matches
             </h2>
             <Card className="bg-white border-none shadow-sm">
               <CardContent className="p-3 sm:p-4 md:p-6">
                 {getOPMTravelPlans().length > 0 ? (
                   <div className="space-y-3 sm:space-y-4">
                     <div className="hidden sm:grid grid-cols-12 gap-3 sm:gap-4 pb-2 border-b text-xs sm:text-sm text-gray-600 font-medium">
-                      <div className="col-span-3">Customer</div>
+                      <div className="col-span-3">Connection</div>
                       <div className="col-span-2">OPM #</div>
                       <div className="col-span-4">Travel Plans</div>
                       <div className="col-span-3">Date</div>
@@ -1555,10 +1549,11 @@ console.log("client",client)
                 {getUpcomingIndustryEvents().length > 0 ? (
                   <div className="space-y-3 sm:space-y-4">
                     <div className="hidden sm:grid grid-cols-12 gap-3 sm:gap-4 pb-2 border-b text-xs sm:text-sm text-gray-600 font-medium">
-                      <div className="col-span-4">Event</div>
-                      <div className="col-span-3">Industry</div>
-                      <div className="col-span-3">Location</div>
+                      <div className="col-span-3">Event</div>
+                      <div className="col-span-2">Industry</div>
+                      <div className="col-span-2">Location</div>
                       <div className="col-span-2">Event Date</div>
+                      <div className="col-span-3">Why it matters</div>
                     </div>
 
                     {getUpcomingIndustryEvents().map((event, index) => {
@@ -1578,19 +1573,22 @@ console.log("client",client)
                             index < getUpcomingIndustryEvents().length - 1 ? 'border-b border-gray-100' : ''
                           }`}
                         >
-                          <div className="col-span-1 sm:col-span-4 font-semibold break-words text-sm sm:text-base">
+                          <div className="col-span-1 sm:col-span-3 break-words text-sm sm:text-base">
                             {event.event_name || "-"}
                           </div>
-                          <div className="col-span-1 sm:col-span-3">
+                          <div className="col-span-1 sm:col-span-2">
                             <Badge className={`${badgeClass} text-xs`}>
                               {industry || "-"}
                             </Badge>
                           </div>
-                          <div className="col-span-1 sm:col-span-3 text-xs sm:text-sm break-words">
+                          <div className="col-span-1 sm:col-span-2 text-xs sm:text-sm break-words">
                             {event.location || "-"}
                           </div>
                           <div className="col-span-1 sm:col-span-2 text-xs sm:text-sm">
                             {event.event_date || "-"}
+                          </div>
+                          <div className="col-span-1 sm:col-span-3 text-xs sm:text-sm break-words text-gray-600">
+                            {event.why_it_matters || event["why_it_matters"] || event["Why it matters"] || "-"}
                           </div>
                         </div>
                       )
