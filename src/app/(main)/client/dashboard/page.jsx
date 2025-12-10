@@ -555,14 +555,14 @@ console.log("client",client)
             <IndustryFocusIcon/>
             <span>Industry Focus</span>
           </a>
-          <a href="#business-requests" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2 sm:gap-3 py-2.5 sm:py-3 rounded hover:bg-white/10 transition-colors min-h-[44px]">
+          {/* <a href="#business-requests" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2 sm:gap-3 py-2.5 sm:py-3 rounded hover:bg-white/10 transition-colors min-h-[44px]">
             <BusinessRequestsIcon/>
             <span>Business Requests</span>
           </a>
           <a href="#business-matches" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2 sm:gap-3 py-2.5 sm:py-3 rounded hover:bg-white/10 transition-colors min-h-[44px]">
             <BusinessMatchIcon/>
             <span>Business Match</span>
-          </a>
+          </a> */}
           <a href="#opm-travel-plans" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2 sm:gap-3 py-2.5 sm:py-3 rounded hover:bg-white/10 transition-colors min-h-[44px]">
             <TravelPlanIcon/>
             <span>Travel Planning</span>
@@ -992,7 +992,7 @@ console.log("client",client)
           <section className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="signals">
             <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
               <span className="text-[#c9a961]">⊟</span>
-              <span> Prime Location Signals</span>
+              <span>Signals</span>
             </h2>
             <Card className="bg-white border-none shadow-sm">
               <CardContent className="p-3 sm:p-4 md:p-6">
@@ -1380,9 +1380,9 @@ console.log("client",client)
             )}
           </section>
 
-          <div className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="business-requests">
+          {/* <div className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="business-requests"> */}
             {/* Business Requests */}
-            <section className="mb-4 sm:mb-6 md:mb-8">
+            {/* <section className="mb-4 sm:mb-6 md:mb-8">
               <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
                 <span className="text-[#c9a961]">⊞</span>
                 <span className="break-words">{clientName}'s Business Requests</span>
@@ -1435,10 +1435,10 @@ console.log("client",client)
                   )}
                 </CardContent>
               </Card>
-            </section>
+            </section> */}
 
             {/* Potential Business Matches */}
-            {!isEditing && (
+            {/* {!isEditing && (
             <section id="business-matches" className="scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28">
               <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
                 <span className="text-[#c9a961]">⚭</span>
@@ -1458,8 +1458,8 @@ console.log("client",client)
                 </CardContent>
               </Card>
             </section>
-            )}
-          </div>
+            )} */}
+          {/* </div> */}
 
           {/* OPM Travel Plans */}
           {!isEditing && (
