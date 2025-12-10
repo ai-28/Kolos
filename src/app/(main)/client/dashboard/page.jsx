@@ -589,7 +589,7 @@ console.log("client",client)
         </div> */}
 
         <div className="border-t border-gray-600 pt-3 sm:pt-4 mt-3 sm:mt-4 space-y-2">
-          <a href="#" onClick={() => setIsMobileMenuOpen(false)} className="block text-xs sm:text-sm hover:text-[#c9a961] transition-colors min-h-[44px] flex items-center">Havard OPM Group</a>
+          <a href="#" onClick={() => setIsMobileMenuOpen(false)} className="block text-xs sm:text-sm hover:text-[#c9a961] transition-colors min-h-[44px] flex items-center">Harvard OPM Group</a>
           <a href="#" onClick={() => setIsMobileMenuOpen(false)} className="block text-xs sm:text-sm hover:text-[#c9a961] transition-colors min-h-[44px] flex items-center">Updates & FAQ</a>
         </div>
       </aside>
