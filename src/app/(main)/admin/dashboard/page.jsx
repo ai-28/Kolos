@@ -12,6 +12,41 @@ export default function Dashboard() {
   const [error, setError] = useState(null);
   const router = useRouter();
 
+  // Robust role normalization function that extracts role from complex strings
+  const normalizeRole = (roleString) => {
+    if (!roleString || typeof roleString !== 'string') return "Investor"
+    
+    const roleLower = roleString.toLowerCase().trim()
+    
+    // Check for Facilitator (check first as it's more specific)
+    if (roleLower.includes('facilitator')) {
+      return "Facilitator"
+    }
+    
+    // Check for Entrepreneur (includes founder, cofounder, etc.)
+    if (roleLower.includes('entrepreneur') || 
+        roleLower.includes('founder') || 
+        roleLower.includes('cofounder') ||
+        roleLower.includes('co-founder')) {
+      return "Entrepreneur"
+    }
+    
+    // Check for Asset Manager (includes managing partner, etc.)
+    if (roleLower.includes('asset manager') || 
+        roleLower.includes('managing partner') ||
+        roleLower.includes('assetmanager')) {
+      return "Asset Manager"
+    }
+    
+    // Check for Investor
+    if (roleLower.includes('investor')) {
+      return "Investor"
+    }
+    
+    // Default to Investor if no match
+    return "Investor"
+  }
+
   useEffect(() => {
     fetchClients();
   }, []);
@@ -117,6 +152,10 @@ export default function Dashboard() {
                 client["Company Name"] || 
                 "";
 
+              // Get and normalize role
+              const clientRole = client.role || client["role"] || client.Role || client["Role"] || "";
+              const normalizedRole = normalizeRole(clientRole);
+
               return (
                 <Card
                   key={client.id}
@@ -133,8 +172,13 @@ export default function Dashboard() {
                           {displayName}
                         </h3>
                         {company && (
-                          <p className="text-sm text-gray-500 truncate mb-2">
+                          <p className="text-sm text-gray-500 truncate mb-1">
                             {company}
+                          </p>
+                        )}
+                        {normalizedRole && (
+                          <p className="text-xs text-primary font-medium mb-2">
+                            {normalizedRole}
                           </p>
                         )}
                         <p className="text-xs text-gray-400">

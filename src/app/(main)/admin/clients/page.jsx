@@ -40,6 +40,40 @@ function ClientDashboardContent() {
   const [updatedContent, setUpdatedContent] = useState("")
   const [updatingSignals, setUpdatingSignals] = useState(false)
 
+  // Robust role normalization function that extracts role from complex strings
+  const normalizeRole = (roleString) => {
+    if (!roleString || typeof roleString !== 'string') return "Investor"
+    
+    const roleLower = roleString.toLowerCase().trim()
+    
+    // Check for Facilitator (check first as it's more specific)
+    if (roleLower.includes('facilitator')) {
+      return "Facilitator"
+    }
+    
+    // Check for Entrepreneur (includes founder, cofounder, etc.)
+    if (roleLower.includes('entrepreneur') || 
+        roleLower.includes('founder') || 
+        roleLower.includes('cofounder') ||
+        roleLower.includes('co-founder')) {
+      return "Entrepreneur"
+    }
+    
+    // Check for Asset Manager (includes managing partner, etc.)
+    if (roleLower.includes('asset manager') || 
+        roleLower.includes('managing partner') ||
+        roleLower.includes('assetmanager')) {
+      return "Asset Manager"
+    }
+    
+    // Check for Investor
+    if (roleLower.includes('investor')) {
+      return "Investor"
+    }
+    
+    // Default to Investor if no match
+    return "Investor"
+  }
   useEffect(() => {
     // Get client ID from URL params and fetch client data
     const clientId = searchParams.get("id")
@@ -63,13 +97,10 @@ function ClientDashboardContent() {
       const clientData = data.client
       setClient(clientData)
       
-      // Set default role from client profile (check lowercase first, then uppercase)
+      // Set default role from client profile with robust normalization
       const clientRole = clientData.role || clientData.Role || clientData["role"] || clientData["Role"] || "Investor"
-      // Normalize role to match button labels
-      const normalizedRole = clientRole.charAt(0).toUpperCase() + clientRole.slice(1).toLowerCase()
-      if (["Investor", "Entrepreneur", "Asset Manager", "Facilitator"].includes(normalizedRole)) {
-        setSelectedRole(normalizedRole)
-      }
+      const normalizedRole = normalizeRole(clientRole)
+      setSelectedRole(normalizedRole)
       
       // Fetch signals from Signals sheet using profile_id
       const profileId = clientData.id || clientData.ID || clientData["id"] || clientData["ID"]
@@ -119,11 +150,15 @@ function ClientDashboardContent() {
   }
 
   const handleEdit = () => {
+    // Get and normalize role from client data
+    const clientRole = client?.role || client?.["role"] || selectedRole
+    const normalizedRole = normalizeRole(clientRole)
+    
     // Initialize edit data with current client values
     setEditData({
       name: client?.name || client?.["name"] || "",
       email: client?.email || client?.["email"] || "",
-      role: client?.role || client?.["role"] || selectedRole,
+      role: normalizedRole,
       company: client?.company || client?.["company"] || "",
       industries: client?.industries || client?.["industries"] || "",
       project_size: client?.project_size || client?.["project_size"] || "",
@@ -774,6 +809,24 @@ console.log("client",client)
                         placeholder="your.email@example.com"
                       />
                     </div>
+                    {/* Role Selector - Only in Edit Mode */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Role</label>
+                      <select
+                        value={editData.role || selectedRole || "Investor"}
+                        onChange={(e) => {
+                          const newRole = e.target.value;
+                          setEditData({...editData, role: newRole});
+                          setSelectedRole(newRole);
+                        }}
+                        className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-sm sm:text-base min-h-[44px] bg-white"
+                      >
+                        <option value="Investor">Investor</option>
+                        <option value="Entrepreneur">Entrepreneur</option>
+                        <option value="Asset Manager">Asset Manager</option>
+                        <option value="Facilitator">Facilitator</option>
+                      </select>
+                    </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Constraints Notes</label>
                       <textarea
@@ -785,7 +838,7 @@ console.log("client",client)
                     </div>
                     {/* Project Size - Only for Entrepreneur or Facilitator */}
                     {(() => {
-                      const currentRole = editData.role || selectedRole;
+                      const currentRole = normalizeRole(editData.role || selectedRole);
                       const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                       const showProjectSize = roleNormalized !== "investor" && roleNormalized !== "asset manager";
                       
@@ -806,7 +859,7 @@ console.log("client",client)
                     })()}
                     {/* Raise Amount - Only for Entrepreneur or Facilitator */}
                     {(() => {
-                      const currentRole = editData.role || selectedRole;
+                      const currentRole = normalizeRole(editData.role || selectedRole);
                       const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                       const showRaiseAmount = roleNormalized !== "investor" && roleNormalized !== "asset manager";
                       
@@ -827,7 +880,7 @@ console.log("client",client)
                     })()}
                     {/* Check Size - Only for Investor or Asset Manager */}
                     {(() => {
-                      const currentRole = editData.role || selectedRole;
+                      const currentRole = normalizeRole(editData.role || selectedRole);
                       const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                       const showCheckSize = roleNormalized === "investor" || roleNormalized === "asset manager";
                       
@@ -848,7 +901,7 @@ console.log("client",client)
                     })()}
                     {/* Active Raise Amount - Only for Investor, Asset Manager, or Entrepreneur */}
                     {(() => {
-                      const currentRole = editData.role || selectedRole;
+                      const currentRole = normalizeRole(editData.role || selectedRole);
                       const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                       const showActiveRaise = roleNormalized === "investor" || roleNormalized === "asset manager" || roleNormalized === "entrepreneur";
                       
@@ -869,7 +922,7 @@ console.log("client",client)
                     })()}
                     {/* Strategy Focus - Only for Investor or Asset Manager */}
                     {(() => {
-                      const currentRole = editData.role || selectedRole;
+                      const currentRole = normalizeRole(editData.role || selectedRole);
                       const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                       const showStrategyFocus = roleNormalized === "investor" || roleNormalized === "asset manager";
                       
@@ -890,7 +943,7 @@ console.log("client",client)
                     })()}
                     {/* Business Stage - Only for Entrepreneur */}
                     {(() => {
-                      const currentRole = editData.role || selectedRole;
+                      const currentRole = normalizeRole(editData.role || selectedRole);
                       const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                       const showBusinessStage = roleNormalized === "entrepreneur";
                       
@@ -911,7 +964,7 @@ console.log("client",client)
                     })()}
                     {/* Revenue Range - Only for Entrepreneur */}
                     {(() => {
-                      const currentRole = editData.role || selectedRole;
+                      const currentRole = normalizeRole(editData.role || selectedRole);
                       const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                       const showRevenueRange = roleNormalized === "entrepreneur";
                       
@@ -932,7 +985,7 @@ console.log("client",client)
                     })()}
                     {/* Facilitator Clients - Only for Facilitator */}
                     {(() => {
-                      const currentRole = editData.role || selectedRole;
+                      const currentRole = normalizeRole(editData.role || selectedRole);
                       const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                       const showFacilitatorClients = roleNormalized === "facilitator";
                       
@@ -953,7 +1006,7 @@ console.log("client",client)
                     })()}
                     {/* Deal Type - Only for Facilitator */}
                     {(() => {
-                      const currentRole = editData.role || selectedRole;
+                      const currentRole = normalizeRole(editData.role || selectedRole);
                       const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                       const showDealType = roleNormalized === "facilitator";
                       
@@ -974,7 +1027,7 @@ console.log("client",client)
                     })()}
                     {/* Deal Size - Only for Facilitator */}
                     {(() => {
-                      const currentRole = editData.role || selectedRole;
+                      const currentRole = normalizeRole(editData.role || selectedRole);
                       const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                       const showDealSize = roleNormalized === "facilitator";
                       
@@ -995,7 +1048,7 @@ console.log("client",client)
                     })()}
                     {/* Ideal CEO Profile - Only for Facilitator */}
                     {(() => {
-                      const currentRole = editData.role || selectedRole;
+                      const currentRole = normalizeRole(editData.role || selectedRole);
                       const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                       const showIdealCEO = roleNormalized === "facilitator";
                       
@@ -1015,7 +1068,7 @@ console.log("client",client)
                     })()}
                     {/* Ideal Intro - Only for Facilitator */}
                     {(() => {
-                      const currentRole = editData.role || selectedRole;
+                      const currentRole = normalizeRole(editData.role || selectedRole);
                       const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                       const showIdealIntro = roleNormalized === "facilitator";
                       
@@ -1040,7 +1093,7 @@ console.log("client",client)
           )}
           {/* Role */}
           <section className="mb-4 sm:mb-6 md:mb-8">
-            <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-2 sm:mb-3 md:mb-4">Role : {client?.role}, Founder of {client?.company}</h2>
+            <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-2 sm:mb-3 md:mb-4">Role : {normalizeRole(client?.role || client?.["role"] || selectedRole)}, Founder of {client?.company}</h2>
           </section>
 
           {/* Client Information Card */}
@@ -1050,7 +1103,7 @@ console.log("client",client)
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
                   {/* Check Size - Only for Investor or Asset Manager */}
                   {(() => {
-                    const currentRole = isEditing ? editData.role : selectedRole;
+                    const currentRole = isEditing ? normalizeRole(editData.role || selectedRole) : normalizeRole(selectedRole);
                     const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                     const showCheckSize = roleNormalized === "investor" || roleNormalized === "asset manager";
                     
@@ -1078,7 +1131,7 @@ console.log("client",client)
 
                   {/* Project Size - Only for Entrepreneur or Facilitator */}
                   {(() => {
-                    const currentRole = isEditing ? editData.role : selectedRole;
+                    const currentRole = isEditing ? normalizeRole(editData.role || selectedRole) : normalizeRole(selectedRole);
                     const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                     const showProjectSize = roleNormalized !== "investor" && roleNormalized !== "asset manager";
                     
@@ -1106,7 +1159,7 @@ console.log("client",client)
 
                   {/* Raise Amount - Only for Entrepreneur or Facilitator */}
                   {(() => {
-                    const currentRole = isEditing ? editData.role : selectedRole;
+                    const currentRole = isEditing ? normalizeRole(editData.role || selectedRole) : normalizeRole(selectedRole);
                     const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                     const showRaiseAmount = roleNormalized !== "investor" && roleNormalized !== "asset manager";
                     
@@ -1134,7 +1187,7 @@ console.log("client",client)
 
                   {/* Active Raise Amount - Only for Investor, Asset Manager, or Entrepreneur */}
                   {(() => {
-                    const currentRole = isEditing ? editData.role : selectedRole;
+                    const currentRole = isEditing ? normalizeRole(editData.role || selectedRole) : normalizeRole(selectedRole);
                     const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                     const showActiveRaise = roleNormalized === "investor" || roleNormalized === "asset manager" || roleNormalized === "entrepreneur";
                     
@@ -1162,7 +1215,7 @@ console.log("client",client)
 
                   {/* Strategy Focus - Only for Investor or Asset Manager */}
                   {(() => {
-                    const currentRole = isEditing ? editData.role : selectedRole;
+                    const currentRole = isEditing ? normalizeRole(editData.role || selectedRole) : normalizeRole(selectedRole);
                     const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                     const showStrategyFocus = roleNormalized === "investor" || roleNormalized === "asset manager";
                     
@@ -1190,7 +1243,7 @@ console.log("client",client)
 
                   {/* Business Stage - Only for Entrepreneur */}
                   {(() => {
-                    const currentRole = isEditing ? editData.role : selectedRole;
+                    const currentRole = isEditing ? normalizeRole(editData.role || selectedRole) : normalizeRole(selectedRole);
                     const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                     const showBusinessStage = roleNormalized === "entrepreneur";
                     
@@ -1218,7 +1271,7 @@ console.log("client",client)
 
                   {/* Revenue Range - Only for Entrepreneur */}
                   {(() => {
-                    const currentRole = isEditing ? editData.role : selectedRole;
+                    const currentRole = isEditing ? normalizeRole(editData.role || selectedRole) : normalizeRole(selectedRole);
                     const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                     const showRevenueRange = roleNormalized === "entrepreneur";
                     
@@ -1246,7 +1299,7 @@ console.log("client",client)
 
                   {/* Facilitator Clients - Only for Facilitator */}
                   {(() => {
-                    const currentRole = isEditing ? editData.role : selectedRole;
+                    const currentRole = isEditing ? normalizeRole(editData.role || selectedRole) : normalizeRole(selectedRole);
                     const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                     const showFacilitatorClients = roleNormalized === "facilitator";
                     
@@ -1274,7 +1327,7 @@ console.log("client",client)
 
                   {/* Deal Type - Only for Facilitator */}
                   {(() => {
-                    const currentRole = isEditing ? editData.role : selectedRole;
+                    const currentRole = isEditing ? normalizeRole(editData.role || selectedRole) : normalizeRole(selectedRole);
                     const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                     const showDealType = roleNormalized === "facilitator";
                     
@@ -1302,7 +1355,7 @@ console.log("client",client)
 
                   {/* Deal Size - Only for Facilitator */}
                   {(() => {
-                    const currentRole = isEditing ? editData.role : selectedRole;
+                    const currentRole = isEditing ? normalizeRole(editData.role || selectedRole) : normalizeRole(selectedRole);
                     const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                     const showDealSize = roleNormalized === "facilitator";
                     
@@ -1330,7 +1383,7 @@ console.log("client",client)
 
                   {/* Ideal CEO Profile - Only for Facilitator */}
                   {(() => {
-                    const currentRole = isEditing ? editData.role : selectedRole;
+                    const currentRole = isEditing ? normalizeRole(editData.role || selectedRole) : normalizeRole(selectedRole);
                     const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                     const showIdealCEO = roleNormalized === "facilitator";
                     
@@ -1357,7 +1410,7 @@ console.log("client",client)
 
                   {/* Ideal Intro - Only for Facilitator */}
                   {(() => {
-                    const currentRole = isEditing ? editData.role : selectedRole;
+                    const currentRole = isEditing ? normalizeRole(editData.role || selectedRole) : normalizeRole(selectedRole);
                     const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                     const showIdealIntro = roleNormalized === "facilitator";
                     
