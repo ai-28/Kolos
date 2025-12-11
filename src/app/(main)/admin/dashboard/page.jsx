@@ -39,7 +39,7 @@ export default function Dashboard() {
 
   const handleClientClick = (client) => {
     // Navigate to client dashboard with client ID
-    router.push(`/client/dashboard?id=${client.id}`);
+    router.push(`/admin/clients?id=${client.id}`);
   };
 
   return (

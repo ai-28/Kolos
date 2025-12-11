@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
-import { X, AlertCircle } from "lucide-react";
+import { X, AlertCircle, Loader2 } from "lucide-react";
 
 export default function OnboardingModal({ isOpen, onClose, onStart }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [errors, setErrors] = useState({});
+  const [isChecking, setIsChecking] = useState(false);
 
   const validate = () => {
     const newErrors = {};
@@ -26,16 +27,50 @@ export default function OnboardingModal({ isOpen, onClose, onStart }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (validate()) {
-      onStart({ name, email, linkedinUrl });
-      // Reset form
-      setName("");
-      setEmail("");
-      setLinkedinUrl("");
-      setErrors({});
+  const checkEmailExists = async (emailToCheck) => {
+    try {
+      const response = await fetch(`/api/clients/search?email=${encodeURIComponent(emailToCheck.trim())}`);
+      const data = await response.json();
+      
+      // If email is found, it means it already exists
+      return response.ok && data.found === true;
+    } catch (error) {
+      console.error("Error checking email:", error);
+      // If there's an error, we'll assume email doesn't exist to allow the process to continue
+      // You might want to handle this differently based on your needs
+      return false;
     }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!validate()) {
+      return;
+    }
+
+    setIsChecking(true);
+    setErrors({});
+
+    // Check if email already exists
+    const emailExists = await checkEmailExists(email);
+    
+    if (emailExists) {
+      setErrors({ 
+        email: "This email already exists in our database. Please use a different email address." 
+      });
+      setIsChecking(false);
+      return;
+    }
+
+    // Email doesn't exist, proceed with onboarding
+    setIsChecking(false);
+    onStart({ name, email, linkedinUrl });
+    // Reset form
+    setName("");
+    setEmail("");
+    setLinkedinUrl("");
+    setErrors({});
   };
 
   const handleClose = () => {
@@ -43,6 +78,7 @@ export default function OnboardingModal({ isOpen, onClose, onStart }) {
     setEmail("");
     setLinkedinUrl("");
     setErrors({});
+    setIsChecking(false);
     onClose();
   };
 
@@ -59,6 +95,7 @@ export default function OnboardingModal({ isOpen, onClose, onStart }) {
             onClick={handleClose}
             className="h-8 w-8 sm:h-10 sm:w-10 p-0 min-w-[44px] min-h-[44px] flex items-center justify-center"
             aria-label="Close modal"
+            disabled={isChecking}
           >
             <X className="h-4 w-4 sm:h-5 sm:w-5" />
           </Button>
@@ -80,6 +117,7 @@ export default function OnboardingModal({ isOpen, onClose, onStart }) {
                 placeholder="Enter your name"
                 className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary text-sm sm:text-base min-h-[44px]"
                 autoFocus
+                disabled={isChecking}
               />
               {errors.name && (
                 <div className="flex items-start gap-2 text-red-600 text-xs sm:text-sm bg-red-50 p-2 mt-1.5 rounded-md">
@@ -103,6 +141,7 @@ export default function OnboardingModal({ isOpen, onClose, onStart }) {
                 }}
                 placeholder="your.email@example.com"
                 className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary text-sm sm:text-base min-h-[44px]"
+                disabled={isChecking}
               />
               {errors.email && (
                 <div className="flex items-start gap-2 text-red-600 text-xs sm:text-sm bg-red-50 p-2 mt-1.5 rounded-md">
@@ -126,6 +165,7 @@ export default function OnboardingModal({ isOpen, onClose, onStart }) {
                 }}
                 placeholder="https://linkedin.com/in/yourprofile"
                 className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary text-sm sm:text-base min-h-[44px]"
+                disabled={isChecking}
               />
               {errors.linkedinUrl && (
                 <div className="flex items-start gap-2 text-red-600 text-xs sm:text-sm bg-red-50 p-2 mt-1.5 rounded-md">
@@ -141,14 +181,23 @@ export default function OnboardingModal({ isOpen, onClose, onStart }) {
                 variant="outline"
                 onClick={handleClose}
                 className="flex-1 min-h-[44px] text-sm sm:text-base"
+                disabled={isChecking}
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 className="flex-1 min-h-[44px] text-sm sm:text-base"
+                disabled={isChecking}
               >
-                Start AI Onboarding
+                {isChecking ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Checking...
+                  </>
+                ) : (
+                  "Start AI Onboarding"
+                )}
               </Button>
             </div>
           </form>
