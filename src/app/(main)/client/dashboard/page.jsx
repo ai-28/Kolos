@@ -620,7 +620,11 @@ console.log("client",client)
                 <ArrowLeft className="w-4 h-4" />
                 <span className="hidden md:inline">Back</span>
               </Button>
-              <Image src={client?.logo} alt="Kolos Logo" width={100} height={100} />
+              {
+                client?.logo && (
+                  <Image src={client?.logo} alt="Client Logo" width={100} height={100} />
+                )
+              }
               <h1 className="text-[40px] font-bold text-[#532418] sm:text-xl md:text-2xl lg:text-3xl font-montserrat text-[#0a3d3d] break-words sm:truncate flex-1 min-w-0 w-full sm:w-auto">{clientName}</h1>
             </div>
 

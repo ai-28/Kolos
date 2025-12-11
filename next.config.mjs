@@ -12,7 +12,7 @@ const nextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'www.pngegg.com',
+        hostname: 'images.seeklogo.com',
       },
       {
         protocol: 'https',
