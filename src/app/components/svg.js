@@ -94,7 +94,7 @@ export const BusinessRequestsIcon = () => {
 export const BusinessMatchIcon = () => {
     return(
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_613_570)">
+<g clipPath="url(#clip0_613_570)">
 <path d="M14.3751 5.625H11.2501L7.68293 9.08516C7.61661 9.15144 7.56606 9.23179 7.53501 9.32026C7.50397 9.40872 7.49322 9.50305 7.50358 9.59623C7.51393 9.68941 7.54512 9.77908 7.59483 9.85857C7.64454 9.93807 7.71149 10.0054 7.79074 10.0555C9.15871 10.9297 11.0157 10.8695 12.5001 9.375L15.6251 11.875L16.8751 10.625" stroke="#C8A953" strokeLinecap="round" strokeLinejoin="round"/>
 <path d="M15.625 11.875L12.5 15L7.5 13.75L3.125 10.625" stroke="#C8A953" strokeLinecap="round" strokeLinejoin="round"/>
 <path d="M4.375 15L6.25 16.25L8.75 16.875" stroke="#C8A953" strokeLinecap="round" strokeLinejoin="round"/>
@@ -113,7 +113,7 @@ export const BusinessMatchIcon = () => {
 export const TravelPlanIcon = ()=> {
 return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_612_124)">
+<g clipPath="url(#clip0_612_124)">
 <path d="M12.0833 5.41666L14.5833 3C14.9038 2.67953 15.3385 2.49949 15.7917 2.49949C16.2449 2.49949 16.6795 2.67953 17 3C17.3205 3.32047 17.5005 3.75512 17.5005 4.20833C17.5005 4.66154 17.3205 5.09619 17 5.41666L14.5833 7.91666L16.6667 14.1667L14.5833 16.2917L11.6667 10.8333L9.16667 13.3333V15.8333L7.5 17.5L6.25 13.75L2.5 12.5L4.16667 10.8333H6.66667L9.16667 8.33333L3.75 5.41666L5.83333 3.33333L12.0833 5.41666Z" stroke="#C8A953" strokeLinecap="round" strokeLinejoin="round"/>
 </g>
 <defs>

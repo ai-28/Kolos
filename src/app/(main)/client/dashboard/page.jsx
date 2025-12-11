@@ -10,6 +10,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, Loader2, Edit2, Save, X, Trash2, Menu } from "lucide-react"
 import { toast } from "sonner"
 import { DashboardIcon, BusinessGoalsIcon,SignalsIcon, IndustryFocusIcon, BusinessMatchIcon, BusinessRequestsIcon,TravelPlanIcon, UpcomingEventIcon } from "@/app/components/svg"
+import Image from "next/image"
 
 function ClientDashboardContent() {
   const router = useRouter()
@@ -619,8 +620,10 @@ console.log("client",client)
                 <ArrowLeft className="w-4 h-4" />
                 <span className="hidden md:inline">Back</span>
               </Button>
+              <Image src={client?.logo} alt="Kolos Logo" width={100} height={100} />
               <h1 className="text-[40px] font-bold text-[#532418] sm:text-xl md:text-2xl lg:text-3xl font-montserrat text-[#0a3d3d] break-words sm:truncate flex-1 min-w-0 w-full sm:w-auto">{clientName}</h1>
             </div>
+
             <div className="flex items-center gap-2 lg:gap-3 flex-shrink-0 w-full sm:w-auto">
               {isEditing ? (
                 <>
