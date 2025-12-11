@@ -128,6 +128,14 @@ function ClientDashboardContent() {
       raise_amount: client?.raise_amount || client?.["raise_amount"] || "",
       check_size: client?.check_size || client?.["check_size"] || "",
       active_raise_amount: client?.active_raise_amount || client?.["active_raise_amount"] || "",
+      strategy_focus: client?.strategy_focus || client?.["strategy_focus"] || "",
+      business_stage: client?.business_stage || client?.["business_stage"] || "",
+      revenue_range: client?.revenue_range || client?.["revenue_range"] || "",
+      facilitator_clients: client?.facilitator_clients || client?.["facilitator_clients"] || "",
+      deal_type: client?.deal_type || client?.["deal_type"] || "",
+      deal_size: client?.deal_size || client?.["deal_size"] || "",
+      ideal_ceo_profile: client?.ideal_ceo_profile || client?.["ideal_ceo_profile"] || "",
+      ideal_intro: client?.ideal_intro || client?.["ideal_intro"] || "",
       goals: client?.goals || client?.["goals"] || "",
       regions: client?.regions || client?.["regions"] || "",
       partner_types: client?.partner_types || client?.["partner_types"] || "",
@@ -622,7 +630,14 @@ console.log("client",client)
               </Button>
               {
                 client?.logo && (
-                  <Image src={client?.logo} alt="Client Logo" width={100} height={100} />
+                  <Image 
+                    src={client?.logo} 
+                    alt="Client Logo" 
+                    width={100} 
+                    height={100}
+                    unoptimized={client?.logo?.includes('seeklogo.com')}
+                    className="object-contain"
+                  />
                 )
               }
               <h1 className="text-[40px] font-bold text-[#532418] sm:text-xl md:text-2xl lg:text-3xl font-montserrat text-[#0a3d3d] break-words sm:truncate flex-1 min-w-0 w-full sm:w-auto">{clientName}</h1>
@@ -777,16 +792,193 @@ console.log("client",client)
                         </div>
                       );
                     })()}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Active Raise Amount</label>
-                      <input
-                        type="text"
-                        value={editData.active_raise_amount || ""}
-                        onChange={(e) => setEditData({...editData, active_raise_amount: e.target.value})}
-                        className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-sm sm:text-base min-h-[44px]"
-                        placeholder="e.g., 2 million"
-                      />
-                    </div>
+                    {/* Active Raise Amount - Only for Investor, Asset Manager, or Entrepreneur */}
+                    {(() => {
+                      const currentRole = editData.role || selectedRole;
+                      const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
+                      const showActiveRaise = roleNormalized === "investor" || roleNormalized === "asset manager" || roleNormalized === "entrepreneur";
+                      
+                      if (!showActiveRaise) return null;
+                      
+                      return (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Active Raise Amount</label>
+                          <input
+                            type="text"
+                            value={editData.active_raise_amount || ""}
+                            onChange={(e) => setEditData({...editData, active_raise_amount: e.target.value})}
+                            className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-sm sm:text-base min-h-[44px]"
+                            placeholder="e.g., 2 million"
+                          />
+                        </div>
+                      );
+                    })()}
+                    {/* Strategy Focus - Only for Investor or Asset Manager */}
+                    {(() => {
+                      const currentRole = editData.role || selectedRole;
+                      const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
+                      const showStrategyFocus = roleNormalized === "investor" || roleNormalized === "asset manager";
+                      
+                      if (!showStrategyFocus) return null;
+                      
+                      return (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Strategy Focus</label>
+                          <input
+                            type="text"
+                            value={editData.strategy_focus || ""}
+                            onChange={(e) => setEditData({...editData, strategy_focus: e.target.value})}
+                            className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-sm sm:text-base min-h-[44px]"
+                            placeholder="e.g., VC, growth, buyout, credit"
+                          />
+                        </div>
+                      );
+                    })()}
+                    {/* Business Stage - Only for Entrepreneur */}
+                    {(() => {
+                      const currentRole = editData.role || selectedRole;
+                      const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
+                      const showBusinessStage = roleNormalized === "entrepreneur";
+                      
+                      if (!showBusinessStage) return null;
+                      
+                      return (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Business Stage</label>
+                          <input
+                            type="text"
+                            value={editData.business_stage || ""}
+                            onChange={(e) => setEditData({...editData, business_stage: e.target.value})}
+                            className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-sm sm:text-base min-h-[44px]"
+                            placeholder="e.g., idea, early revenue, growth, scaling"
+                          />
+                        </div>
+                      );
+                    })()}
+                    {/* Revenue Range - Only for Entrepreneur */}
+                    {(() => {
+                      const currentRole = editData.role || selectedRole;
+                      const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
+                      const showRevenueRange = roleNormalized === "entrepreneur";
+                      
+                      if (!showRevenueRange) return null;
+                      
+                      return (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Revenue Range</label>
+                          <input
+                            type="text"
+                            value={editData.revenue_range || ""}
+                            onChange={(e) => setEditData({...editData, revenue_range: e.target.value})}
+                            className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-sm sm:text-base min-h-[44px]"
+                            placeholder="e.g., $1M - $10M"
+                          />
+                        </div>
+                      );
+                    })()}
+                    {/* Facilitator Clients - Only for Facilitator */}
+                    {(() => {
+                      const currentRole = editData.role || selectedRole;
+                      const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
+                      const showFacilitatorClients = roleNormalized === "facilitator";
+                      
+                      if (!showFacilitatorClients) return null;
+                      
+                      return (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Facilitator Clients</label>
+                          <input
+                            type="text"
+                            value={editData.facilitator_clients || ""}
+                            onChange={(e) => setEditData({...editData, facilitator_clients: e.target.value})}
+                            className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-sm sm:text-base min-h-[44px]"
+                            placeholder="e.g., CEOs, family offices, funds, corporates"
+                          />
+                        </div>
+                      );
+                    })()}
+                    {/* Deal Type - Only for Facilitator */}
+                    {(() => {
+                      const currentRole = editData.role || selectedRole;
+                      const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
+                      const showDealType = roleNormalized === "facilitator";
+                      
+                      if (!showDealType) return null;
+                      
+                      return (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Deal Type</label>
+                          <input
+                            type="text"
+                            value={editData.deal_type || ""}
+                            onChange={(e) => setEditData({...editData, deal_type: e.target.value})}
+                            className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-sm sm:text-base min-h-[44px]"
+                            placeholder="e.g., M&A, capital raise, buy side, sell side"
+                          />
+                        </div>
+                      );
+                    })()}
+                    {/* Deal Size - Only for Facilitator */}
+                    {(() => {
+                      const currentRole = editData.role || selectedRole;
+                      const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
+                      const showDealSize = roleNormalized === "facilitator";
+                      
+                      if (!showDealSize) return null;
+                      
+                      return (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Deal Size</label>
+                          <input
+                            type="text"
+                            value={editData.deal_size || ""}
+                            onChange={(e) => setEditData({...editData, deal_size: e.target.value})}
+                            className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-sm sm:text-base min-h-[44px]"
+                            placeholder="e.g., $5M - $50M"
+                          />
+                        </div>
+                      );
+                    })()}
+                    {/* Ideal CEO Profile - Only for Facilitator */}
+                    {(() => {
+                      const currentRole = editData.role || selectedRole;
+                      const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
+                      const showIdealCEO = roleNormalized === "facilitator";
+                      
+                      if (!showIdealCEO) return null;
+                      
+                      return (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Ideal CEO Profile</label>
+                          <textarea
+                            value={editData.ideal_ceo_profile || ""}
+                            onChange={(e) => setEditData({...editData, ideal_ceo_profile: e.target.value})}
+                            className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[80px] text-sm sm:text-base"
+                            placeholder="Characteristics of ideal CEO match"
+                          />
+                        </div>
+                      );
+                    })()}
+                    {/* Ideal Intro - Only for Facilitator */}
+                    {(() => {
+                      const currentRole = editData.role || selectedRole;
+                      const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
+                      const showIdealIntro = roleNormalized === "facilitator";
+                      
+                      if (!showIdealIntro) return null;
+                      
+                      return (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Ideal Intro</label>
+                          <textarea
+                            value={editData.ideal_intro || ""}
+                            onChange={(e) => setEditData({...editData, ideal_intro: e.target.value})}
+                            className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[80px] text-sm sm:text-base"
+                            placeholder="The single most valuable introduction needed"
+                          />
+                        </div>
+                      );
+                    })()}
                   </div>
                 </CardContent>
               </Card>
@@ -886,23 +1078,255 @@ console.log("client",client)
                     );
                   })()}
 
-                  {/* Active Raise Amount */}
-                  <div>
-                    <div className="text-sm text-gray-500 mb-2">Active Raise Amount</div>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        value={editData.active_raise_amount || ""}
-                        onChange={(e) => setEditData({...editData, active_raise_amount: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
-                        placeholder="e.g., 2 million"
-                      />
-                    ) : (
-                      <div className="text-lg font-semibold text-[#0a3d3d]">
-                        {client?.active_raise_amount || client?.["active_raise_amount"] ? <>{client?.active_raise_amount || client?.["active_raise_amount"]} M</> : "-"}
+                  {/* Active Raise Amount - Only for Investor, Asset Manager, or Entrepreneur */}
+                  {(() => {
+                    const currentRole = isEditing ? editData.role : selectedRole;
+                    const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
+                    const showActiveRaise = roleNormalized === "investor" || roleNormalized === "asset manager" || roleNormalized === "entrepreneur";
+                    
+                    if (!showActiveRaise) return null;
+                    
+                    return (
+                      <div>
+                        <div className="text-sm text-gray-500 mb-2">Active Raise Amount</div>
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editData.active_raise_amount || ""}
+                            onChange={(e) => setEditData({...editData, active_raise_amount: e.target.value})}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
+                            placeholder="e.g., 2 million"
+                          />
+                        ) : (
+                          <div className="text-lg font-semibold text-[#0a3d3d]">
+                            {client?.active_raise_amount || client?.["active_raise_amount"] ? <>{client?.active_raise_amount || client?.["active_raise_amount"]} M</> : "-"}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
+                    );
+                  })()}
+
+                  {/* Strategy Focus - Only for Investor or Asset Manager */}
+                  {(() => {
+                    const currentRole = isEditing ? editData.role : selectedRole;
+                    const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
+                    const showStrategyFocus = roleNormalized === "investor" || roleNormalized === "asset manager";
+                    
+                    if (!showStrategyFocus) return null;
+                    
+                    return (
+                      <div>
+                        <div className="text-sm text-gray-500 mb-2">Strategy Focus</div>
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editData.strategy_focus || ""}
+                            onChange={(e) => setEditData({...editData, strategy_focus: e.target.value})}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
+                            placeholder="e.g., VC, growth, buyout, credit"
+                          />
+                        ) : (
+                          <div className="text-lg font-semibold text-[#0a3d3d]">
+                            {client?.strategy_focus || client?.["strategy_focus"] || "-"}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Business Stage - Only for Entrepreneur */}
+                  {(() => {
+                    const currentRole = isEditing ? editData.role : selectedRole;
+                    const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
+                    const showBusinessStage = roleNormalized === "entrepreneur";
+                    
+                    if (!showBusinessStage) return null;
+                    
+                    return (
+                      <div>
+                        <div className="text-sm text-gray-500 mb-2">Business Stage</div>
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editData.business_stage || ""}
+                            onChange={(e) => setEditData({...editData, business_stage: e.target.value})}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
+                            placeholder="e.g., idea, early revenue, growth, scaling"
+                          />
+                        ) : (
+                          <div className="text-lg font-semibold text-[#0a3d3d]">
+                            {client?.business_stage || client?.["business_stage"] || "-"}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Revenue Range - Only for Entrepreneur */}
+                  {(() => {
+                    const currentRole = isEditing ? editData.role : selectedRole;
+                    const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
+                    const showRevenueRange = roleNormalized === "entrepreneur";
+                    
+                    if (!showRevenueRange) return null;
+                    
+                    return (
+                      <div>
+                        <div className="text-sm text-gray-500 mb-2">Revenue Range</div>
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editData.revenue_range || ""}
+                            onChange={(e) => setEditData({...editData, revenue_range: e.target.value})}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
+                            placeholder="e.g., $1M - $10M"
+                          />
+                        ) : (
+                          <div className="text-lg font-semibold text-[#0a3d3d]">
+                            {client?.revenue_range || client?.["revenue_range"] || "-"}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Facilitator Clients - Only for Facilitator */}
+                  {(() => {
+                    const currentRole = isEditing ? editData.role : selectedRole;
+                    const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
+                    const showFacilitatorClients = roleNormalized === "facilitator";
+                    
+                    if (!showFacilitatorClients) return null;
+                    
+                    return (
+                      <div>
+                        <div className="text-sm text-gray-500 mb-2">Facilitator Clients</div>
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editData.facilitator_clients || ""}
+                            onChange={(e) => setEditData({...editData, facilitator_clients: e.target.value})}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
+                            placeholder="e.g., CEOs, family offices, funds, corporates"
+                          />
+                        ) : (
+                          <div className="text-lg font-semibold text-[#0a3d3d]">
+                            {client?.facilitator_clients || client?.["facilitator_clients"] || "-"}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Deal Type - Only for Facilitator */}
+                  {(() => {
+                    const currentRole = isEditing ? editData.role : selectedRole;
+                    const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
+                    const showDealType = roleNormalized === "facilitator";
+                    
+                    if (!showDealType) return null;
+                    
+                    return (
+                      <div>
+                        <div className="text-sm text-gray-500 mb-2">Deal Type</div>
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editData.deal_type || ""}
+                            onChange={(e) => setEditData({...editData, deal_type: e.target.value})}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
+                            placeholder="e.g., M&A, capital raise, buy side, sell side"
+                          />
+                        ) : (
+                          <div className="text-lg font-semibold text-[#0a3d3d]">
+                            {client?.deal_type || client?.["deal_type"] || "-"}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Deal Size - Only for Facilitator */}
+                  {(() => {
+                    const currentRole = isEditing ? editData.role : selectedRole;
+                    const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
+                    const showDealSize = roleNormalized === "facilitator";
+                    
+                    if (!showDealSize) return null;
+                    
+                    return (
+                      <div>
+                        <div className="text-sm text-gray-500 mb-2">Deal Size</div>
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editData.deal_size || ""}
+                            onChange={(e) => setEditData({...editData, deal_size: e.target.value})}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
+                            placeholder="e.g., $5M - $50M"
+                          />
+                        ) : (
+                          <div className="text-lg font-semibold text-[#0a3d3d]">
+                            {client?.deal_size || client?.["deal_size"] || "-"}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Ideal CEO Profile - Only for Facilitator */}
+                  {(() => {
+                    const currentRole = isEditing ? editData.role : selectedRole;
+                    const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
+                    const showIdealCEO = roleNormalized === "facilitator";
+                    
+                    if (!showIdealCEO) return null;
+                    
+                    return (
+                      <div className="sm:col-span-2 lg:col-span-3">
+                        <div className="text-sm text-gray-500 mb-2">Ideal CEO Profile</div>
+                        {isEditing ? (
+                          <textarea
+                            value={editData.ideal_ceo_profile || ""}
+                            onChange={(e) => setEditData({...editData, ideal_ceo_profile: e.target.value})}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[100px] text-sm sm:text-base"
+                            placeholder="Characteristics of ideal CEO match"
+                          />
+                        ) : (
+                          <div className="text-[#0a3d3d]">
+                            {client?.ideal_ceo_profile || client?.["ideal_ceo_profile"] || "-"}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Ideal Intro - Only for Facilitator */}
+                  {(() => {
+                    const currentRole = isEditing ? editData.role : selectedRole;
+                    const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
+                    const showIdealIntro = roleNormalized === "facilitator";
+                    
+                    if (!showIdealIntro) return null;
+                    
+                    return (
+                      <div className="sm:col-span-2 lg:col-span-3">
+                        <div className="text-sm text-gray-500 mb-2">Ideal Intro</div>
+                        {isEditing ? (
+                          <textarea
+                            value={editData.ideal_intro || ""}
+                            onChange={(e) => setEditData({...editData, ideal_intro: e.target.value})}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[100px] text-sm sm:text-base"
+                            placeholder="The single most valuable introduction needed"
+                          />
+                        ) : (
+                          <div className="text-[#0a3d3d]">
+                            {client?.ideal_intro || client?.["ideal_intro"] || "-"}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Company */}
                   <div>
