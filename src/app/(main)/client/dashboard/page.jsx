@@ -35,6 +35,8 @@ function ClientDashboardContent() {
     next_step: ''
   })
   const [creatingDeal, setCreatingDeal] = useState(false)
+  const [updatingDeal, setUpdatingDeal] = useState(false)
+  const [editingDeal, setEditingDeal] = useState(null)
   const [deletingDeal, setDeletingDeal] = useState(null)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
@@ -300,6 +302,76 @@ function ClientDashboardContent() {
       alert(`Failed to create deal: ${error.message}`)
     } finally {
       setCreatingDeal(false)
+    }
+  }
+
+  const handleEditDeal = (deal) => {
+    const dealId = deal.deal_id || deal["deal_id"] || deal.id || deal["id"]
+    setEditingDeal(dealId)
+    setDealFormData({
+      deal_name: deal.deal_name || deal["deal_name"] || '',
+      target: deal.target || deal["target"] || '',
+      source: deal.source || deal["source"] || '',
+      stage: deal.stage || deal["stage"] || 'list',
+      target_deal_size: deal.target_deal_size || deal["target_deal_size"] || '',
+      next_step: deal.next_step || deal["next_step"] || ''
+    })
+    setShowCreateDealModal(true)
+  }
+
+  const handleUpdateDeal = async () => {
+    if (!editingDeal) return
+
+    setUpdatingDeal(true)
+    try {
+      const response = await fetch(`/api/deals/${editingDeal}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          deal_name: dealFormData.deal_name,
+          target: dealFormData.target,
+          source: dealFormData.source,
+          stage: dealFormData.stage,
+          target_deal_size: dealFormData.target_deal_size,
+          next_step: dealFormData.next_step,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to update deal")
+      }
+
+      // Refresh deals list
+      const dealsResponse = await fetch('/api/deals')
+      const dealsData = await dealsResponse.json()
+      
+      if (dealsResponse.ok && dealsData.deals && Array.isArray(dealsData.deals)) {
+        setDeals(dealsData.deals)
+      }
+
+      // Close modal and reset form
+      setShowCreateDealModal(false)
+      setEditingDeal(null)
+      setDealFormData({
+        deal_name: '',
+        target: '',
+        source: '',
+        stage: 'list',
+        target_deal_size: '',
+        next_step: ''
+      })
+      setSelectedSignal(null)
+
+      toast.success("Deal updated successfully!")
+    } catch (error) {
+      console.error("Error updating deal:", error)
+      toast.error(`Failed to update deal: ${error.message}`)
+    } finally {
+      setUpdatingDeal(false)
     }
   }
 
@@ -1676,19 +1748,30 @@ console.log("client",client)
                               <h3 className="text-sm font-semibold text-[#0a3d3d] flex-1 break-words">
                                 {deal.deal_name || deal["deal_name"] || "-"}
                               </h3>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteDeal(dealId)}
-                                disabled={isDeleting || !dealId}
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50 flex-shrink-0 min-h-[44px] min-w-[44px] p-0"
-                              >
-                                {isDeleting ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <Trash2 className="w-4 h-4" />
-                                )}
-                              </Button>
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEditDeal(deal)}
+                                  disabled={!dealId}
+                                  className="text-[#0a3d3d] hover:text-[#0a3d3d]/80 hover:bg-[#0a3d3d]/10 min-h-[44px] min-w-[44px] p-0"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteDeal(dealId)}
+                                  disabled={isDeleting || !dealId}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 flex-shrink-0 min-h-[44px] min-w-[44px] p-0"
+                                >
+                                  {isDeleting ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-4 h-4" />
+                                  )}
+                                </Button>
+                              </div>
                             </div>
                             
                             {/* Stage */}
@@ -1858,19 +1941,30 @@ console.log("client",client)
                                   {deal.next_step || deal["next_step"] || "-"}
                                 </td>
                                 <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleDeleteDeal(dealId)}
-                                    disabled={isDeleting || !dealId}
-                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 min-h-[44px] min-w-[44px]"
-                                  >
-                                    {isDeleting ? (
-                                      <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                      <Trash2 className="w-4 h-4" />
-                                    )}
-                                  </Button>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleEditDeal(deal)}
+                                      disabled={!dealId}
+                                      className="text-[#0a3d3d] hover:text-[#0a3d3d]/80 hover:bg-[#0a3d3d]/10 min-h-[44px] min-w-[44px]"
+                                    >
+                                      <Edit2 className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleDeleteDeal(dealId)}
+                                      disabled={isDeleting || !dealId}
+                                      className="text-red-600 hover:text-red-700 hover:bg-red-50 min-h-[44px] min-w-[44px]"
+                                    >
+                                      {isDeleting ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                      ) : (
+                                        <Trash2 className="w-4 h-4" />
+                                      )}
+                                    </Button>
+                                  </div>
                                 </td>
                               </tr>
                             )
@@ -2172,12 +2266,15 @@ console.log("client",client)
             <Card className="w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
               <CardContent className="p-4 md:p-6">
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
-                  <h2 className="text-lg sm:text-xl md:text-2xl font-montserrat text-[#0a3d3d]">Create New Deal</h2>
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-montserrat text-[#0a3d3d]">
+                    {editingDeal ? 'Edit Deal' : 'Create New Deal'}
+                  </h2>
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => {
                       setShowCreateDealModal(false)
+                      setEditingDeal(null)
                       setDealFormData({
                         deal_name: '',
                         target: '',
@@ -2194,7 +2291,14 @@ console.log("client",client)
                   </Button>
                 </div>
 
-                <form onSubmit={(e) => { e.preventDefault(); handleCreateDeal(); }}
+                <form onSubmit={(e) => { 
+                  e.preventDefault(); 
+                  if (editingDeal) {
+                    handleUpdateDeal();
+                  } else {
+                    handleCreateDeal();
+                  }
+                }}
                   className="space-y-3 sm:space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
@@ -2283,16 +2387,16 @@ console.log("client",client)
                   <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-3 sm:pt-4">
                     <Button
                       type="submit"
-                      disabled={creatingDeal}
-                      className="flex-1 bg-[#0a3d3d] hover:bg-[#0a3d3d]/90 text-white min-h-[44px] text-sm sm:text-base"
+                      disabled={creatingDeal || updatingDeal}
+                      className="flex-1 sm:flex-initial bg-[#0a3d3d] hover:bg-[#0a3d3d]/90 text-white min-h-[44px] text-sm sm:text-base"
                     >
-                      {creatingDeal ? (
+                      {creatingDeal || updatingDeal ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                          Creating...
+                          {editingDeal ? 'Updating...' : 'Creating...'}
                         </>
                       ) : (
-                        "Activate Kolos"
+                        editingDeal ? 'Update Deal' : 'Activate Kolos'
                       )}
                     </Button>
                     <Button
@@ -2300,6 +2404,7 @@ console.log("client",client)
                       variant="outline"
                       onClick={() => {
                         setShowCreateDealModal(false)
+                        setEditingDeal(null)
                         setDealFormData({
                           deal_name: '',
                           target: '',
@@ -2310,8 +2415,8 @@ console.log("client",client)
                         })
                         setSelectedSignal(null)
                       }}
-                      disabled={creatingDeal}
-                      className="min-h-[44px] text-sm sm:text-base"
+                      disabled={creatingDeal || updatingDeal}
+                      className="flex-1 sm:flex-initial min-h-[44px] text-sm sm:text-base"
                     >
                       Cancel
                     </Button>
