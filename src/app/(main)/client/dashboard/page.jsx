@@ -645,7 +645,7 @@ console.log("client",client)
                   />
                 )
               }
-              <h1 className="text-[48px] font-medium text-center text-[#532418] text-[#0a3d3d] break-words sm:truncate flex-1 min-w-0 w-full sm:w-auto" style={{ fontFamily: 'var(--font-marcellus), serif' }}>{clientName}</h1>
+              <h1 className="text-[32px] sm:text-[48px] font-medium text-center text-[#532418] text-[#0a3d3d] break-words sm:truncate flex-1 min-w-0 w-full sm:w-auto" style={{ fontFamily: 'var(--font-marcellus), serif' }}>{clientName}</h1>
               
             </div>
 
@@ -1724,6 +1724,19 @@ console.log("client",client)
                                 <div className="text-sm text-gray-700 break-words">
                                   {deal.source || deal["source"]}
                                 </div>
+                                {(deal.source || deal["source"]) && (
+                                  <a 
+                                    href={deal.source || deal["source"]} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-xs sm:text-sm text-[#c9a961] hover:underline inline-flex items-center gap-1 mt-1"
+                                  >
+                                    <span>View Source</span>
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                    </svg>
+                                  </a>
+                                )}
                               </div>
                             )}
                             
@@ -1781,9 +1794,23 @@ console.log("client",client)
                                   {deal.target || deal["target"] || "-"}
                                 </td>
                                 <td className="py-2 sm:py-3 px-2 sm:px-3 md:px-4 text-xs sm:text-sm text-gray-700 hidden lg:table-cell break-words max-w-[200px]">
-                                  {deal.source || deal["source"] || "-"}
+                                  {(deal.source || deal["source"]) ? (
+                                    <a 
+                                      href={deal.source || deal["source"]} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="text-[#c9a961] hover:underline inline-flex items-center gap-1"
+                                    >
+                                      <span>View Source</span>
+                                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                      </svg>
+                                    </a>
+                                  ) : (
+                                    "-"
+                                  )}
                                 </td>
-                                <td className="py-2 sm:py-3 px-2 sm:px-3 md:px-4 text-xs sm:text-sm">
+                                <td className="py-2 sm:py-3 px-2 sm:px-3 md:px-4 text-sm sm:text-sm">
                                   <select
                                     value={currentStage}
                                     onChange={(e) => handleStageChange(dealId, e.target.value)}
@@ -1793,7 +1820,7 @@ console.log("client",client)
                                       zIndex: 1,
                                       position: 'relative'
                                     }}
-                                    className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-md border-2 border-gray-300 text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] focus:border-[#0a3d3d] min-h-[44px] ${
+                                    className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-md border-2 border-gray-300 text-sm sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] focus:border-[#0a3d3d] min-h-[44px] ${
                                       currentStage === "closed" 
                                         ? "bg-green-100 text-green-800 border-green-300"
                                         : currentStage === "in negotiation"
