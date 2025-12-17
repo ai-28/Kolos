@@ -414,12 +414,30 @@ Avoid vague text like "monitor" or "stay in touch".
   - If multiple decision makers are relevant, list them separated by commas.
   - If no specific name can be found through web search, use "TBD" or leave empty.
   - Prioritize finding real, verifiable names through web search.
+  - **IMPORTANT: Once you find a decision_maker_name, you MUST immediately search for their LinkedIn profile URL (see decision_maker_linkedin_url requirements below).**
 
 - decision_maker_linkedin_url:
+  - **CRITICAL: You MUST search for and find the LinkedIn profile URL for every decision maker when you have their name and role.**
   - The LinkedIn profile URL of the decision maker (e.g., "https://www.linkedin.com/in/john-doe-1234567890/").
-  - Use web search to find actual LinkedIn profiles when possible.
-  - If no LinkedIn profile can be found, leave empty or use "N/A".
-  - Only include URLs that you can verify through web search.
+  - **REQUIRED SEARCH PROCESS:**
+    1. When you have a decision_maker_name and decision_maker_role, signal source, you MUST perform a web search to find their LinkedIn profile.
+    2. Use search queries like: "[Full Name] [Company Name] LinkedIn" or "[Full Name] [Role] LinkedIn" or "[Full Name] [Company] CEO LinkedIn".
+    3. Try multiple search variations if the first search doesn't yield results (e.g., try with company name, without company name, with role, without role, etc.).
+    4. Look for LinkedIn profile URLs in the search results (format: https://www.linkedin.com/in/...).
+    5. Verify the profile matches the person by checking their name, role, and company in the search results.
+    6. If you find a LinkedIn profile that matches, extract the full URL and include it.
+  - **This is NOT optional - you must actively search for LinkedIn URLs when you have a name and role.**
+  - Only leave empty or use "N/A" if you have performed multiple thorough searches (at least 3-4 different query variations) and absolutely cannot find any LinkedIn profile for that person.
+  - Include the full LinkedIn URL (e.g., "https://www.linkedin.com/in/john-doe-1234567890/") - do not use shortened URLs.
+  - **IMPORTANT: Once you find a decision_maker_name, you MUST immediately search for their LinkedIn profile URL. Do not skip this step.**
+
+- estimated_target_value_USD:
+  - The estimated monetary value or deal size associated with this signal opportunity in USD.
+  - Format: Currency string with dollar sign and commas (e.g., "$25,000,000", "$5,000,000", "$100,000").
+  - This should represent the potential deal value, contract size, investment amount, or revenue opportunity.
+  - Use web search to find actual funding amounts, contract values, or deal sizes when available.
+  - If no specific value can be determined, estimate based on company size, industry standards, or project scope.
+  - If no reasonable estimate can be made, leave empty or use "N/A".
 
 ------------------------------------
 STEP 5 - GENERATE OPM TRAVEL PLANS
@@ -639,6 +657,7 @@ Important:
                     signal.decision_maker_role || '',
                     signal.decision_maker_name || '',
                     signal.decision_maker_linkedin_url || '',
+                    signal.estimated_target_value_USD || '',
                 ];
 
                 try {
