@@ -1684,7 +1684,7 @@ console.log("client",client)
                                 value={currentStage}
                                 onChange={(e) => handleStageChange(dealId, e.target.value)}
                                 disabled={isUpdating || !dealId}
-                                className={`w-full px-3 py-2 rounded-md border-2 border-gray-300 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] focus:border-[#0a3d3d] min-h-[44px] ${
+                                className={`w-full px-3 py-2 rounded-md border-2 border-gray-300 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] focus:border-[#0a3d3d] min-h-[44px] ${
                                   currentStage === "closed" 
                                     ? "bg-green-100 text-green-800 border-green-300"
                                     : currentStage === "in negotiation"
