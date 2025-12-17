@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { findRowById, getSheetData, SHEETS } from "@/app/lib/googleSheets";
 import { requireAuth } from "@/app/lib/session";
+import { normalizeRole } from "@/app/lib/roleUtils";
 import { google } from 'googleapis';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -39,37 +40,45 @@ function getSheetsClient() {
     }
 }
 
-// GET - Fetch client by ID (must match session client_id)
+// GET - Fetch client by ID (must match session client_id, or user must be admin)
 export async function GET(request, { params }) {
     try {
-        // Get client_id from session
+        // Get session to check role
         const session = await requireAuth();
         const sessionClientId = session.clientId;
+        const userRole = session.role || '';
 
         const { id } = await params;
+        const requestedId = String(id || '').trim();
+        const sessionId = String(sessionClientId || '').trim();
 
-        // Users can only access their own profile
-        if (id !== sessionClientId) {
+        // Check if user is admin
+        const normalizedRole = normalizeRole(userRole);
+        const isAdmin = normalizedRole === 'Admin';
+
+        // Users can only access their own profile, unless they're an admin
+        if (!isAdmin && requestedId !== sessionId) {
+            console.log(`Access denied: requestedId=${requestedId}, sessionId=${sessionId}, isAdmin=${isAdmin}`);
             return NextResponse.json(
                 { error: "Forbidden" },
                 { status: 403 }
             );
         }
 
-        console.log(`Searching for client with ID: ${id}`);
+        console.log(`Searching for client with ID: ${requestedId}`);
 
-        let client = await findRowById(SHEETS.PROFILES, id);
+        let client = await findRowById(SHEETS.PROFILES, requestedId);
 
         if (!client) {
             console.log(`Client not found by ID, trying email search...`);
             const profiles = await getSheetData(SHEETS.PROFILES);
             client = profiles.find(
-                (p) => p.email && p.email.toLowerCase().trim() === id.toLowerCase().trim()
+                (p) => p.email && p.email.toLowerCase().trim() === requestedId.toLowerCase()
             );
         }
 
         if (!client) {
-            console.log(`Client not found with ID/email: ${id}`);
+            console.log(`Client not found with ID/email: ${requestedId}`);
             return NextResponse.json(
                 { error: "Client not found" },
                 { status: 404 }
@@ -101,20 +110,40 @@ export async function GET(request, { params }) {
     }
 }
 
-// PUT - Update client profile (must match session client_id)
+// PUT - Update client profile (must match session client_id, or user must be admin)
 export async function PUT(request, { params }) {
     try {
-        // Get client_id from session
+        // Get session to check role
         const session = await requireAuth();
         const sessionClientId = session.clientId;
+        const userRole = session.role || '';
 
         const { id } = await params;
+        const requestedId = String(id || '').trim();
+        const sessionId = String(sessionClientId || '').trim();
 
-        // Users can only update their own profile
-        if (id !== sessionClientId) {
+        // Check if user is admin
+        const normalizedRole = normalizeRole(userRole);
+        const isAdmin = normalizedRole === 'Admin';
+
+        // Users can only update their own profile, unless they're an admin
+        if (!isAdmin && requestedId !== sessionId) {
+            console.log(`Update denied: requestedId=${requestedId}, sessionId=${sessionId}, isAdmin=${isAdmin}`);
             return NextResponse.json(
                 { error: "Forbidden" },
                 { status: 403 }
+            );
+        }
+
+        // Parse request body
+        let updateData;
+        try {
+            updateData = await request.json();
+        } catch (parseError) {
+            console.error('Error parsing request body:', parseError);
+            return NextResponse.json(
+                { error: "Invalid request body", details: parseError.message },
+                { status: 400 }
             );
         }
 
@@ -123,7 +152,7 @@ export async function PUT(request, { params }) {
         const clientIndex = profiles.findIndex(
             (p) => {
                 const clientId = p.id || p.ID || p["id"] || p["ID"];
-                return clientId && String(clientId).trim() === String(id).trim();
+                return clientId && String(clientId).trim() === requestedId;
             }
         );
 
@@ -191,7 +220,7 @@ export async function PUT(request, { params }) {
         });
 
         // Fetch updated client data
-        const updatedClient = await findRowById(SHEETS.PROFILES, id);
+        const updatedClient = await findRowById(SHEETS.PROFILES, requestedId);
 
         return NextResponse.json({
             success: true,
