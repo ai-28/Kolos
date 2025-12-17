@@ -604,11 +604,12 @@ console.log("client",client)
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 lg:ml-[284px] bg-[#f5f3f0] min-h-screen" style={{ scrollBehavior: 'smooth', scrollPaddingTop: '100px' }}>
+      <main className="flex-1 lg:ml-[284px] bg-[#faf1dc] min-h-screen" style={{ scrollBehavior: 'smooth', scrollPaddingTop: '100px' }}>
         <div className="max-w-[1400px] mx-auto">
           {/* Header - Fixed */}
-          <div className="sticky top-0 bg-[#f5f3f0] z-20">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0 p-3 sm:p-4 lg:p-8 pb-3 sm:pb-4">
+          <div className="sticky top-0 bg-[#faf1dc] z-20">
+            <div className="sm:p-4 lg:pl-8 lg:pr-8 p-3">
+              <div className="flex flex-col sm:flex-row items-center justify-between w-full">
             <div className="flex items-center gap-2 lg:gap-4 flex-1 min-w-0 w-full sm:w-auto flex-wrap sm:flex-nowrap">
               {/* Mobile Menu Button */}
               <Button
@@ -640,7 +641,8 @@ console.log("client",client)
                   />
                 )
               }
-              <h1 className="text-[40px] font-bold text-[#532418] sm:text-xl md:text-2xl lg:text-3xl font-montserrat text-[#0a3d3d] break-words sm:truncate flex-1 min-w-0 w-full sm:w-auto">{clientName}</h1>
+              <h1 className="text-[48px] font-medium text-center text-[#532418] text-[#0a3d3d] break-words sm:truncate flex-1 min-w-0 w-full sm:w-auto" style={{ fontFamily: 'var(--font-marcellus), serif' }}>{clientName}</h1>
+              
             </div>
 
             <div className="flex items-center gap-2 lg:gap-3 flex-shrink-0 w-full sm:w-auto">
@@ -687,8 +689,17 @@ console.log("client",client)
                 <AvatarImage src="/placeholder-avatar.jpg" alt={clientName} />
                 <AvatarFallback>{getInitials(clientName)}</AvatarFallback>
               </Avatar> */}
+            
             </div>
+
+           
             </div>
+            {/* Role */}
+            <section>
+              <h2 className="text-base sm:text-xl md:text-2xl text-center text-[#532418]" style={{ fontFamily: 'var(--font-marcellus), serif' }}>{client?.role}, Founder of {client?.company}</h2>
+            </section>            
+            </div>
+
           </div>
 
           {/* Content Area */}
@@ -696,7 +707,7 @@ console.log("client",client)
           {/* Basic Information */}
           {isEditing && (
             <section className="mb-6 sm:mb-8">
-              <Card className="bg-white border-none shadow-sm">
+              <Card className="bg-[#fffff4] border-none !shadow-none">
                 <CardContent className="p-4 sm:p-6">
                   <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-3 sm:mb-4">Basic Information</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
@@ -984,16 +995,11 @@ console.log("client",client)
               </Card>
             </section>
           )}
-          {/* Role */}
-          <section className="mb-4 sm:mb-6 md:mb-8">
-            <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-2 sm:mb-3 md:mb-4">Role : {client?.role}, Founder of {client?.company}</h2>
-          </section>
+ 
 
           {/* Client Information Card */}
           <section className="mb-4 sm:mb-6 md:mb-8">
-            <Card className="bg-white border-none shadow-sm">
-              <CardContent className="p-4 sm:p-5 md:p-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
                   {/* Check Size - Only for Investor or Asset Manager */}
                   {(() => {
                     const currentRole = isEditing ? editData.role : selectedRole;
@@ -1003,22 +1009,24 @@ console.log("client",client)
                     if (!showCheckSize) return null;
                     
                     return (
-                      <div>
-                        <div className="text-sm text-gray-500 mb-2">Check Size</div>
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            value={editData.check_size || ""}
-                            onChange={(e) => setEditData({...editData, check_size: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
-                            placeholder="e.g., 5-15 million"
-                          />
-                        ) : (
-                          <div className="text-lg font-semibold text-[#0a3d3d]">
-                            {client?.check_size || client?.["check_size"] ? <>{client?.check_size || client?.["check_size"]} M</> : "-"}
-                          </div>
-                        )}
-                      </div>
+                      <Card className="bg-[#fffff4] !border !border-[#ffe0ccff] !shadow-none rounded-lg">
+                        <CardContent className="p-4">
+                          <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Check Size Range</div>
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={editData.check_size || ""}
+                              onChange={(e) => setEditData({...editData, check_size: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-base font-medium text-[#0a3d3d]"
+                              placeholder="e.g., $5M-$50M"
+                            />
+                          ) : (
+                            <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
+                              {client?.check_size || client?.["check_size"] ? <>{client?.check_size || client?.["check_size"]}</> : "-"}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     );
                   })()}
 
@@ -1031,22 +1039,24 @@ console.log("client",client)
                     if (!showProjectSize) return null;
                     
                     return (
-                      <div>
-                        <div className="text-sm text-gray-500 mb-2">Project Size</div>
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            value={editData.project_size || ""}
-                            onChange={(e) => setEditData({...editData, project_size: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
-                            placeholder="e.g., 10-50 million"
-                          />
-                        ) : (
-                          <div className="text-lg font-semibold text-[#0a3d3d]">
-                            {client?.project_size || client?.["project_size"] ? <>{client?.project_size || client?.["project_size"]} M</> : "-"}
-                          </div>
-                        )}
-                      </div>
+                      <Card className="bg-[#fffff4] !border !border-[#ffe0ccff] !shadow-none rounded-lg">
+                        <CardContent className="p-4">
+                          <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Project Size</div>
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={editData.project_size || ""}
+                              onChange={(e) => setEditData({...editData, project_size: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-base font-medium text-[#0a3d3d]"
+                              placeholder="e.g., $10M-$50M"
+                            />
+                          ) : (
+                            <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
+                              {client?.project_size || client?.["project_size"] ? <>{client?.project_size || client?.["project_size"]}</> : "-"}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     );
                   })()}
 
@@ -1059,22 +1069,24 @@ console.log("client",client)
                     if (!showRaiseAmount) return null;
                     
                     return (
-                      <div>
-                        <div className="text-sm text-gray-500 mb-2">Raise Amount</div>
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            value={editData.raise_amount || ""}
-                            onChange={(e) => setEditData({...editData, raise_amount: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
-                            placeholder="e.g., 5 million"
-                          />
-                        ) : (
-                          <div className="text-lg font-semibold text-[#0a3d3d]">
-                            {client?.raise_amount || client?.["raise_amount"] ? <>{client?.raise_amount || client?.["raise_amount"]} M</> : "-"}
-                          </div>
-                        )}
-                      </div>
+                      <Card className="bg-[#fffff4] !border !border-[#ffe0ccff] !shadow-none rounded-lg">
+                        <CardContent className="p-4">
+                          <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Raise Amount</div>
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={editData.raise_amount || ""}
+                              onChange={(e) => setEditData({...editData, raise_amount: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-base font-medium text-[#0a3d3d]"
+                              placeholder="e.g., $5M"
+                            />
+                          ) : (
+                            <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
+                              {client?.raise_amount || client?.["raise_amount"] ? <>{client?.raise_amount || client?.["raise_amount"]}</> : "-"}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     );
                   })()}
 
@@ -1087,22 +1099,24 @@ console.log("client",client)
                     if (!showActiveRaise) return null;
                     
                     return (
-                      <div>
-                        <div className="text-sm text-gray-500 mb-2">Active Raise Amount</div>
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            value={editData.active_raise_amount || ""}
-                            onChange={(e) => setEditData({...editData, active_raise_amount: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
-                            placeholder="e.g., 2 million"
-                          />
-                        ) : (
-                          <div className="text-lg font-semibold text-[#0a3d3d]">
-                            {client?.active_raise_amount || client?.["active_raise_amount"] ? <>{client?.active_raise_amount || client?.["active_raise_amount"]} M</> : "-"}
-                          </div>
-                        )}
-                      </div>
+                      <Card className="bg-[#fffff4] !border !border-[#ffe0ccff] !shadow-none rounded-lg">
+                        <CardContent className="p-4">
+                          <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Active Raise Amount</div>
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={editData.active_raise_amount || ""}
+                              onChange={(e) => setEditData({...editData, active_raise_amount: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-base font-medium text-[#0a3d3d]"
+                              placeholder="e.g., $2M"
+                            />
+                          ) : (
+                            <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
+                              {client?.active_raise_amount || client?.["active_raise_amount"] ? <>{client?.active_raise_amount || client?.["active_raise_amount"]}</> : "-"}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     );
                   })()}
 
@@ -1115,22 +1129,24 @@ console.log("client",client)
                     if (!showStrategyFocus) return null;
                     
                     return (
-                      <div>
-                        <div className="text-sm text-gray-500 mb-2">Strategy Focus</div>
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            value={editData.strategy_focus || ""}
-                            onChange={(e) => setEditData({...editData, strategy_focus: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
-                            placeholder="e.g., VC, growth, buyout, credit"
-                          />
-                        ) : (
-                          <div className="text-lg font-semibold text-[#0a3d3d]">
-                            {client?.strategy_focus || client?.["strategy_focus"] || "-"}
-                          </div>
-                        )}
-                      </div>
+                      <Card className="bg-[#fffff4] !border !border-[#ffe0ccff] !shadow-none rounded-lg">
+                        <CardContent className="p-4">
+                          <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Strategy Focus</div>
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={editData.strategy_focus || ""}
+                              onChange={(e) => setEditData({...editData, strategy_focus: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-base font-medium text-[#0a3d3d]"
+                              placeholder="e.g., VC, growth, buyout, credit"
+                            />
+                          ) : (
+                            <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
+                              {client?.strategy_focus || client?.["strategy_focus"] || "-"}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     );
                   })()}
 
@@ -1143,22 +1159,24 @@ console.log("client",client)
                     if (!showBusinessStage) return null;
                     
                     return (
-                      <div>
-                        <div className="text-sm text-gray-500 mb-2">Business Stage</div>
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            value={editData.business_stage || ""}
-                            onChange={(e) => setEditData({...editData, business_stage: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
-                            placeholder="e.g., idea, early revenue, growth, scaling"
-                          />
-                        ) : (
-                          <div className="text-lg font-semibold text-[#0a3d3d]">
-                            {client?.business_stage || client?.["business_stage"] || "-"}
-                          </div>
-                        )}
-                      </div>
+                      <Card className="bg-[#fffff4] !border !border-[#ffe0ccff] !shadow-none rounded-lg">
+                        <CardContent className="p-4">
+                          <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Business Stage</div>
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={editData.business_stage || ""}
+                              onChange={(e) => setEditData({...editData, business_stage: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-base font-medium text-[#0a3d3d]"
+                              placeholder="e.g., idea, early revenue, growth, scaling"
+                            />
+                          ) : (
+                            <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
+                              {client?.business_stage || client?.["business_stage"] || "-"}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     );
                   })()}
 
@@ -1171,22 +1189,24 @@ console.log("client",client)
                     if (!showRevenueRange) return null;
                     
                     return (
-                      <div>
-                        <div className="text-sm text-gray-500 mb-2">Revenue Range</div>
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            value={editData.revenue_range || ""}
-                            onChange={(e) => setEditData({...editData, revenue_range: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
-                            placeholder="e.g., $1M - $10M"
-                          />
-                        ) : (
-                          <div className="text-lg font-semibold text-[#0a3d3d]">
-                            {client?.revenue_range || client?.["revenue_range"] || "-"}
-                          </div>
-                        )}
-                      </div>
+                      <Card className="bg-[#fffff4] !border !border-[#ffe0ccff] !shadow-none rounded-lg">
+                        <CardContent className="p-4">
+                          <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Revenue Range</div>
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={editData.revenue_range || ""}
+                              onChange={(e) => setEditData({...editData, revenue_range: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-base font-medium text-[#0a3d3d]"
+                              placeholder="e.g., $1M - $10M"
+                            />
+                          ) : (
+                            <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
+                              {client?.revenue_range || client?.["revenue_range"] || "-"}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     );
                   })()}
 
@@ -1199,22 +1219,24 @@ console.log("client",client)
                     if (!showFacilitatorClients) return null;
                     
                     return (
-                      <div>
-                        <div className="text-sm text-gray-500 mb-2">Facilitator Clients</div>
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            value={editData.facilitator_clients || ""}
-                            onChange={(e) => setEditData({...editData, facilitator_clients: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
-                            placeholder="e.g., CEOs, family offices, funds, corporates"
-                          />
-                        ) : (
-                          <div className="text-lg font-semibold text-[#0a3d3d]">
-                            {client?.facilitator_clients || client?.["facilitator_clients"] || "-"}
-                          </div>
-                        )}
-                      </div>
+                      <Card className="bg-[#fffff4] !border !border-[#ffe0ccff] !shadow-none rounded-lg">
+                        <CardContent className="p-4">
+                          <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Facilitator Clients</div>
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={editData.facilitator_clients || ""}
+                              onChange={(e) => setEditData({...editData, facilitator_clients: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-base font-medium text-[#0a3d3d]"
+                              placeholder="e.g., CEOs, family offices, funds, corporates"
+                            />
+                          ) : (
+                            <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
+                              {client?.facilitator_clients || client?.["facilitator_clients"] || "-"}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     );
                   })()}
 
@@ -1227,22 +1249,24 @@ console.log("client",client)
                     if (!showDealType) return null;
                     
                     return (
-                      <div>
-                        <div className="text-sm text-gray-500 mb-2">Deal Type</div>
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            value={editData.deal_type || ""}
-                            onChange={(e) => setEditData({...editData, deal_type: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
-                            placeholder="e.g., M&A, capital raise, buy side, sell side"
-                          />
-                        ) : (
-                          <div className="text-lg font-semibold text-[#0a3d3d]">
-                            {client?.deal_type || client?.["deal_type"] || "-"}
-                          </div>
-                        )}
-                      </div>
+                      <Card className="bg-[#fffff4] !border !border-[#ffe0ccff] !shadow-none rounded-lg">
+                        <CardContent className="p-4">
+                          <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Deal Type</div>
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={editData.deal_type || ""}
+                              onChange={(e) => setEditData({...editData, deal_type: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-base font-medium text-[#0a3d3d]"
+                              placeholder="e.g., M&A, capital raise, buy side, sell side"
+                            />
+                          ) : (
+                            <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
+                              {client?.deal_type || client?.["deal_type"] || "-"}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     );
                   })()}
 
@@ -1255,22 +1279,24 @@ console.log("client",client)
                     if (!showDealSize) return null;
                     
                     return (
-                      <div>
-                        <div className="text-sm text-gray-500 mb-2">Deal Size</div>
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            value={editData.deal_size || ""}
-                            onChange={(e) => setEditData({...editData, deal_size: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
-                            placeholder="e.g., $5M - $50M"
-                          />
-                        ) : (
-                          <div className="text-lg font-semibold text-[#0a3d3d]">
-                            {client?.deal_size || client?.["deal_size"] || "-"}
-                          </div>
-                        )}
-                      </div>
+                      <Card className="bg-[#fffff4] !border !border-[#ffe0ccff] !shadow-none rounded-lg">
+                        <CardContent className="p-4">
+                          <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Deal Size</div>
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={editData.deal_size || ""}
+                              onChange={(e) => setEditData({...editData, deal_size: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-base font-medium text-[#0a3d3d]"
+                              placeholder="e.g., $5M - $50M"
+                            />
+                          ) : (
+                            <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
+                              {client?.deal_size || client?.["deal_size"] || "-"}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     );
                   })()}
 
@@ -1283,21 +1309,23 @@ console.log("client",client)
                     if (!showIdealCEO) return null;
                     
                     return (
-                      <div className="sm:col-span-2 lg:col-span-3">
-                        <div className="text-sm text-gray-500 mb-2">Ideal CEO Profile</div>
-                        {isEditing ? (
-                          <textarea
-                            value={editData.ideal_ceo_profile || ""}
-                            onChange={(e) => setEditData({...editData, ideal_ceo_profile: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[100px] text-sm sm:text-base"
-                            placeholder="Characteristics of ideal CEO match"
-                          />
-                        ) : (
-                          <div className="text-[#0a3d3d]">
-                            {client?.ideal_ceo_profile || client?.["ideal_ceo_profile"] || "-"}
-                          </div>
-                        )}
-                      </div>
+                      <Card className="bg-[#fffff4] border-none !shadow-none rounded-lg sm:col-span-2 lg:col-span-3">
+                        <CardContent className="p-4">
+                          <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Ideal CEO Profile</div>
+                          {isEditing ? (
+                            <textarea
+                              value={editData.ideal_ceo_profile || ""}
+                              onChange={(e) => setEditData({...editData, ideal_ceo_profile: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[100px] text-sm sm:text-base"
+                              placeholder="Characteristics of ideal CEO match"
+                            />
+                          ) : (
+                            <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
+                              {client?.ideal_ceo_profile || client?.["ideal_ceo_profile"] || "-"}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     );
                   })()}
 
@@ -1310,111 +1338,146 @@ console.log("client",client)
                     if (!showIdealIntro) return null;
                     
                     return (
-                      <div className="sm:col-span-2 lg:col-span-3">
-                        <div className="text-sm text-gray-500 mb-2">Ideal Intro</div>
-                        {isEditing ? (
-                          <textarea
-                            value={editData.ideal_intro || ""}
-                            onChange={(e) => setEditData({...editData, ideal_intro: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[100px] text-sm sm:text-base"
-                            placeholder="The single most valuable introduction needed"
-                          />
-                        ) : (
-                          <div className="text-[#0a3d3d]">
-                            {client?.ideal_intro || client?.["ideal_intro"] || "-"}
-                          </div>
-                        )}
-                      </div>
+                      <Card className="bg-[#fffff4] border-none !shadow-none rounded-lg sm:col-span-2 lg:col-span-3">
+                        <CardContent className="p-4">
+                          <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Ideal Intro</div>
+                          {isEditing ? (
+                            <textarea
+                              value={editData.ideal_intro || ""}
+                              onChange={(e) => setEditData({...editData, ideal_intro: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[100px] text-sm sm:text-base"
+                              placeholder="The single most valuable introduction needed"
+                            />
+                          ) : (
+                            <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
+                              {client?.ideal_intro || client?.["ideal_intro"] || "-"}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     );
                   })()}
 
                   {/* Company */}
-                  <div>
-                    <div className="text-sm text-gray-500 mb-2">Company</div>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        value={editData.company || ""}
-                        onChange={(e) => setEditData({...editData, company: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
-                        placeholder="Company name"
-                      />
-                    ) : (
-                      <div className="text-lg font-semibold text-[#0a3d3d]">
-                        {client?.company || client?.["company"] || client?.Company || client?.["Company"] || "-"}
-                      </div>
-                    )}
-                  </div>
+                  <Card className="bg-[#fffff4] !border !border-[#ffe0ccff] !shadow-none rounded-lg">
+                    <CardContent className="p-4">
+                      <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Firm</div>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={editData.company || ""}
+                          onChange={(e) => setEditData({...editData, company: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-base font-medium text-[#0a3d3d]"
+                          placeholder="Company name"
+                        />
+                      ) : (
+                        <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
+                          {client?.company || client?.["company"] || client?.Company || client?.["Company"] || "-"}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
 
                   {/* Partner Types */}
-                  <div>
-                    <div className="text-sm text-gray-500 mb-2">Partner Types</div>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        value={editData.partner_types || ""}
-                        onChange={(e) => setEditData({...editData, partner_types: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
-                        placeholder="e.g., LPs, Operators (separate with semicolons)"
-                      />
-                    ) : (
-                      <div className="text-lg font-semibold text-[#0a3d3d]">
-                        {getPartnerTypes().length > 0 ? (
-                          <div className="flex flex-wrap gap-2">
-                            {getPartnerTypes().map((type, index) => (
-                              <Badge 
-                                key={index} 
-                                className="bg-[#c9a961] text-[#0a3d3d] hover:bg-[#c9a961]/90"
-                              >
-                                {type}
-                              </Badge>
-                            ))}
-                          </div>
-                        ) : (
-                          "-"
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  <Card className="bg-[#fffff4] !border !border-[#ffe0ccff] !shadow-none rounded-lg">
+                    <CardContent className="p-4">
+                      <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Partner Types</div>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={editData.partner_types || ""}
+                          onChange={(e) => setEditData({...editData, partner_types: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-base font-medium text-[#0a3d3d]"
+                          placeholder="e.g., LPs, Operators (separate with semicolons)"
+                        />
+                      ) : (
+                        <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
+                          {getPartnerTypes().length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                              {getPartnerTypes().map((type, index) => (
+                                <Badge 
+                                  key={index} 
+                                  className="bg-[#c9a961] text-[#0a3d3d] hover:bg-[#c9a961]/90"
+                                >
+                                  {type}
+                                </Badge>
+                              ))}
+                            </div>
+                          ) : (
+                            "-"
+                          )}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Industries */}
+                  <Card className="bg-[#fffff4] border border-[#ffe0ccff] !shadow-none rounded-lg">
+                    <CardContent className="p-4">
+                      <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Main Sectors</div>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={editData.industries || ""}
+                          onChange={(e) => setEditData({...editData, industries: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-base font-medium text-[#0a3d3d]"
+                          placeholder="e.g., Industrial services, Healthcare IT"
+                        />
+                      ) : (
+                        <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
+                          {client?.industries || client?.["industries"] || client?.Industries || client?.["Industries"] || "-"}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Regions */}
+                  <Card className="bg-[#fffff4] border border-[#ffe0ccff] !shadow-none rounded-lg">
+                    <CardContent className="p-4">
+                      <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Geography</div>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={editData.regions || ""}
+                          onChange={(e) => setEditData({...editData, regions: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-base font-medium text-[#0a3d3d]"
+                          placeholder="e.g., Southeast US"
+                        />
+                      ) : (
+                        <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
+                          {client?.regions || client?.["regions"] || client?.Regions || client?.["Regions"] || "-"}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 </div>
-              </CardContent>
-            </Card>
           </section>
 
           {/* Business Goals Overview */}
-          <section className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="business-goals">
+          <section className=" mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="business-goals">
             <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
-              <span className="text-[#c9a961]">◎</span>
-              <span>Business Goals Overview</span>
+              <span className="text-[#67534F] text-[16px] font-bold">Goals Summary</span>
             </h2>
             {isEditing ? (
-              <Card className="bg-white border-none shadow-sm">
-                <CardContent className="p-4 sm:p-5 md:p-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Goals (one per line)</label>
-                  <textarea
-                    value={editData.goals || ""}
-                    onChange={(e) => setEditData({...editData, goals: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[100px] text-sm sm:text-base"
-                    placeholder="Enter your business goals, one per line"
-                  />
-                </CardContent>
-              </Card>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Goals (one per line)</label>
+                <textarea
+                  value={editData.goals || ""}
+                  onChange={(e) => setEditData({...editData, goals: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[100px] text-sm sm:text-base"
+                  placeholder="Enter your business goals, one per line"
+                />
+              </div>
             ) : (
-              <Card className="bg-white border-none shadow-sm">
-                <CardContent className="p-4 sm:p-5 md:p-6">
-                  {getGoals().length > 0 ? (
-                    <div className="space-y-2">
-                      {getGoals().map((goal, index) => (
-                        <p key={index} className="text-gray-700">
-                          {goal}
-                        </p>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-500">No goals set. Goals will appear here when available.</p>
-                  )}
-                </CardContent>
-              </Card>
+              <div>
+                {client?.goals || client?.["goals"] ? (
+                  <p className="text-gray-700 whitespace-pre-line">
+                    {client?.goals || client?.["goals"]}
+                  </p>
+                ) : (
+                  <p className="text-gray-500">No goals set. Goals will appear here when available.</p>
+                )}
+              </div>
             )}
           </section>
 
@@ -1422,10 +1485,9 @@ console.log("client",client)
           {!isEditing && (
           <section className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="signals">
             <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
-              <span className="text-[#c9a961]">⊟</span>
-              <span>Signals</span>
+              <span className="text-[#532418] text-[32px] font-marcellus">Signals</span>
             </h2>
-            <Card className="bg-white border-none shadow-sm">
+            <Card className="bg-[#fffff4] border-none !shadow-none">
               <CardContent className="p-3 sm:p-4 md:p-6">
                 {signals.length > 0 ? (
                   <div className="space-y-3 sm:space-y-4 lg:space-y-6 max-h-[600px] overflow-y-auto pr-1 sm:pr-2">
@@ -1436,7 +1498,7 @@ console.log("client",client)
                           {/* Header Row */}
                           <div className="flex flex-col sm:flex-row items-start justify-between gap-2 sm:gap-3 md:gap-4">
                             <div className="flex-1 min-w-0 w-full sm:w-auto">
-                              <h3 className="font-semibold text-[#0a3d3d] text-sm sm:text-base md:text-lg mb-1 sm:mb-2 break-words">
+                              <h3 className="font-semibold text-[#67534F] text-sm sm:text-base md:text-lg mb-1 sm:mb-2 break-words">
                                 {signal.headline_source || `Signal ${index + 1}`}
                               </h3>
                               {signal.url && (
@@ -1456,23 +1518,20 @@ console.log("client",client)
                             <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                               {signal.overall && (
                                 <div className="flex items-center gap-1">
-                                  <span className="text-xs text-gray-500 hidden sm:inline">Overall:</span>
-                                  <Badge className="bg-[#0a3d3d] text-white text-xs">
+                                  <span className="text-xs text-[#67534F] hidden sm:inline">Overall:</span>
+                                  <Badge className="bg-[#c9a961] text-[#532418] text-xs">
                                     {signal.overall}/5
                                   </Badge>
                                 </div>
                               )}
-                              <Badge className={`${badge.bg} ${badge.text} text-xs sm:text-sm`}>
-                                {badge.label}
-                              </Badge>
                             </div>
                           </div>
 
                           {/* Details Grid */}
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4 text-xs sm:text-sm">
                             <div>
-                              <div className="text-gray-500 mb-1">Date</div>
-                              <div className="font-medium text-[#0a3d3d]">
+                              <div className="text-[#67534F] mb-1">Date</div>
+                              <div className="font-medium text-[#532418]">
                                 {signal.date ? new Date(signal.date).toLocaleDateString('en-US', { 
                                   year: 'numeric', 
                                   month: 'short', 
@@ -1481,32 +1540,32 @@ console.log("client",client)
                               </div>
                             </div>
                             {/* <div>
-                              <div className="text-gray-500 mb-1">Signal Type</div>
-                              <div className="font-medium text-[#0a3d3d] capitalize">
+                              <div className="text-[#67534F] mb-1">Signal Type</div>
+                              <div className="font-medium text-[#532418] capitalize">
                                 {signal.signal_type || '-'}
                               </div>
                             </div>
                             <div>
-                              <div className="text-gray-500 mb-1">Category</div>
+                              <div className="text-[#67534F] mb-1">Category</div>
                               <div className="font-medium text-[#0a3d3d]">
                                 {signal.category ? signal.category.replace("_opportunity", "").replace(/_/g, " ") : '-'}
                               </div>
                             </div> */}
                             <div>
-                              <div className="text-gray-500 mb-1">Scores (R,O,A)</div>
-                              <div className="font-medium text-[#0a3d3d]">
+                              <div className="text-[#67534F] mb-1">Scores (R,O,A)</div>
+                              <div className="font-medium text-[#532418]">
                                 {signal.scores_R_O_A || '-'}
                               </div>
                             </div>
                             <div>
-                              <div className="text-gray-500 mb-1">Company</div>
-                              <div className="font-medium text-[#0a3d3d]">
+                              <div className="text-[#67534F] mb-1">Company</div>
+                              <div className="font-medium text-[#532418]">
                                 {signal.company || '-'}
                               </div>
                             </div>
                             <div>
-                              <div className="text-gray-500 mb-1">Estimated target value</div>
-                              <div className="font-medium text-[#0a3d3d]">
+                              <div className="text-[#67534F] mb-1">Estimated target value</div>
+                              <div className="font-medium text-[#532418]">
                                 {signal.estimated_target_value_USD || '-'}
                               </div>
                             </div>
@@ -1515,8 +1574,8 @@ console.log("client",client)
                           {/* Next Step */}
                           {signal.next_step && (
                             <div className="pt-4 border-t border-gray-200">
-                              <div className="text-gray-500 mb-2 text-sm font-medium">Next Step</div>
-                              <div className="text-[#0a3d3d] bg-[#f5f3f0] p-3 rounded-md">
+                              <div className="text-[#67534F] mb-2 text-sm font-medium">Next Step</div>
+                              <div className="text-[#532418] bg-[#faf1dc] p-3 rounded-md">
                                 {signal.next_step}
                               </div>
                             </div>
@@ -1560,10 +1619,9 @@ console.log("client",client)
           {!isEditing && (
           <section className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="active-deals">
             <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
-              <span className="text-[#c9a961]">💼</span>
-              Active Deals
+              <span className="text-[#532418] text-[32px] font-marcellus">Active Deals</span>
             </h2>
-            <Card className="bg-white border-none shadow-sm">
+            <Card className="bg-[#fffff4] border-none !shadow-none">
               <CardContent className="p-3 sm:p-4 md:p-6">
                 {deals.length > 0 ? (
                   <>
@@ -1776,12 +1834,11 @@ console.log("client",client)
           {/* Industry & Geographic Focus */}
           <section className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="industry-focus">
             <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
-              <span className="text-[#c9a961]">◇</span>
-              Industry & Geographic Focus
+              <span className="text-[#532418] text-[32px] font-marcellus">Industry & Geographic Focus</span>
             </h2>
             {isEditing ? (
-              <Card className="bg-white border-none shadow-sm">
-                <CardContent className="p-4 sm:p-5 md:p-6 space-y-3 sm:space-y-4">
+              <Card className="bg-[#fffff4] border-none !shadow-none">
+                <CardContent className="p-4 md:p-6 space-y-3 sm:space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Industries (separate with semicolons)</label>
                     <input
@@ -1830,7 +1887,7 @@ console.log("client",client)
                 <span className="text-[#c9a961]">⊞</span>
                 <span className="break-words">{clientName}'s Business Requests</span>
               </h2>
-              <Card className="bg-white border-none shadow-sm">
+              <Card className="bg-[#fffff4] border-none !shadow-none">
                 <CardContent className="p-3 sm:p-4 md:p-6">
                   {isEditing ? (
                     <div className="space-y-3 sm:space-y-4">
@@ -1887,7 +1944,7 @@ console.log("client",client)
                 <span className="text-[#c9a961]">⚭</span>
                 Potential Business Matches
               </h2>
-              <Card className="bg-white border-none shadow-sm">
+              <Card className="bg-[#fffff4] border-none !shadow-none">
                 <CardContent className="p-3 sm:p-4 md:p-6">
                   <div className="space-y-3 sm:space-y-4">
                     <div className="pb-2 border-b text-xs sm:text-sm text-gray-600 font-medium">
@@ -1908,14 +1965,13 @@ console.log("client",client)
           {!isEditing && (
           <section className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="opm-travel-plans">
             <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
-              <span className="text-[#c9a961]">✈</span>
-              OPM Travel Matches
+                <span className="text-[#532418] text-[32px] font-marcellus">OPM Travel Matches</span>
             </h2>
-            <Card className="bg-white border-none shadow-sm">
+            <Card className="bg-[#fffff4] border-none !shadow-none">
               <CardContent className="p-3 sm:p-4 md:p-6">
                 {getOPMTravelPlans().length > 0 ? (
                   <div className="space-y-3 sm:space-y-4">
-                    <div className="hidden sm:grid grid-cols-12 gap-3 sm:gap-4 pb-2 border-b text-xs sm:text-sm text-gray-600 font-medium">
+                    <div className="hidden sm:grid grid-cols-12 gap-3 sm:gap-4 pb-2 border-b text-xs sm:text-[16px] text-[#67534F] font-bold">
                       <div className="col-span-2">Connection</div>
                       <div className="col-span-2">OPM #</div>
                       <div className="col-span-3">Travel Plans</div>
@@ -1942,32 +1998,32 @@ console.log("client",client)
                             <Avatar className="h-7 w-7 sm:h-8 sm:w-8">
                               <AvatarFallback className="text-xs">{initials}</AvatarFallback>
                             </Avatar>
-                            <span className="text-xs sm:text-sm break-words">{customerName}</span>
+                            <span className="text-xs sm:text-sm text-[#67534F] break-words">{customerName}</span>
                           </div>
                           <div className="col-span-1 sm:col-span-2">
-                            <Badge className="bg-[#b8d8d8] text-[#0a3d3d] hover:bg-[#b8d8d8] text-xs">
+                            <Badge className="bg-[#c9a961] text-[#532418] hover:bg-[#c9a961] text-xs">
                               {plan.opm_number || ""}
                             </Badge>
                           </div>
-                          <div className="col-span-1 sm:col-span-3 text-xs sm:text-sm break-words">
+                          <div className="col-span-1 sm:col-span-3 text-xs sm:text-sm text-[#67534F] break-words">
                             {travelPlansList.length > 0 ? (
                               travelPlansList.map((planText, i) => (
                                 <div key={i}>{planText.trim()}</div>
                               ))
                             ) : (
-                              <div className="text-gray-400">-</div>
+                              <div className="text-[#67534F]">-</div>
                             )}
                           </div>
-                          <div className="col-span-1 sm:col-span-2 text-xs sm:text-sm">
+                          <div className="col-span-1 sm:col-span-2 text-xs sm:text-sm text-[#67534F]">
                             {datesList.length > 0 ? (
                               datesList.map((dateText, i) => (
                                 <div key={i}>{dateText.trim()}</div>
                               ))
                             ) : (
-                              <div className="text-gray-400">-</div>
+                              <div className="text-[#67534F]">-</div>
                             )}
                           </div>
-                          <div className="col-span-1 sm:col-span-3 text-xs sm:text-sm break-words text-gray-600">
+                          <div className="col-span-1 sm:col-span-3 text-xs sm:text-sm break-words text-[#67534F]">
                             {plan.how_they_can_help || plan["how_they_can_help"] || plan["How they can help"] || "-"}
                           </div>
                         </div>
@@ -1975,8 +2031,8 @@ console.log("client",client)
                     })}
                   </div>
                 ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <p className="text-sm">No travel plans available. Travel plans will appear here once generated.</p>
+                  <div className="text-center py-8 text-[#67534F]">
+                    <p className="text-sm text-[#67534F]">No travel plans available. Travel plans will appear here once generated.</p>
                   </div>
                 )}
               </CardContent>
@@ -1988,14 +2044,13 @@ console.log("client",client)
           {!isEditing && (
           <section className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="upcoming-industry-events">
             <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
-              <span className="text-[#c9a961]">📅</span>
-              Upcoming Industry Events
+                  <span className="text-[#532418] text-[32px] font-marcellus">Upcoming Industry Events</span>
             </h2>
-            <Card className="bg-white border-none shadow-sm">
+            <Card className="bg-[#fffff4] border-none !shadow-none">
               <CardContent className="p-3 sm:p-4 md:p-6">
                 {getUpcomingIndustryEvents().length > 0 ? (
                   <div className="space-y-3 sm:space-y-4">
-                    <div className="hidden sm:grid grid-cols-12 gap-3 sm:gap-4 pb-2 border-b text-xs sm:text-sm text-gray-600 font-medium">
+                    <div className="hidden sm:grid grid-cols-12 gap-3 sm:gap-4 pb-2 border-b text-xs sm:text-[16px] text-[#67534F] font-bold">
                       <div className="col-span-3">Event</div>
                       <div className="col-span-2">Industry</div>
                       <div className="col-span-2">Location</div>
@@ -2020,7 +2075,7 @@ console.log("client",client)
                             index < getUpcomingIndustryEvents().length - 1 ? 'border-b border-gray-100' : ''
                           }`}
                         >
-                          <div className="col-span-1 sm:col-span-3 break-words text-sm sm:text-base">
+                          <div className="col-span-1 sm:col-span-3 break-words text-sm sm:text-base text-[#67534F]">
                             {event.event_name || "-"}
                           </div>
                           <div className="col-span-1 sm:col-span-2">
@@ -2028,13 +2083,13 @@ console.log("client",client)
                               {industry || "-"}
                             </Badge>
                           </div>
-                          <div className="col-span-1 sm:col-span-2 text-xs sm:text-sm break-words">
+                          <div className="col-span-1 sm:col-span-2 text-xs sm:text-sm break-words text-[#67534F]">
                             {event.location || "-"}
                           </div>
-                          <div className="col-span-1 sm:col-span-2 text-xs sm:text-sm">
+                          <div className="col-span-1 sm:col-span-2 text-xs sm:text-sm text-[#67534F]">
                             {event.event_date || "-"}
                           </div>
-                          <div className="col-span-1 sm:col-span-3 text-xs sm:text-sm break-words text-gray-600">
+                          <div className="col-span-1 sm:col-span-3 text-xs sm:text-sm break-words text-[#67534F]">
                             {event.why_it_matters || event["why_it_matters"] || event["Why it matters"] || "-"}
                           </div>
                         </div>
@@ -2042,8 +2097,8 @@ console.log("client",client)
                     })}
                   </div>
                 ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <p className="text-sm">No upcoming events available. Events will appear here once generated.</p>
+                  <div className="text-center py-8 text-[#67534F]">
+                    <p className="text-sm text-[#67534F]">No upcoming events available. Events will appear here once generated.</p>
                   </div>
                 )}
               </CardContent>
@@ -2057,7 +2112,7 @@ console.log("client",client)
         {showCreateDealModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
             <Card className="w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
-              <CardContent className="p-4 sm:p-5 md:p-6">
+              <CardContent className="p-4 md:p-6">
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
                   <h2 className="text-lg sm:text-xl md:text-2xl font-montserrat text-[#0a3d3d]">Create New Deal</h2>
                   <Button
