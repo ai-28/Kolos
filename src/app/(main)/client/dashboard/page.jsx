@@ -1561,13 +1561,13 @@ console.log("client",client)
                                 }) : '-'}
                               </div>
                             </div>
-                            {/* <div>
+                            <div>
                               <div className="text-[#67534F] mb-1">Signal Type</div>
                               <div className="font-medium text-[#532418] capitalize">
                                 {signal.signal_type || '-'}
                               </div>
                             </div>
-                            <div>
+                            {/* <div>
                               <div className="text-[#67534F] mb-1">Category</div>
                               <div className="font-medium text-[#0a3d3d]">
                                 {signal.category ? signal.category.replace("_opportunity", "").replace(/_/g, " ") : '-'}
@@ -1579,12 +1579,12 @@ console.log("client",client)
                                 {signal.scores_R_O_A || '-'}
                               </div>
                             </div>
-                            <div>
+                            {/* <div>
                               <div className="text-[#67534F] mb-1">Company</div>
                               <div className="font-medium text-[#532418]">
                                 {signal.company || '-'}
                               </div>
-                            </div>
+                            </div> */}
                             <div>
                               <div className="text-[#67534F] mb-1">Estimated target value</div>
                               <div className="font-medium text-[#532418]">
