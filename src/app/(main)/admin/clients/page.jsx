@@ -1704,7 +1704,7 @@ console.log("client",client)
                               </div>
                             </div> */}
                             <div>
-                              <div className="text-gray-500 mb-1">Target value est.</div>
+                              <div className="text-gray-500 mb-1">Estimated target value</div>
                               <div className="font-medium text-[#0a3d3d]">
                                 {signal.estimated_target_value_USD || '-'}
                               </div>
