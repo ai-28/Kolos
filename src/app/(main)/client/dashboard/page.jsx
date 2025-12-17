@@ -633,18 +633,32 @@ console.log("client",client)
                 <ArrowLeft className="w-4 h-4" />
                 <span className="hidden md:inline">Back</span>
               </Button>
-              {
-                client?.logo && (
-                  <Image 
-                    src={client?.logo} 
-                    alt="Client Logo" 
-                    width={100} 
-                    height={100}
-                    unoptimized={client?.logo?.includes('seeklogo.com')}
-                    className="object-contain"
-                  />
-                )
-              }
+              <div className="flex-shrink-0">
+                {client?.logo ? (
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg bg-white border border-gray-200 flex items-center justify-center p-2 shadow-sm overflow-hidden">
+                    <Image 
+                      src={client?.logo} 
+                      alt={`${clientName} Logo`}
+                      width={80}
+                      height={80}
+                      unoptimized={client?.logo?.includes('seeklogo.com')}
+                      className="object-contain w-full h-full"
+                      style={{ 
+                        maxWidth: '100%', 
+                        maxHeight: '100%',
+                        width: 'auto',
+                        height: 'auto'
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center shadow-sm">
+                    <span className="text-[#0a3d3d] font-semibold text-sm sm:text-base">
+                      {getInitials(clientName)}
+                    </span>
+                  </div>
+                )}
+              </div>
               <h1 className="text-[32px] sm:text-[48px] font-medium text-center text-[#532418] text-[#0a3d3d] break-words sm:truncate flex-1 min-w-0 w-full sm:w-auto" style={{ fontFamily: 'var(--font-marcellus), serif' }}>{clientName}</h1>
               
             </div>
