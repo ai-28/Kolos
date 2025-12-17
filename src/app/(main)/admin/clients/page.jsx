@@ -1743,22 +1743,17 @@ console.log("client",client)
                             {(deal.source || deal["source"]) && (
                               <div>
                                 <div className="text-xs text-gray-500 mb-1">Source</div>
-                                <div className="text-sm text-gray-700 break-words">
-                                  {deal.source || deal["source"]}
-                                </div>
-                                {(deal.source || deal["source"]) && (
-                                  <a 
-                                    href={deal.source || deal["source"]} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="text-xs sm:text-sm text-[#c9a961] hover:underline inline-flex items-center gap-1 mt-1"
-                                  >
-                                    <span>View Source</span>
-                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                    </svg>
-                                  </a>
-                                )}
+                                <a 
+                                  href={deal.source || deal["source"]} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-xs sm:text-sm text-[#c9a961] hover:underline inline-flex items-center gap-1"
+                                >
+                                  <span>View Source</span>
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                  </svg>
+                                </a>
                               </div>
                             )}
                             
