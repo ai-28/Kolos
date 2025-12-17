@@ -6,15 +6,15 @@ import { Badge } from "@/app/components/ui/badge"
 import { Button } from "@/app/components/ui/button"
 import { Card, CardContent } from "@/app/components/ui/card"
 import {KolosLogo} from "@/app/components/svg"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { ArrowLeft, Loader2, Edit2, Save, X, Trash2, Menu } from "lucide-react"
 import { toast } from "sonner"
 import { DashboardIcon, BusinessGoalsIcon,SignalsIcon, IndustryFocusIcon, BusinessMatchIcon, BusinessRequestsIcon,TravelPlanIcon, UpcomingEventIcon } from "@/app/components/svg"
 import Image from "next/image"
+import { normalizeRole } from "@/app/lib/roleUtils"
 
 function ClientDashboardContent() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [client, setClient] = useState(null)
   const [loading, setLoading] = useState(true)
   const [selectedRole, setSelectedRole] = useState("Investor")
@@ -39,78 +39,91 @@ function ClientDashboardContent() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   useEffect(() => {
-    // Get client ID from URL params and fetch client data
-    const clientId = searchParams.get("id")
-    if (clientId) {
-      fetchClientData(clientId)
-    } else {
-      setLoading(false)
-    }
-  }, [searchParams])
+    // Get client ID from session and fetch client data
+    fetchClientData()
+  }, [])
 
-  const fetchClientData = async (clientId) => {
+  const fetchClientData = async () => {
     try {
       setLoading(true)
+      
+      // Get session to get client_id
+      const sessionResponse = await fetch('/api/auth/session')
+      const sessionData = await sessionResponse.json()
+      
+      if (!sessionResponse.ok || !sessionData.clientId) {
+        // Not authenticated, redirect to home/login
+        router.push('/')
+        return
+      }
+
+      const clientId = sessionData.clientId
+      
+      // Fetch client data
       const response = await fetch(`/api/airtable/clients/${clientId}`)
       const data = await response.json()
 
       if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          // Unauthorized, redirect to home/login
+          router.push('/')
+          return
+        }
         throw new Error(data.error || "Failed to fetch client")
       }
 
       const clientData = data.client
       setClient(clientData)
       
-      // Set default role from client profile (check lowercase first, then uppercase)
+      // Set default role from client profile and normalize it
       const clientRole = clientData.role || clientData.Role || clientData["role"] || clientData["Role"] || "Investor"
-      // Normalize role to match button labels
-      const normalizedRole = clientRole.charAt(0).toUpperCase() + clientRole.slice(1).toLowerCase()
-      if (["Investor", "Entrepreneur", "Asset Manager", "Facilitator"].includes(normalizedRole)) {
-        setSelectedRole(normalizedRole)
-      }
+      const normalizedRole = normalizeRole(clientRole)
+      setSelectedRole(normalizedRole)
       
-      // Fetch signals from Signals sheet using profile_id
-      const profileId = clientData.id || clientData.ID || clientData["id"] || clientData["ID"]
-      if (profileId) {
-        try {
-          const signalsResponse = await fetch(`/api/signals?profile_id=${encodeURIComponent(profileId)}`)
-          const signalsData = await signalsResponse.json()
-          
-          if (signalsResponse.ok && signalsData.signals && Array.isArray(signalsData.signals)) {
-            setSignals(signalsData.signals)
-            console.log(`✅ Loaded ${signalsData.signals.length} signals for profile ${profileId}`)
-          } else {
-            console.warn("No signals found or error fetching signals:", signalsData)
-            setSignals([])
+      // Fetch signals - API now uses session automatically
+      try {
+        const signalsResponse = await fetch('/api/signals')
+        const signalsData = await signalsResponse.json()
+        
+        if (signalsResponse.ok && signalsData.signals && Array.isArray(signalsData.signals)) {
+          setSignals(signalsData.signals)
+          console.log(`✅ Loaded ${signalsData.signals.length} signals`)
+        } else {
+          if (signalsResponse.status === 401) {
+            router.push('/')
+            return
           }
-        } catch (signalError) {
-          console.error("Error fetching signals:", signalError)
+          console.warn("No signals found or error fetching signals:", signalsData)
           setSignals([])
         }
+      } catch (signalError) {
+        console.error("Error fetching signals:", signalError)
+        setSignals([])
+      }
 
-        // Fetch deals from Deals sheet using profile_id
-        try {
-          const dealsResponse = await fetch(`/api/deals?profile_id=${encodeURIComponent(profileId)}`)
-          const dealsData = await dealsResponse.json()
-          
-          if (dealsResponse.ok && dealsData.deals && Array.isArray(dealsData.deals)) {
-            setDeals(dealsData.deals)
-            console.log(`✅ Loaded ${dealsData.deals.length} deals for profile ${profileId}`)
-          } else {
-            console.warn("No deals found or error fetching deals:", dealsData)
-            setDeals([])
+      // Fetch deals - API now uses session automatically
+      try {
+        const dealsResponse = await fetch('/api/deals')
+        const dealsData = await dealsResponse.json()
+        
+        if (dealsResponse.ok && dealsData.deals && Array.isArray(dealsData.deals)) {
+          setDeals(dealsData.deals)
+          console.log(`✅ Loaded ${dealsData.deals.length} deals`)
+        } else {
+          if (dealsResponse.status === 401) {
+            router.push('/')
+            return
           }
-        } catch (dealError) {
-          console.error("Error fetching deals:", dealError)
+          console.warn("No deals found or error fetching deals:", dealsData)
           setDeals([])
         }
-      } else {
-        console.warn("No profile ID found, cannot fetch signals or deals")
-        setSignals([])
+      } catch (dealError) {
+        console.error("Error fetching deals:", dealError)
         setDeals([])
       }
     } catch (error) {
       console.error("Error fetching client data:", error)
+      router.push('/')
     } finally {
       setLoading(false)
     }
@@ -238,17 +251,6 @@ function ClientDashboardContent() {
   }
 
   const handleCreateDeal = async () => {
-    if (!client) {
-      alert("Client data not available")
-      return
-    }
-
-    const profileId = client.id || client.ID || client["id"] || client["ID"]
-    if (!profileId) {
-      alert("Cannot create deal: Client ID not found")
-      return
-    }
-
     setCreatingDeal(true)
     try {
       const response = await fetch('/api/deals', {
@@ -257,7 +259,6 @@ function ClientDashboardContent() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          profile_id: profileId,
           deal_name: dealFormData.deal_name,
           target: dealFormData.target,
           source: dealFormData.source,
@@ -274,7 +275,7 @@ function ClientDashboardContent() {
       }
 
       // Refresh deals list
-      const dealsResponse = await fetch(`/api/deals?profile_id=${encodeURIComponent(profileId)}`)
+      const dealsResponse = await fetch('/api/deals')
       const dealsData = await dealsResponse.json()
       
       if (dealsResponse.ok && dealsData.deals && Array.isArray(dealsData.deals)) {
@@ -309,17 +310,6 @@ function ClientDashboardContent() {
       return
     }
 
-    if (!client) {
-      toast.error("Client data not available")
-      return
-    }
-
-    const profileId = client.id || client.ID || client["id"] || client["ID"]
-    if (!profileId) {
-      toast.error("Cannot delete: Client ID not found")
-      return
-    }
-
     // Show confirmation toast with action buttons
     toast.warning("Delete Deal", {
       description: "Are you sure you want to delete this deal? This action cannot be undone.",
@@ -347,7 +337,7 @@ function ClientDashboardContent() {
             }
             
             // Refresh deals list immediately
-            const dealsResponse = await fetch(`/api/deals?profile_id=${encodeURIComponent(profileId)}`)
+            const dealsResponse = await fetch('/api/deals')
             const dealsData = await dealsResponse.json()
             
             if (dealsResponse.ok && dealsData.deals && Array.isArray(dealsData.deals)) {
@@ -547,7 +537,7 @@ console.log("client",client)
             <KolosLogo/>
         </div>
 
-        <nav className="space-y-1 flex-1 text-sm sm:text-[16px]">
+        <nav className="space-y-1 flex-1 text-sm sm:text-[16px] font-marcellus">
           <a href="#" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2 sm:gap-3 py-2.5 sm:py-3 rounded hover:bg-white/10 transition-colors min-h-[44px]">
               <DashboardIcon/>
             <span className="font-thin">Dashboard</span>
@@ -597,9 +587,23 @@ console.log("client",client)
           </div>
         </div> */}
 
-        <div className="border-t border-gray-600 pt-3 sm:pt-4 mt-3 sm:mt-4 space-y-2">
+        <div className="border-t border-gray-600 pt-3 sm:pt-4 mt-3 sm:mt-4 space-y-2 font-marcellus">
           <a href="#" onClick={() => setIsMobileMenuOpen(false)} className="block text-xs sm:text-sm hover:text-[#c9a961] transition-colors min-h-[44px] flex items-center">Harvard OPM Group</a>
           <a href="#" onClick={() => setIsMobileMenuOpen(false)} className="block text-xs sm:text-sm hover:text-[#c9a961] transition-colors min-h-[44px] flex items-center">Updates & FAQ</a>
+          <button 
+            onClick={async () => {
+              try {
+                await fetch('/api/auth/logout', { method: 'POST' })
+                router.push('/')
+              } catch (error) {
+                console.error('Logout error:', error)
+                router.push('/')
+              }
+            }}
+            className="block text-xs sm:text-sm hover:text-[#c9a961] transition-colors min-h-[44px] flex items-center w-full text-left"
+          >
+            Sign Out
+          </button>
         </div>
       </aside>
 
@@ -730,6 +734,24 @@ console.log("client",client)
                         className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-sm sm:text-base min-h-[44px]"
                         placeholder="your.email@example.com"
                       />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Role</label>
+                      <select
+                        value={editData.role || selectedRole || "Investor"}
+                        onChange={(e) => {
+                          const newRole = e.target.value;
+                          setEditData({...editData, role: newRole});
+                          setSelectedRole(newRole);
+                        }}
+                        className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-sm sm:text-base min-h-[44px] bg-white"
+                      >
+                        <option value="Investor">Investor</option>
+                        <option value="Entrepreneur">Entrepreneur</option>
+                        <option value="Asset Manager">Asset Manager</option>
+                        <option value="Facilitator">Facilitator</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">Changing your role will show/hide relevant fields below</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Constraints Notes</label>

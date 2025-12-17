@@ -1,20 +1,23 @@
 import { NextResponse } from "next/server";
-import { findRowsByProfileId, getSheetData, SHEETS } from "@/app/lib/googleSheets";
+import { findRowsByProfileId, SHEETS } from "@/app/lib/googleSheets";
+import { requireAuth } from "@/app/lib/session";
 
-// GET - Fetch signals, optionally filtered by profile_id
+// GET - Fetch signals for authenticated user
 export async function GET(request) {
     try {
-        const { searchParams } = new URL(request.url);
-        const profileId = searchParams.get("profile_id");
+        // Get client_id from session
+        const session = await requireAuth();
+        const profileId = session.clientId;
 
-        let signals;
-        if (profileId) {
-            // Get signals for a specific profile
-            signals = await findRowsByProfileId(SHEETS.SIGNALS, profileId);
-        } else {
-            // Get all signals
-            signals = await getSheetData(SHEETS.SIGNALS);
+        if (!profileId) {
+            return NextResponse.json(
+                { error: "Unauthorized" },
+                { status: 401 }
+            );
         }
+
+        // Get signals for the logged-in user
+        const signals = await findRowsByProfileId(SHEETS.SIGNALS, profileId);
 
         return NextResponse.json({
             success: true,
@@ -22,6 +25,12 @@ export async function GET(request) {
             count: signals.length,
         });
     } catch (error) {
+        if (error.message === 'Unauthorized') {
+            return NextResponse.json(
+                { error: "Unauthorized" },
+                { status: 401 }
+            );
+        }
         console.error("Error fetching signals:", error);
         return NextResponse.json(
             { error: "Failed to fetch signals", details: error.message },

@@ -69,6 +69,7 @@ const SHEETS = {
     PROFILES: 'Profiles',
     SIGNALS: 'Signals',
     DEALS: 'Deals',
+    USERS: 'Users',
 };
 
 /**
@@ -218,6 +219,44 @@ export async function findRowsByProfileId(sheetName, profileId) {
         });
     } catch (error) {
         console.error(`Error finding rows by profile_id in ${sheetName}:`, error);
+        throw error;
+    }
+}
+
+/**
+ * Find user by email (case-insensitive matching)
+ */
+export async function findUserByEmail(email) {
+    try {
+        if (!email) {
+            return null;
+        }
+
+        const data = await getSheetData(SHEETS.USERS);
+        
+        const found = data.find(row => {
+            const emailFields = ['email', 'Email', 'EMAIL'];
+            for (const field of emailFields) {
+                if (row[field] && String(row[field]).toLowerCase().trim() === String(email).toLowerCase().trim()) {
+                    return true;
+                }
+            }
+            
+            // Also check all fields case-insensitively
+            for (const key in row) {
+                if (key.toLowerCase() === 'email') {
+                    if (row[key] && String(row[key]).toLowerCase().trim() === String(email).toLowerCase().trim()) {
+                        return true;
+                    }
+                }
+            }
+            
+            return false;
+        });
+
+        return found || null;
+    } catch (error) {
+        console.error(`Error finding user by email:`, error);
         throw error;
     }
 }

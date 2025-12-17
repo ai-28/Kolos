@@ -3,12 +3,14 @@
 import { useState } from "react";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
-import { Loader2, X, AlertCircle } from "lucide-react";
+import { Loader2, X, AlertCircle, CheckCircle2 } from "lucide-react";
+import { supabase } from "@/app/lib/supabase";
 
 export default function EmailModal({ isOpen, onClose, onSuccess }) {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -20,26 +22,31 @@ export default function EmailModal({ isOpen, onClose, onSuccess }) {
 
     setLoading(true);
     setError(null);
+    setSuccess(false);
 
     try {
-      const response = await fetch(`/api/clients/search?email=${encodeURIComponent(email.trim())}`);
-      const data = await response.json();
-
-      if (!response.ok || !data.found) {
-        setError(data.error || "No profile found with this email. Please try again.");
-        setLoading(false);
-        return;
+      if (!supabase) {
+        throw new Error("Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables.");
       }
 
-      // Success - call onSuccess with the client data
-      console.log("✅ Client found:", data.client);
-      console.log("Client ID:", data.client.id);
-      console.log("All client fields:", Object.keys(data.client));
-      onSuccess(data.client);
-      onClose();
+      const { error: supabaseError } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          flowType: 'pkce', // Use PKCE flow for better security
+        },
+      });
+
+      if (supabaseError) {
+        throw supabaseError;
+      }
+
+      // Success - show success message
+      setSuccess(true);
+      setLoading(false);
     } catch (err) {
-      console.error("Error searching for client:", err);
-      setError("Failed to search. Please try again.");
+      console.error("Error sending magic link:", err);
+      setError(err.message || "Failed to send magic link. Please try again.");
       setLoading(false);
     }
   };
@@ -47,6 +54,7 @@ export default function EmailModal({ isOpen, onClose, onSuccess }) {
   const handleClose = () => {
     setEmail("");
     setError(null);
+    setSuccess(false);
     setLoading(false);
     onClose();
   };
@@ -69,60 +77,78 @@ export default function EmailModal({ isOpen, onClose, onSuccess }) {
           </Button>
         </CardHeader>
         <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
-          <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
-            <div>
-              <label htmlFor="email" className="block text-xs sm:text-sm font-medium mb-1.5 sm:mb-2">
-                Email Address
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  setError(null);
-                }}
-                placeholder="your.email@example.com"
-                className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary text-sm sm:text-base min-h-[44px]"
-                disabled={loading}
-                autoFocus
-              />
-            </div>
-
-            {error && (
-              <div className="flex items-start gap-2 text-red-600 text-xs sm:text-sm bg-red-50 p-2.5 sm:p-3 rounded-md">
-                <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                <span className="flex-1">{error}</span>
+          {success ? (
+            <div className="space-y-4">
+              <div className="flex items-start gap-2 text-green-600 text-sm sm:text-base bg-green-50 p-3 sm:p-4 rounded-md">
+                <CheckCircle2 className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-medium mb-1">Magic link sent!</p>
+                  <p className="text-sm">Check your email at <strong>{email}</strong> and click the link to sign in.</p>
+                </div>
               </div>
-            )}
-
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-2 pt-1">
               <Button
-                type="button"
-                variant="outline"
                 onClick={handleClose}
-                className="flex-1 min-h-[44px] text-sm sm:text-base"
-                disabled={loading}
+                className="w-full min-h-[44px] text-sm sm:text-base"
               >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                className="flex-1 min-h-[44px] text-sm sm:text-base"
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    <span className="hidden sm:inline">Searching...</span>
-                    <span className="sm:hidden">Search...</span>
-                  </>
-                ) : (
-                  "Continue"
-                )}
+                Close
               </Button>
             </div>
-          </form>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
+              <div>
+                <label htmlFor="email" className="block text-xs sm:text-sm font-medium mb-1.5 sm:mb-2">
+                  Email Address
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setError(null);
+                  }}
+                  placeholder="your.email@example.com"
+                  className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary text-sm sm:text-base min-h-[44px]"
+                  disabled={loading}
+                  autoFocus
+                />
+              </div>
+
+              {error && (
+                <div className="flex items-start gap-2 text-red-600 text-xs sm:text-sm bg-red-50 p-2.5 sm:p-3 rounded-md">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                  <span className="flex-1">{error}</span>
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-2 pt-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleClose}
+                  className="flex-1 min-h-[44px] text-sm sm:text-base"
+                  disabled={loading}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  className="flex-1 min-h-[44px] text-sm sm:text-base"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <span className="hidden sm:inline">Sending...</span>
+                      <span className="sm:hidden">Send...</span>
+                    </>
+                  ) : (
+                    "Send Magic Link"
+                  )}
+                </Button>
+              </div>
+            </form>
+          )}
         </CardContent>
       </Card>
     </div>

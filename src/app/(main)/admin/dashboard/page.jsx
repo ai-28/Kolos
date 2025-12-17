@@ -5,47 +5,13 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent } from "@/app/components/ui/card";
 import { Loader2, ArrowLeft, User } from "lucide-react";
+import { normalizeRole } from "@/app/lib/roleUtils";
 
 export default function Dashboard() {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const router = useRouter();
-
-  // Robust role normalization function that extracts role from complex strings
-  const normalizeRole = (roleString) => {
-    if (!roleString || typeof roleString !== 'string') return "Investor"
-    
-    const roleLower = roleString.toLowerCase().trim()
-    
-    // Check for Facilitator (check first as it's more specific)
-    if (roleLower.includes('facilitator')) {
-      return "Facilitator"
-    }
-    
-    // Check for Entrepreneur (includes founder, cofounder, etc.)
-    if (roleLower.includes('entrepreneur') || 
-        roleLower.includes('founder') || 
-        roleLower.includes('cofounder') ||
-        roleLower.includes('co-founder')) {
-      return "Entrepreneur"
-    }
-    
-    // Check for Asset Manager (includes managing partner, etc.)
-    if (roleLower.includes('asset manager') || 
-        roleLower.includes('managing partner') ||
-        roleLower.includes('assetmanager')) {
-      return "Asset Manager"
-    }
-    
-    // Check for Investor
-    if (roleLower.includes('investor')) {
-      return "Investor"
-    }
-    
-    // Default to Investor if no match
-    return "Investor"
-  }
 
   useEffect(() => {
     fetchClients();

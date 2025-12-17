@@ -11,6 +11,7 @@ import { ArrowLeft, Loader2, Edit2, Save, X, Trash2, Menu } from "lucide-react"
 import { toast } from "sonner"
 import { DashboardIcon, BusinessGoalsIcon,SignalsIcon, IndustryFocusIcon, BusinessMatchIcon, BusinessRequestsIcon,TravelPlanIcon, UpcomingEventIcon } from "@/app/components/svg"
 import Image from "next/image"
+import { normalizeRole } from "@/app/lib/roleUtils"
 
 function ClientDashboardContent() {
   const router = useRouter()
@@ -39,41 +40,6 @@ function ClientDashboardContent() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [updatedContent, setUpdatedContent] = useState("")
   const [updatingSignals, setUpdatingSignals] = useState(false)
-
-  // Robust role normalization function that extracts role from complex strings
-  const normalizeRole = (roleString) => {
-    if (!roleString || typeof roleString !== 'string') return "Investor"
-    
-    const roleLower = roleString.toLowerCase().trim()
-    
-    // Check for Facilitator (check first as it's more specific)
-    if (roleLower.includes('facilitator')) {
-      return "Facilitator"
-    }
-    
-    // Check for Entrepreneur (includes founder, cofounder, etc.)
-    if (roleLower.includes('entrepreneur') || 
-        roleLower.includes('founder') || 
-        roleLower.includes('cofounder') ||
-        roleLower.includes('co-founder')) {
-      return "Entrepreneur"
-    }
-    
-    // Check for Asset Manager (includes managing partner, etc.)
-    if (roleLower.includes('asset manager') || 
-        roleLower.includes('managing partner') ||
-        roleLower.includes('assetmanager')) {
-      return "Asset Manager"
-    }
-    
-    // Check for Investor
-    if (roleLower.includes('investor')) {
-      return "Investor"
-    }
-    
-    // Default to Investor if no match
-    return "Investor"
-  }
   useEffect(() => {
     // Get client ID from URL params and fetch client data
     const clientId = searchParams.get("id")
@@ -636,7 +602,7 @@ console.log("client",client)
             <KolosLogo/>
         </div>
 
-        <nav className="space-y-1 flex-1 text-sm sm:text-[16px]">
+        <nav className="space-y-1 flex-1 text-sm sm:text-[16px] font-marcellus">
           <a href="#" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2 sm:gap-3 py-2.5 sm:py-3 rounded hover:bg-white/10 transition-colors min-h-[44px]">
               <DashboardIcon/>
             <span className="font-thin">Dashboard</span>
@@ -686,18 +652,19 @@ console.log("client",client)
           </div>
         </div> */}
 
-        <div className="border-t border-gray-600 pt-3 sm:pt-4 mt-3 sm:mt-4 space-y-2">
+        <div className="border-t border-gray-600 pt-3 sm:pt-4 mt-3 sm:mt-4 space-y-2 font-marcellus">
           <a href="#" onClick={() => setIsMobileMenuOpen(false)} className="block text-xs sm:text-sm hover:text-[#c9a961] transition-colors min-h-[44px] flex items-center">Harvard OPM Group</a>
           <a href="#" onClick={() => setIsMobileMenuOpen(false)} className="block text-xs sm:text-sm hover:text-[#c9a961] transition-colors min-h-[44px] flex items-center">Updates & FAQ</a>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 lg:ml-[284px] bg-[#f5f3f0] min-h-screen" style={{ scrollBehavior: 'smooth', scrollPaddingTop: '100px' }}>
+      <main className="flex-1 lg:ml-[284px] bg-[#faf1dc] min-h-screen" style={{ scrollBehavior: 'smooth', scrollPaddingTop: '100px' }}>
         <div className="max-w-[1400px] mx-auto">
           {/* Header - Fixed */}
-          <div className="sticky top-0 bg-[#f5f3f0] z-20">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0 p-3 sm:p-4 lg:p-8 pb-3 sm:pb-4">
+          <div className="sticky top-0 bg-[#faf1dc] z-20">
+            <div className="sm:p-4 lg:pl-8 lg:pr-8 p-3">
+              <div className="flex flex-col sm:flex-row items-center justify-between w-full">
             <div className="flex items-center gap-2 lg:gap-4 flex-1 min-w-0 w-full sm:w-auto flex-wrap sm:flex-nowrap">
               {/* Mobile Menu Button */}
               <Button
@@ -711,7 +678,7 @@ console.log("client",client)
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => router.push("/")}
+                onClick={() => router.push("/admin/dashboard")}
                 className="hidden sm:flex items-center gap-2 text-[#0a3d3d] hover:bg-[#0a3d3d]/10 min-h-[44px] flex-shrink-0"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -719,7 +686,7 @@ console.log("client",client)
               </Button>
               {
                 client?.logo && (
-                                    <Image 
+                  <Image 
                     src={client?.logo} 
                     alt="Client Logo" 
                     width={100} 
@@ -729,7 +696,7 @@ console.log("client",client)
                   />
                 )
               }
-              <h1 className="text-[40px] font-bold text-[#532418] sm:text-xl md:text-2xl lg:text-3xl font-montserrat text-[#0a3d3d] break-words sm:truncate flex-1 min-w-0 w-full sm:w-auto">{clientName}</h1>
+              <h1 className="text-[48px] font-medium text-center text-[#532418] text-[#0a3d3d] break-words sm:truncate flex-1 min-w-0 w-full sm:w-auto" style={{ fontFamily: 'var(--font-marcellus), serif' }}>{clientName}</h1>
             </div>
 
             <div className="flex items-center gap-2 lg:gap-3 flex-shrink-0 w-full sm:w-auto">
@@ -777,7 +744,15 @@ console.log("client",client)
                 <AvatarFallback>{getInitials(clientName)}</AvatarFallback>
               </Avatar> */}
             </div>
+
+           
             </div>
+            {/* Role */}
+            <section>
+              <h2 className="text-base sm:text-xl md:text-2xl text-center text-[#532418]" style={{ fontFamily: 'var(--font-marcellus), serif' }}>{client?.role}, Founder of {client?.company}</h2>
+            </section>            
+            </div>
+
           </div>
 
           {/* Content Area */}
@@ -785,7 +760,7 @@ console.log("client",client)
           {/* Basic Information */}
           {isEditing && (
             <section className="mb-6 sm:mb-8">
-              <Card className="bg-white border-none shadow-sm">
+              <Card className="bg-[#fffff4] border-none !shadow-none">
                 <CardContent className="p-4 sm:p-6">
                   <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-3 sm:mb-4">Basic Information</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
@@ -809,8 +784,7 @@ console.log("client",client)
                         placeholder="your.email@example.com"
                       />
                     </div>
-                    {/* Role Selector - Only in Edit Mode */}
-                    <div>
+                    <div className="sm:col-span-2">
                       <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Role</label>
                       <select
                         value={editData.role || selectedRole || "Investor"}
@@ -826,6 +800,7 @@ console.log("client",client)
                         <option value="Asset Manager">Asset Manager</option>
                         <option value="Facilitator">Facilitator</option>
                       </select>
+                      <p className="text-xs text-gray-500 mt-1">Changing your role will show/hide relevant fields below</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Constraints Notes</label>
@@ -1091,401 +1066,421 @@ console.log("client",client)
               </Card>
             </section>
           )}
-          {/* Role */}
-          <section className="mb-4 sm:mb-6 md:mb-8">
-            <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-2 sm:mb-3 md:mb-4">Role : {normalizeRole(client?.role || client?.["role"] || selectedRole)}, Founder of {client?.company}</h2>
-          </section>
 
           {/* Client Information Card */}
           <section className="mb-4 sm:mb-6 md:mb-8">
-            <Card className="bg-white border-none shadow-sm">
-              <CardContent className="p-4 sm:p-5 md:p-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
                   {/* Check Size - Only for Investor or Asset Manager */}
                   {(() => {
-                    const currentRole = isEditing ? normalizeRole(editData.role || selectedRole) : normalizeRole(selectedRole);
+                    const currentRole = isEditing ? editData.role : selectedRole;
                     const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                     const showCheckSize = roleNormalized === "investor" || roleNormalized === "asset manager";
                     
                     if (!showCheckSize) return null;
                     
                     return (
-                      <div>
-                        <div className="text-sm text-gray-500 mb-2">Check Size</div>
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            value={editData.check_size || ""}
-                            onChange={(e) => setEditData({...editData, check_size: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
-                            placeholder="e.g., 5-15 million"
-                          />
-                        ) : (
-                          <div className="text-lg font-semibold text-[#0a3d3d]">
-                            {client?.check_size || client?.["check_size"] ? <>{client?.check_size || client?.["check_size"]} M</> : "-"}
-                          </div>
-                        )}
-                      </div>
+                      <Card className="bg-[#fffff4] !border !border-[#ffe0ccff] !shadow-none rounded-lg">
+                        <CardContent className="p-4">
+                          <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Check Size Range</div>
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={editData.check_size || ""}
+                              onChange={(e) => setEditData({...editData, check_size: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-base font-medium text-[#0a3d3d]"
+                              placeholder="e.g., $5M-$50M"
+                            />
+                          ) : (
+                            <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
+                              {client?.check_size || client?.["check_size"] ? <>{client?.check_size || client?.["check_size"]}</> : "-"}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     );
                   })()}
 
                   {/* Project Size - Only for Entrepreneur or Facilitator */}
                   {(() => {
-                    const currentRole = isEditing ? normalizeRole(editData.role || selectedRole) : normalizeRole(selectedRole);
+                    const currentRole = isEditing ? editData.role : selectedRole;
                     const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                     const showProjectSize = roleNormalized !== "investor" && roleNormalized !== "asset manager";
                     
                     if (!showProjectSize) return null;
                     
                     return (
-                      <div>
-                        <div className="text-sm text-gray-500 mb-2">Project Size</div>
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            value={editData.project_size || ""}
-                            onChange={(e) => setEditData({...editData, project_size: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
-                            placeholder="e.g., 10-50 million"
-                          />
-                        ) : (
-                          <div className="text-lg font-semibold text-[#0a3d3d]">
-                            {client?.project_size || client?.["project_size"] ? <>{client?.project_size || client?.["project_size"]} M</> : "-"}
-                          </div>
-                        )}
-                      </div>
+                      <Card className="bg-[#fffff4] !border !border-[#ffe0ccff] !shadow-none rounded-lg">
+                        <CardContent className="p-4">
+                          <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Project Size</div>
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={editData.project_size || ""}
+                              onChange={(e) => setEditData({...editData, project_size: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-base font-medium text-[#0a3d3d]"
+                              placeholder="e.g., $10M-$50M"
+                            />
+                          ) : (
+                            <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
+                              {client?.project_size || client?.["project_size"] ? <>{client?.project_size || client?.["project_size"]}</> : "-"}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     );
                   })()}
 
                   {/* Raise Amount - Only for Entrepreneur or Facilitator */}
                   {(() => {
-                    const currentRole = isEditing ? normalizeRole(editData.role || selectedRole) : normalizeRole(selectedRole);
+                    const currentRole = isEditing ? editData.role : selectedRole;
                     const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                     const showRaiseAmount = roleNormalized !== "investor" && roleNormalized !== "asset manager";
                     
                     if (!showRaiseAmount) return null;
                     
                     return (
-                      <div>
-                        <div className="text-sm text-gray-500 mb-2">Raise Amount</div>
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            value={editData.raise_amount || ""}
-                            onChange={(e) => setEditData({...editData, raise_amount: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
-                            placeholder="e.g., 5 million"
-                          />
-                        ) : (
-                          <div className="text-lg font-semibold text-[#0a3d3d]">
-                            {client?.raise_amount || client?.["raise_amount"] ? <>{client?.raise_amount || client?.["raise_amount"]} M</> : "-"}
-                          </div>
-                        )}
-                      </div>
+                      <Card className="bg-[#fffff4] !border !border-[#ffe0ccff] !shadow-none rounded-lg">
+                        <CardContent className="p-4">
+                          <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Raise Amount</div>
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={editData.raise_amount || ""}
+                              onChange={(e) => setEditData({...editData, raise_amount: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-base font-medium text-[#0a3d3d]"
+                              placeholder="e.g., $5M"
+                            />
+                          ) : (
+                            <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
+                              {client?.raise_amount || client?.["raise_amount"] ? <>{client?.raise_amount || client?.["raise_amount"]}</> : "-"}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     );
                   })()}
 
                   {/* Active Raise Amount - Only for Investor, Asset Manager, or Entrepreneur */}
                   {(() => {
-                    const currentRole = isEditing ? normalizeRole(editData.role || selectedRole) : normalizeRole(selectedRole);
+                    const currentRole = isEditing ? editData.role : selectedRole;
                     const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                     const showActiveRaise = roleNormalized === "investor" || roleNormalized === "asset manager" || roleNormalized === "entrepreneur";
                     
                     if (!showActiveRaise) return null;
                     
                     return (
-                      <div>
-                        <div className="text-sm text-gray-500 mb-2">Active Raise Amount</div>
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            value={editData.active_raise_amount || ""}
-                            onChange={(e) => setEditData({...editData, active_raise_amount: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
-                            placeholder="e.g., 2 million"
-                          />
-                        ) : (
-                          <div className="text-lg font-semibold text-[#0a3d3d]">
-                            {client?.active_raise_amount || client?.["active_raise_amount"] ? <>{client?.active_raise_amount || client?.["active_raise_amount"]} M</> : "-"}
-                          </div>
-                        )}
-                      </div>
+                      <Card className="bg-[#fffff4] !border !border-[#ffe0ccff] !shadow-none rounded-lg">
+                        <CardContent className="p-4">
+                          <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Active Raise Amount</div>
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={editData.active_raise_amount || ""}
+                              onChange={(e) => setEditData({...editData, active_raise_amount: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-base font-medium text-[#0a3d3d]"
+                              placeholder="e.g., $2M"
+                            />
+                          ) : (
+                            <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
+                              {client?.active_raise_amount || client?.["active_raise_amount"] ? <>{client?.active_raise_amount || client?.["active_raise_amount"]}</> : "-"}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     );
                   })()}
 
                   {/* Strategy Focus - Only for Investor or Asset Manager */}
                   {(() => {
-                    const currentRole = isEditing ? normalizeRole(editData.role || selectedRole) : normalizeRole(selectedRole);
+                    const currentRole = isEditing ? editData.role : selectedRole;
                     const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                     const showStrategyFocus = roleNormalized === "investor" || roleNormalized === "asset manager";
                     
                     if (!showStrategyFocus) return null;
                     
                     return (
-                      <div>
-                        <div className="text-sm text-gray-500 mb-2">Strategy Focus</div>
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            value={editData.strategy_focus || ""}
-                            onChange={(e) => setEditData({...editData, strategy_focus: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
-                            placeholder="e.g., VC, growth, buyout, credit"
-                          />
-                        ) : (
-                          <div className="text-lg font-semibold text-[#0a3d3d]">
-                            {client?.strategy_focus || client?.["strategy_focus"] || "-"}
-                          </div>
-                        )}
-                      </div>
+                      <Card className="bg-[#fffff4] !border !border-[#ffe0ccff] !shadow-none rounded-lg">
+                        <CardContent className="p-4">
+                          <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Strategy Focus</div>
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={editData.strategy_focus || ""}
+                              onChange={(e) => setEditData({...editData, strategy_focus: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-base font-medium text-[#0a3d3d]"
+                              placeholder="e.g., VC, growth, buyout, credit"
+                            />
+                          ) : (
+                            <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
+                              {client?.strategy_focus || client?.["strategy_focus"] || "-"}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     );
                   })()}
 
                   {/* Business Stage - Only for Entrepreneur */}
                   {(() => {
-                    const currentRole = isEditing ? normalizeRole(editData.role || selectedRole) : normalizeRole(selectedRole);
+                    const currentRole = isEditing ? editData.role : selectedRole;
                     const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                     const showBusinessStage = roleNormalized === "entrepreneur";
                     
                     if (!showBusinessStage) return null;
                     
                     return (
-                      <div>
-                        <div className="text-sm text-gray-500 mb-2">Business Stage</div>
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            value={editData.business_stage || ""}
-                            onChange={(e) => setEditData({...editData, business_stage: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
-                            placeholder="e.g., idea, early revenue, growth, scaling"
-                          />
-                        ) : (
-                          <div className="text-lg font-semibold text-[#0a3d3d]">
-                            {client?.business_stage || client?.["business_stage"] || "-"}
-                          </div>
-                        )}
-                      </div>
+                      <Card className="bg-[#fffff4] !border !border-[#ffe0ccff] !shadow-none rounded-lg">
+                        <CardContent className="p-4">
+                          <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Business Stage</div>
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={editData.business_stage || ""}
+                              onChange={(e) => setEditData({...editData, business_stage: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-base font-medium text-[#0a3d3d]"
+                              placeholder="e.g., idea, early revenue, growth, scaling"
+                            />
+                          ) : (
+                            <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
+                              {client?.business_stage || client?.["business_stage"] || "-"}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     );
                   })()}
 
                   {/* Revenue Range - Only for Entrepreneur */}
                   {(() => {
-                    const currentRole = isEditing ? normalizeRole(editData.role || selectedRole) : normalizeRole(selectedRole);
+                    const currentRole = isEditing ? editData.role : selectedRole;
                     const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                     const showRevenueRange = roleNormalized === "entrepreneur";
                     
                     if (!showRevenueRange) return null;
                     
                     return (
-                      <div>
-                        <div className="text-sm text-gray-500 mb-2">Revenue Range</div>
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            value={editData.revenue_range || ""}
-                            onChange={(e) => setEditData({...editData, revenue_range: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
-                            placeholder="e.g., $1M - $10M"
-                          />
-                        ) : (
-                          <div className="text-lg font-semibold text-[#0a3d3d]">
-                            {client?.revenue_range || client?.["revenue_range"] || "-"}
-                          </div>
-                        )}
-                      </div>
+                      <Card className="bg-[#fffff4] !border !border-[#ffe0ccff] !shadow-none rounded-lg">
+                        <CardContent className="p-4">
+                          <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Revenue Range</div>
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={editData.revenue_range || ""}
+                              onChange={(e) => setEditData({...editData, revenue_range: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-base font-medium text-[#0a3d3d]"
+                              placeholder="e.g., $1M - $10M"
+                            />
+                          ) : (
+                            <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
+                              {client?.revenue_range || client?.["revenue_range"] || "-"}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     );
                   })()}
 
                   {/* Facilitator Clients - Only for Facilitator */}
                   {(() => {
-                    const currentRole = isEditing ? normalizeRole(editData.role || selectedRole) : normalizeRole(selectedRole);
+                    const currentRole = isEditing ? editData.role : selectedRole;
                     const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                     const showFacilitatorClients = roleNormalized === "facilitator";
                     
                     if (!showFacilitatorClients) return null;
                     
                     return (
-                      <div>
-                        <div className="text-sm text-gray-500 mb-2">Facilitator Clients</div>
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            value={editData.facilitator_clients || ""}
-                            onChange={(e) => setEditData({...editData, facilitator_clients: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
-                            placeholder="e.g., CEOs, family offices, funds, corporates"
-                          />
-                        ) : (
-                          <div className="text-lg font-semibold text-[#0a3d3d]">
-                            {client?.facilitator_clients || client?.["facilitator_clients"] || "-"}
-                          </div>
-                        )}
-                      </div>
+                      <Card className="bg-[#fffff4] !border !border-[#ffe0ccff] !shadow-none rounded-lg">
+                        <CardContent className="p-4">
+                          <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Facilitator Clients</div>
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={editData.facilitator_clients || ""}
+                              onChange={(e) => setEditData({...editData, facilitator_clients: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-base font-medium text-[#0a3d3d]"
+                              placeholder="e.g., CEOs, family offices, funds, corporates"
+                            />
+                          ) : (
+                            <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
+                              {client?.facilitator_clients || client?.["facilitator_clients"] || "-"}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     );
                   })()}
 
                   {/* Deal Type - Only for Facilitator */}
                   {(() => {
-                    const currentRole = isEditing ? normalizeRole(editData.role || selectedRole) : normalizeRole(selectedRole);
+                    const currentRole = isEditing ? editData.role : selectedRole;
                     const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                     const showDealType = roleNormalized === "facilitator";
                     
                     if (!showDealType) return null;
                     
                     return (
-                      <div>
-                        <div className="text-sm text-gray-500 mb-2">Deal Type</div>
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            value={editData.deal_type || ""}
-                            onChange={(e) => setEditData({...editData, deal_type: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
-                            placeholder="e.g., M&A, capital raise, buy side, sell side"
-                          />
-                        ) : (
-                          <div className="text-lg font-semibold text-[#0a3d3d]">
-                            {client?.deal_type || client?.["deal_type"] || "-"}
-                          </div>
-                        )}
-                      </div>
+                      <Card className="bg-[#fffff4] !border !border-[#ffe0ccff] !shadow-none rounded-lg">
+                        <CardContent className="p-4">
+                          <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Deal Type</div>
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={editData.deal_type || ""}
+                              onChange={(e) => setEditData({...editData, deal_type: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-base font-medium text-[#0a3d3d]"
+                              placeholder="e.g., M&A, capital raise, buy side, sell side"
+                            />
+                          ) : (
+                            <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
+                              {client?.deal_type || client?.["deal_type"] || "-"}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     );
                   })()}
 
                   {/* Deal Size - Only for Facilitator */}
                   {(() => {
-                    const currentRole = isEditing ? normalizeRole(editData.role || selectedRole) : normalizeRole(selectedRole);
+                    const currentRole = isEditing ? editData.role : selectedRole;
                     const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                     const showDealSize = roleNormalized === "facilitator";
                     
                     if (!showDealSize) return null;
                     
                     return (
-                      <div>
-                        <div className="text-sm text-gray-500 mb-2">Deal Size</div>
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            value={editData.deal_size || ""}
-                            onChange={(e) => setEditData({...editData, deal_size: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
-                            placeholder="e.g., $5M - $50M"
-                          />
-                        ) : (
-                          <div className="text-lg font-semibold text-[#0a3d3d]">
-                            {client?.deal_size || client?.["deal_size"] || "-"}
-                          </div>
-                        )}
-                      </div>
+                      <Card className="bg-[#fffff4] !border !border-[#ffe0ccff] !shadow-none rounded-lg">
+                        <CardContent className="p-4">
+                          <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Deal Size</div>
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={editData.deal_size || ""}
+                              onChange={(e) => setEditData({...editData, deal_size: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-base font-medium text-[#0a3d3d]"
+                              placeholder="e.g., $5M - $50M"
+                            />
+                          ) : (
+                            <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
+                              {client?.deal_size || client?.["deal_size"] || "-"}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     );
                   })()}
 
                   {/* Ideal CEO Profile - Only for Facilitator */}
                   {(() => {
-                    const currentRole = isEditing ? normalizeRole(editData.role || selectedRole) : normalizeRole(selectedRole);
+                    const currentRole = isEditing ? editData.role : selectedRole;
                     const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                     const showIdealCEO = roleNormalized === "facilitator";
                     
                     if (!showIdealCEO) return null;
                     
                     return (
-                      <div className="sm:col-span-2 lg:col-span-3">
-                        <div className="text-sm text-gray-500 mb-2">Ideal CEO Profile</div>
-                        {isEditing ? (
-                          <textarea
-                            value={editData.ideal_ceo_profile || ""}
-                            onChange={(e) => setEditData({...editData, ideal_ceo_profile: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[100px] text-sm sm:text-base"
-                            placeholder="Characteristics of ideal CEO match"
-                          />
-                        ) : (
-                          <div className="text-[#0a3d3d]">
-                            {client?.ideal_ceo_profile || client?.["ideal_ceo_profile"] || "-"}
-                          </div>
-                        )}
-                      </div>
+                      <Card className="bg-[#fffff4] border-none !shadow-none rounded-lg sm:col-span-2 lg:col-span-3">
+                        <CardContent className="p-4">
+                          <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Ideal CEO Profile</div>
+                          {isEditing ? (
+                            <textarea
+                              value={editData.ideal_ceo_profile || ""}
+                              onChange={(e) => setEditData({...editData, ideal_ceo_profile: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[100px] text-sm sm:text-base"
+                              placeholder="Characteristics of ideal CEO match"
+                            />
+                          ) : (
+                            <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
+                              {client?.ideal_ceo_profile || client?.["ideal_ceo_profile"] || "-"}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     );
                   })()}
 
                   {/* Ideal Intro - Only for Facilitator */}
                   {(() => {
-                    const currentRole = isEditing ? normalizeRole(editData.role || selectedRole) : normalizeRole(selectedRole);
+                    const currentRole = isEditing ? editData.role : selectedRole;
                     const roleNormalized = currentRole ? currentRole.toLowerCase() : "";
                     const showIdealIntro = roleNormalized === "facilitator";
                     
                     if (!showIdealIntro) return null;
                     
                     return (
-                      <div className="sm:col-span-2 lg:col-span-3">
-                        <div className="text-sm text-gray-500 mb-2">Ideal Intro</div>
-                        {isEditing ? (
-                          <textarea
-                            value={editData.ideal_intro || ""}
-                            onChange={(e) => setEditData({...editData, ideal_intro: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[100px] text-sm sm:text-base"
-                            placeholder="The single most valuable introduction needed"
-                          />
-                        ) : (
-                          <div className="text-[#0a3d3d]">
-                            {client?.ideal_intro || client?.["ideal_intro"] || "-"}
-                          </div>
-                        )}
-                      </div>
+                      <Card className="bg-[#fffff4] border-none !shadow-none rounded-lg sm:col-span-2 lg:col-span-3">
+                        <CardContent className="p-4">
+                          <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Ideal Intro</div>
+                          {isEditing ? (
+                            <textarea
+                              value={editData.ideal_intro || ""}
+                              onChange={(e) => setEditData({...editData, ideal_intro: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[100px] text-sm sm:text-base"
+                              placeholder="The single most valuable introduction needed"
+                            />
+                          ) : (
+                            <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
+                              {client?.ideal_intro || client?.["ideal_intro"] || "-"}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     );
                   })()}
 
                   {/* Company */}
-                  <div>
-                    <div className="text-sm text-gray-500 mb-2">Company</div>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        value={editData.company || ""}
-                        onChange={(e) => setEditData({...editData, company: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
-                        placeholder="Company name"
-                      />
-                    ) : (
-                      <div className="text-lg font-semibold text-[#0a3d3d]">
-                        {client?.company || client?.["company"] || client?.Company || client?.["Company"] || "-"}
-                      </div>
-                    )}
-                  </div>
+                  <Card className="bg-[#fffff4] !border !border-[#ffe0ccff] !shadow-none rounded-lg">
+                    <CardContent className="p-4">
+                      <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Firm</div>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={editData.company || ""}
+                          onChange={(e) => setEditData({...editData, company: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-base font-medium text-[#0a3d3d]"
+                          placeholder="Company name"
+                        />
+                      ) : (
+                        <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
+                          {client?.company || client?.["company"] || client?.Company || client?.["Company"] || "-"}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
 
                   {/* Partner Types */}
-                  <div>
-                    <div className="text-sm text-gray-500 mb-2">Partner Types</div>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        value={editData.partner_types || ""}
-                        onChange={(e) => setEditData({...editData, partner_types: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-lg font-semibold text-[#0a3d3d]"
-                        placeholder="e.g., LPs, Operators (separate with semicolons)"
-                      />
-                    ) : (
-                      <div className="text-lg font-semibold text-[#0a3d3d]">
-                        {getPartnerTypes().length > 0 ? (
-                          <div className="flex flex-wrap gap-2">
-                            {getPartnerTypes().map((type, index) => (
-                              <Badge 
-                                key={index} 
-                                className="bg-[#c9a961] text-[#0a3d3d] hover:bg-[#c9a961]/90"
-                              >
-                                {type}
-                              </Badge>
-                            ))}
-                          </div>
-                        ) : (
-                          "-"
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  <Card className="bg-[#fffff4] !border !border-[#ffe0ccff] !shadow-none rounded-lg">
+                    <CardContent className="p-4">
+                      <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Partner Types</div>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={editData.partner_types || ""}
+                          onChange={(e) => setEditData({...editData, partner_types: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-base font-medium text-[#0a3d3d]"
+                          placeholder="e.g., LPs, Operators (separate with semicolons)"
+                        />
+                      ) : (
+                        <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
+                          {getPartnerTypes().length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                              {getPartnerTypes().map((type, index) => (
+                                <Badge 
+                                  key={index} 
+                                  className="bg-[#c9a961] text-[#0a3d3d] hover:bg-[#c9a961]/90"
+                                >
+                                  {type}
+                                </Badge>
+                              ))}
+                            </div>
+                          ) : (
+                            "-"
+                          )}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 </div>
-              </CardContent>
-            </Card>
           </section>
 
           {/* Business Goals Overview */}
@@ -1495,7 +1490,7 @@ console.log("client",client)
               <span>Business Goals Overview</span>
             </h2>
             {isEditing ? (
-              <Card className="bg-white border-none shadow-sm">
+              <Card className="bg-[#fffff4] border-none !shadow-none">
                 <CardContent className="p-4 sm:p-5 md:p-6">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Goals (one per line)</label>
                   <textarea
@@ -1507,7 +1502,7 @@ console.log("client",client)
                 </CardContent>
               </Card>
             ) : (
-              <Card className="bg-white border-none shadow-sm">
+              <Card className="bg-[#fffff4] border-none !shadow-none">
                 <CardContent className="p-4 sm:p-5 md:p-6">
                   {getGoals().length > 0 ? (
                     <div className="space-y-2">
@@ -1532,7 +1527,7 @@ console.log("client",client)
               <span className="text-[#c9a961]">⊟</span>
               <span>Signals</span>
             </h2>
-            <Card className="bg-white border-none shadow-sm">
+            <Card className="bg-[#fffff4] border-none !shadow-none">
               <CardContent className="p-3 sm:p-4 md:p-6">
                 {signals.length > 0 ? (
                   <div className="space-y-3 sm:space-y-4 lg:space-y-6 max-h-[600px] overflow-y-auto pr-1 sm:pr-2">
@@ -1623,7 +1618,7 @@ console.log("client",client)
                           {signal.next_step && (
                             <div className="pt-4 border-t border-gray-200">
                               <div className="text-gray-500 mb-2 text-sm font-medium">Next Step</div>
-                              <div className="text-[#0a3d3d] bg-[#f5f3f0] p-3 rounded-md">
+                              <div className="text-[#0a3d3d] bg-[#faf1dc] p-3 rounded-md">
                                 {signal.next_step}
                               </div>
                             </div>
@@ -1670,7 +1665,7 @@ console.log("client",client)
               <span className="text-[#c9a961]">💼</span>
               Active Deals
             </h2>
-            <Card className="bg-white border-none shadow-sm">
+            <Card className="bg-[#fffff4] border-none !shadow-none">
               <CardContent className="p-3 sm:p-4 md:p-6">
                 {deals.length > 0 ? (
                   <>
@@ -1887,7 +1882,7 @@ console.log("client",client)
               Industry & Geographic Focus
             </h2>
             {isEditing ? (
-              <Card className="bg-white border-none shadow-sm">
+              <Card className="bg-[#fffff4] border-none !shadow-none">
                 <CardContent className="p-4 sm:p-5 md:p-6 space-y-3 sm:space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Industries (separate with semicolons)</label>
@@ -1937,7 +1932,7 @@ console.log("client",client)
                 <span className="text-[#c9a961]">⊞</span>
                 <span className="break-words">{clientName}'s Business Requests</span>
               </h2>
-              <Card className="bg-white border-none shadow-sm">
+              <Card className="bg-[#fffff4] border-none !shadow-none">
                 <CardContent className="p-3 sm:p-4 md:p-6">
                   {isEditing ? (
                     <div className="space-y-3 sm:space-y-4">
@@ -1994,7 +1989,7 @@ console.log("client",client)
                 <span className="text-[#c9a961]">⚭</span>
                 Potential Business Matches
               </h2>
-              <Card className="bg-white border-none shadow-sm">
+              <Card className="bg-[#fffff4] border-none !shadow-none">
                 <CardContent className="p-3 sm:p-4 md:p-6">
                   <div className="space-y-3 sm:space-y-4">
                     <div className="pb-2 border-b text-xs sm:text-sm text-gray-600 font-medium">
@@ -2018,7 +2013,7 @@ console.log("client",client)
               <span className="text-[#c9a961]">✈</span>
               OPM Travel Matches
             </h2>
-            <Card className="bg-white border-none shadow-sm">
+            <Card className="bg-[#fffff4] border-none !shadow-none">
               <CardContent className="p-3 sm:p-4 md:p-6">
                 {getOPMTravelPlans().length > 0 ? (
                   <div className="space-y-3 sm:space-y-4">
@@ -2098,7 +2093,7 @@ console.log("client",client)
               <span className="text-[#c9a961]">📅</span>
               Upcoming Industry Events
             </h2>
-            <Card className="bg-white border-none shadow-sm">
+            <Card className="bg-[#fffff4] border-none !shadow-none">
               <CardContent className="p-3 sm:p-4 md:p-6">
                 {getUpcomingIndustryEvents().length > 0 ? (
                   <div className="space-y-3 sm:space-y-4">

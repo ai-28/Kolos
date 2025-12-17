@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { findRowById, getSheetData, SHEETS } from "@/app/lib/googleSheets";
+import { requireAuth } from "@/app/lib/session";
 import { google } from 'googleapis';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -38,15 +39,20 @@ function getSheetsClient() {
     }
 }
 
-// GET - Fetch client by ID
+// GET - Fetch client by ID (must match session client_id)
 export async function GET(request, { params }) {
     try {
+        // Get client_id from session
+        const session = await requireAuth();
+        const sessionClientId = session.clientId;
+
         const { id } = await params;
 
-        if (!id) {
+        // Users can only access their own profile
+        if (id !== sessionClientId) {
             return NextResponse.json(
-                { error: "Client ID is required" },
-                { status: 400 }
+                { error: "Forbidden" },
+                { status: 403 }
             );
         }
 
@@ -77,6 +83,12 @@ export async function GET(request, { params }) {
             client,
         });
     } catch (error) {
+        if (error.message === 'Unauthorized') {
+            return NextResponse.json(
+                { error: "Unauthorized" },
+                { status: 401 }
+            );
+        }
         console.error("Error fetching client from Google Sheets:", error);
 
         return NextResponse.json(
@@ -89,16 +101,20 @@ export async function GET(request, { params }) {
     }
 }
 
-// PUT - Update client profile
+// PUT - Update client profile (must match session client_id)
 export async function PUT(request, { params }) {
     try {
-        const { id } = await params;
-        const updateData = await request.json();
+        // Get client_id from session
+        const session = await requireAuth();
+        const sessionClientId = session.clientId;
 
-        if (!id) {
+        const { id } = await params;
+
+        // Users can only update their own profile
+        if (id !== sessionClientId) {
             return NextResponse.json(
-                { error: "Client ID is required" },
-                { status: 400 }
+                { error: "Forbidden" },
+                { status: 403 }
             );
         }
 
@@ -183,6 +199,12 @@ export async function PUT(request, { params }) {
             client: updatedClient,
         });
     } catch (error) {
+        if (error.message === 'Unauthorized') {
+            return NextResponse.json(
+                { error: "Unauthorized" },
+                { status: 401 }
+            );
+        }
         console.error("Error updating client:", error);
         return NextResponse.json(
             {
