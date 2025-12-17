@@ -13,7 +13,7 @@ export async function GET(request) {
 
         // Check if user is admin
         const normalizedRole = normalizeRole(userRole);
-        const isAdmin = normalizedRole === 'admin';
+        const isAdmin = normalizedRole === 'Admin';
 
         // Get profile_id from query params if provided (for admin viewing other clients)
         const { searchParams } = new URL(request.url);

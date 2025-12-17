@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSheetData, findRowsByProfileId, findRowById, SHEETS, appendToSheet } from "@/app/lib/googleSheets";
+import { requireAuth } from "@/app/lib/session";
+import { normalizeRole } from "@/app/lib/roleUtils";
 import { google } from 'googleapis';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -51,12 +53,29 @@ const getColumnLetter = (index) => {
 
 export async function POST(request) {
     try {
+        // Require authentication
+        const session = await requireAuth();
+        const userRole = session.role || '';
+        const sessionClientId = session.clientId;
+
+        // Check if user is admin
+        const normalizedRole = normalizeRole(userRole);
+        const isAdmin = normalizedRole === 'Admin';
+
         const { profile_id, updated_content } = await request.json();
 
         if (!profile_id) {
             return NextResponse.json(
                 { error: "profile_id is required" },
                 { status: 400 }
+            );
+        }
+
+        // Users can only update their own signals, unless they're an admin
+        if (!isAdmin && profile_id !== sessionClientId) {
+            return NextResponse.json(
+                { error: "Forbidden: You can only update your own signals" },
+                { status: 403 }
             );
         }
 
