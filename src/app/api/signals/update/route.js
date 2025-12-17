@@ -421,6 +421,14 @@ Avoid vague text like "monitor" or "stay in touch".
   - If no LinkedIn profile can be found, leave empty or use "N/A".
   - Only include URLs that you can verify through web search.
 
+- estimated_target_value_USD:
+  - The estimated monetary value or deal size associated with this signal opportunity in USD.
+  - Format: Currency string with dollar sign and commas (e.g., "$25,000,000", "$5,000,000", "$100,000").
+  - This should represent the potential deal value, contract size, investment amount, or revenue opportunity.
+  - Use web search to find actual funding amounts, contract values, or deal sizes when available.
+  - If no specific value can be determined, estimate based on company size, industry standards, or project scope.
+  - If no reasonable estimate can be made, leave empty or use "N/A".
+
 ------------------------------------
 STEP 5 - GENERATE OPM TRAVEL PLANS
 ------------------------------------
@@ -536,7 +544,8 @@ Required structure:
       "next_step": "Pull latest TWC WARN list; offer 2–4 week AI/Data reskill cohorts to affected employers + boards; align WIOA funding paths.",
       "decision_maker_role": "CEO, CFO, CTO, HR Director",
       "decision_maker_name": "John Doe",
-      "decision_maker_linkedin_url": "https://www.linkedin.com/in/john-doe-1234567890/"
+      "decision_maker_linkedin_url": "https://www.linkedin.com/in/john-doe-1234567890/",
+      "estimated_target_value_USD":"$25,000,000"
     }
   ],
   "opm_travel_plans": [
@@ -638,6 +647,7 @@ Important:
                     signal.decision_maker_role || '',
                     signal.decision_maker_name || '',
                     signal.decision_maker_linkedin_url || '',
+                    signal.estimated_target_value_USD || '',
                 ];
 
                 try {
