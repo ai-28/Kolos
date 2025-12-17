@@ -202,6 +202,24 @@ Next_step should always answer:
 
 Avoid vague text like "monitor" or "stay in touch".
 
+- decision_maker_role:
+  - The role/title of the key decision maker at the company or organization mentioned in the signal (e.g., "CEO", "CFO", "CTO", "HR Director", "VP of Operations").
+  - If multiple roles are relevant, list them separated by commas (e.g., "CEO, CFO, CTO, HR Director").
+  - If no specific decision maker can be identified, use a general role like "Executive Leadership" or "Management Team".
+  - Use web search to find actual decision makers when possible.
+
+- decision_maker_name:
+  - The full name of the key decision maker (e.g., "John Doe", "Jane Smith").
+  - If multiple decision makers are relevant, list them separated by commas.
+  - If no specific name can be found through web search, use "TBD" or leave empty.
+  - Prioritize finding real, verifiable names through web search.
+
+- decision_maker_linkedin_url:
+  - The LinkedIn profile URL of the decision maker (e.g., "https://www.linkedin.com/in/john-doe-1234567890/").
+  - Use web search to find actual LinkedIn profiles when possible.
+  - If no LinkedIn profile can be found, leave empty or use "N/A".
+  - Only include URLs that you can verify through web search.
+
 ------------------------------------
 STEP 5 - GENERATE OPM TRAVEL PLANS
 ------------------------------------
@@ -314,7 +332,10 @@ Required structure:
       "signal_type": "event",
       "scores_R_O_A": "5,5,4",
       "overall": 5,
-      "next_step": "Pull latest TWC WARN list; offer 2–4 week AI/Data reskill cohorts to affected employers + boards; align WIOA funding paths."
+      "next_step": "Pull latest TWC WARN list; offer 2–4 week AI/Data reskill cohorts to affected employers + boards; align WIOA funding paths.",
+      "decision_maker_role": "CEO, CFO, CTO, HR Director",
+      "decision_maker_name": "John Doe",
+      "decision_maker_linkedin_url": "https://www.linkedin.com/in/john-doe-1234567890/"
     }
   ],
   "opm_travel_plans": [
@@ -507,6 +528,9 @@ Important:
           signal.scores_R_O_A || '',
           signal.overall || '',
           signal.next_step || '',
+          signal.decision_maker_role || '',
+          signal.decision_maker_name || '',
+          signal.decision_maker_linkedin_url || '',
         ];
 
         try {
