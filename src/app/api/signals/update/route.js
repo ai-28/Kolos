@@ -590,7 +590,7 @@ Important:
 
         // Step 6: Call OpenAI with the same structure as recommendations API
         const completion = await openaiClient.responses.create({
-            model: "gpt-4o",
+            model: "gpt-5.2",
             input: prompt,
             tools: [
                 { type: "web_search" }
