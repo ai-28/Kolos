@@ -131,8 +131,7 @@ export default function Home() {
 
               {/* Description */}
               <p className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-[22px] text-gray-700 leading-relaxed">
-                In just a few minutes, Kolos AI will learn about your goals and match you with high-value opportunities — from strategic intros to expansion partners.
-              </p>
+              In a short onboarding, Kolos AI will learn your goals, sectors and geographies, then build a personal dashboard with Signals, weekly actions and travel or event matches. From there you can activate Kolos on any Signal so we help you turn it into a live opportunity and, together, into a deal.              </p>
 
               {/* Buttons */}
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-2 sm:pt-3 md:pt-4">
