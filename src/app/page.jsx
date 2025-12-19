@@ -54,6 +54,20 @@ export default function Home() {
         <div className="mx-auto">
           <nav className="py-3 sm:py-4 md:py-6 flex items-center justify-between">
             {/* Logo */}
+            <div className="items-center flex-shrink-0">
+              <a 
+                href="https://kolos.network" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="cursor-pointer hover:opacity-70 transition-opacity"
+              >
+                <img
+                  src="https://storage.mlcdn.com/account_image/1108377/l1IcJ0rEULJH2abWtkQaEOpl3jJqZRVMyJloBUMd.jpg"
+                  alt="Kolos Logo"
+                  className="w-28 sm:w-32 md:w-40 lg:w-56 h-auto"
+                />
+              </a>
+            </div>
 
             {/* Desktop Navigation */}
             <div className="flex-1 hidden lg:flex justify-center gap-8">
