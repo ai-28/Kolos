@@ -471,7 +471,7 @@ Important:
     }
 
     // Import Google Sheets utility
-    const { appendToSheet, SHEETS } = await import('@/app/lib/googleSheets');
+    const { appendToSheet, SHEETS, updateOrCreateUserWithProfileId } = await import('@/app/lib/googleSheets');
 
     // Generate a profile_id (using timestamp for uniqueness)
     const profileId = `profile_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -522,6 +522,17 @@ Important:
       console.error('❌ Error saving profile to Google Sheets:', error);
       console.error('Profile data that failed to save:', profileRow);
       // Continue even if profile save fails, but log the error
+    }
+
+    // 1.5. Update or create user entry with profile_id
+    if (profile.email) {
+      try {
+        await updateOrCreateUserWithProfileId(profile.email, profileId);
+        console.log('✅ User sheet updated with profile_id');
+      } catch (error) {
+        console.error('❌ Error updating user sheet with profile_id:', error);
+        // Continue even if user update fails, but log the error
+      }
     }
 
     // 2. Save Signals to Signals table

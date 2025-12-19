@@ -233,7 +233,7 @@ export async function findUserByEmail(email) {
         }
 
         const data = await getSheetData(SHEETS.USERS);
-        
+
         const found = data.find(row => {
             const emailFields = ['email', 'Email', 'EMAIL'];
             for (const field of emailFields) {
@@ -241,7 +241,7 @@ export async function findUserByEmail(email) {
                     return true;
                 }
             }
-            
+
             // Also check all fields case-insensitively
             for (const key in row) {
                 if (key.toLowerCase() === 'email') {
@@ -250,13 +250,153 @@ export async function findUserByEmail(email) {
                     }
                 }
             }
-            
+
             return false;
         });
 
         return found || null;
     } catch (error) {
         console.error(`Error finding user by email:`, error);
+        throw error;
+    }
+}
+
+/**
+ * Helper function to get column letter from index (0 = A, 1 = B, etc.)
+ */
+function getColumnLetter(columnIndex) {
+    let result = '';
+    while (columnIndex >= 0) {
+        result = String.fromCharCode(65 + (columnIndex % 26)) + result;
+        columnIndex = Math.floor(columnIndex / 26) - 1;
+    }
+    return result;
+}
+
+/**
+ * Update or create user entry with profile_id
+ */
+export async function updateOrCreateUserWithProfileId(email, profileId) {
+    try {
+        if (!SPREADSHEET_ID) {
+            throw new Error('GOOGLE_SHEET_ID environment variable is not set');
+        }
+
+        if (!email) {
+            throw new Error('Email is required');
+        }
+
+        const sheets = getSheetsClient();
+
+        // Get all users data to find the user
+        const data = await getSheetData(SHEETS.USERS);
+
+        // Get headers to find column indices
+        const headersResponse = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${SHEETS.USERS}!1:1`,
+        });
+        const headers = headersResponse.data.values?.[0] || [];
+
+        // Find user by email (case-insensitive)
+        let userIndex = -1;
+        let userRow = null;
+
+        for (let i = 0; i < data.length; i++) {
+            const row = data[i];
+            const emailFields = ['email', 'Email', 'EMAIL'];
+            for (const field of emailFields) {
+                if (row[field] && String(row[field]).toLowerCase().trim() === String(email).toLowerCase().trim()) {
+                    userIndex = i;
+                    userRow = row;
+                    break;
+                }
+            }
+            if (userIndex !== -1) break;
+
+            // Also check all fields case-insensitively
+            for (const key in row) {
+                if (key.toLowerCase() === 'email') {
+                    if (row[key] && String(row[key]).toLowerCase().trim() === String(email).toLowerCase().trim()) {
+                        userIndex = i;
+                        userRow = row;
+                        break;
+                    }
+                }
+            }
+            if (userIndex !== -1) break;
+        }
+
+        // Find or create profile_id column
+        let profileIdColumnIndex = headers.findIndex(
+            h => h && (h.toLowerCase() === 'profile_id' || h.toLowerCase() === 'profile id' || h.toLowerCase() === 'profileid')
+        );
+
+        if (profileIdColumnIndex === -1) {
+            // Column doesn't exist, add it
+            profileIdColumnIndex = headers.length;
+            const columnLetter = getColumnLetter(profileIdColumnIndex);
+
+            // Add header
+            await sheets.spreadsheets.values.update({
+                spreadsheetId: SPREADSHEET_ID,
+                range: `${SHEETS.USERS}!${columnLetter}1`,
+                valueInputOption: 'USER_ENTERED',
+                resource: {
+                    values: [['profile_id']],
+                },
+            });
+        }
+
+        if (userIndex !== -1 && userRow) {
+            // User exists, update profile_id
+            const rowNumber = userIndex + 2; // +2 because: +1 for header row, +1 for 0-based index
+            const columnLetter = getColumnLetter(profileIdColumnIndex);
+
+            await sheets.spreadsheets.values.update({
+                spreadsheetId: SPREADSHEET_ID,
+                range: `${SHEETS.USERS}!${columnLetter}${rowNumber}`,
+                valueInputOption: 'USER_ENTERED',
+                resource: {
+                    values: [[profileId]],
+                },
+            });
+
+            console.log(`✅ Updated user profile_id for email: ${email}`);
+        } else {
+            // User doesn't exist, create new user entry
+            // Find email column index
+            let emailColumnIndex = headers.findIndex(
+                h => h && h.toLowerCase() === 'email'
+            );
+
+            if (emailColumnIndex === -1) {
+                // Email column doesn't exist, add it as first column
+                emailColumnIndex = 0;
+                // We'll need to shift other columns, but for simplicity, let's just append
+                // In practice, you might want to handle this more carefully
+            }
+
+            // Create new user row
+            const newUserRow = new Array(Math.max(headers.length, profileIdColumnIndex + 1)).fill('');
+
+            // Set email
+            if (emailColumnIndex >= 0) {
+                newUserRow[emailColumnIndex] = email;
+            } else {
+                newUserRow[0] = email;
+            }
+
+            // Set profile_id
+            newUserRow[profileIdColumnIndex] = profileId;
+
+            await appendToSheet(SHEETS.USERS, newUserRow);
+            console.log(`✅ Created new user entry with profile_id for email: ${email}`);
+        }
+
+        return { success: true };
+    } catch (error) {
+        console.error(`❌ Error updating/creating user with profile_id:`, error);
         throw error;
     }
 }
