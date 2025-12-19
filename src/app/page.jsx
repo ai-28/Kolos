@@ -56,9 +56,7 @@ export default function Home() {
             {/* Logo */}
             <div className="items-center flex-shrink-0">
               <a 
-                href="https://kolos.network" 
-                target="_blank" 
-                rel="noopener noreferrer"
+                href="https://kolos.network"
                 className="cursor-pointer hover:opacity-70 transition-opacity"
               >
                 <img
