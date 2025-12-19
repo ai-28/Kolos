@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
+import { enrichSignalsBatch } from "@/app/lib/apollo";
+import { updateSignalLinkedInUrl } from "@/app/lib/googleSheets";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -535,9 +537,11 @@ Important:
       }
     }
 
-    // 2. Save Signals to Signals table
+    // 2. Save Signals to Signals table IMMEDIATELY (no Apollo delay)
     if (parsedData.signals && Array.isArray(parsedData.signals)) {
       let signalsSaved = 0;
+
+      // Save all signals immediately without Apollo enrichment
       for (const signal of parsedData.signals) {
         const signalRow = [
           profileId,
@@ -550,7 +554,7 @@ Important:
           signal.next_step || '',
           signal.decision_maker_role || '',
           signal.decision_maker_name || '',
-          signal.decision_maker_linkedin_url || '',
+          signal.decision_maker_linkedin_url || '', // Original from AI
           signal.estimated_target_value_USD || '',
         ];
 
@@ -563,6 +567,39 @@ Important:
         }
       }
       console.log(`✅ ${signalsSaved} signals saved to Google Sheets`);
+
+      // Enrich with Apollo in background and update signals automatically (non-blocking)
+      if (process.env.APOLLO_API_KEY && parsedData.signals.length > 0) {
+        // Don't await - let it run in background
+        enrichSignalsBatch(parsedData.signals).then(async (enrichedSignals) => {
+          const enrichedCount = enrichedSignals.filter(s => s.apollo_enriched).length;
+          console.log(`✅ Background Apollo enrichment completed: ${enrichedCount}/${enrichedSignals.length} signals enriched`);
+
+          // Automatically update signals with enriched LinkedIn URLs
+          let updatedCount = 0;
+          for (const enrichedSignal of enrichedSignals) {
+            if (enrichedSignal.apollo_enriched && enrichedSignal.decision_maker_linkedin_url) {
+              try {
+                const result = await updateSignalLinkedInUrl(
+                  profileId,
+                  enrichedSignal.headline_source || '',
+                  enrichedSignal.date || '',
+                  enrichedSignal.decision_maker_linkedin_url
+                );
+                if (result.success) {
+                  updatedCount++;
+                }
+              } catch (error) {
+                console.error('Error updating signal LinkedIn URL:', error);
+              }
+            }
+          }
+          console.log(`✅ Updated ${updatedCount} signals with enriched LinkedIn URLs`);
+        }).catch(error => {
+          console.error('❌ Background Apollo enrichment failed:', error);
+          // Fail silently - user already has their signals
+        });
+      }
     }
 
     // Check if we're using fallback empty data

@@ -401,5 +401,79 @@ export async function updateOrCreateUserWithProfileId(email, profileId) {
     }
 }
 
+/**
+ * Update signal LinkedIn URL by finding the signal row
+ * Uses profile_id, headline_source, and date to identify the signal
+ */
+export async function updateSignalLinkedInUrl(profileId, headlineSource, date, linkedinUrl) {
+    try {
+        if (!SPREADSHEET_ID) {
+            throw new Error('GOOGLE_SHEET_ID environment variable is not set');
+        }
+
+        const sheets = getSheetsClient();
+
+        // Get all signals to find the matching one
+        const signals = await getSheetData(SHEETS.SIGNALS);
+
+        // Get headers to find column indices
+        const headersResponse = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${SHEETS.SIGNALS}!1:1`,
+        });
+        const headers = headersResponse.data.values?.[0] || [];
+
+        // Find the signal row
+        let signalRowIndex = -1;
+        for (let i = 0; i < signals.length; i++) {
+            const signal = signals[i];
+            // Match by profile_id, headline_source, and date
+            const profileIdMatch = (signal.profile_id || signal['Profile ID'] || signal['profile_id'] || '').toString().trim() === profileId.toString().trim();
+            const headlineMatch = (signal.headline_source || signal['Headline Source'] || signal['headline_source'] || '').toString().trim() === headlineSource.toString().trim();
+            const dateMatch = (signal.date || signal['Date'] || '').toString().trim() === date.toString().trim();
+
+            if (profileIdMatch && headlineMatch && dateMatch) {
+                signalRowIndex = i;
+                break;
+            }
+        }
+
+        if (signalRowIndex === -1) {
+            console.warn(`⚠️ Signal not found for update: profile_id=${profileId}, headline=${headlineSource?.substring(0, 50)}`);
+            return { success: false, message: 'Signal not found' };
+        }
+
+        // Find LinkedIn URL column index
+        let linkedinColumnIndex = headers.findIndex(
+            h => h && (h.toLowerCase().includes('linkedin') || h.toLowerCase() === 'decision_maker_linkedin_url')
+        );
+
+        if (linkedinColumnIndex === -1) {
+            // LinkedIn column is typically the 11th column (index 10) based on signalRow structure
+            // profile_id, date, headline_source, url, signal_type, scores_R_O_A, overall, next_step, 
+            // decision_maker_role, decision_maker_name, decision_maker_linkedin_url
+            linkedinColumnIndex = 10; // Adjust based on your actual column order
+        }
+
+        // Update the LinkedIn URL
+        const rowNumber = signalRowIndex + 2; // +2 because: +1 for header row, +1 for 0-based index
+        const columnLetter = getColumnLetter(linkedinColumnIndex);
+
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${SHEETS.SIGNALS}!${columnLetter}${rowNumber}`,
+            valueInputOption: 'USER_ENTERED',
+            resource: {
+                values: [[linkedinUrl]],
+            },
+        });
+
+        return { success: true };
+    } catch (error) {
+        console.error(`❌ Error updating signal LinkedIn URL:`, error);
+        return { success: false, error: error.message };
+    }
+}
+
 export { SHEETS };
 
