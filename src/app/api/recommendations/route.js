@@ -45,7 +45,7 @@ You output:
 Your goal is to spot specific events that can become pipeline for this client next week, not generic news.
 
 ------------------------------------------------
-STEP 1 - BUILD CLIENT PROFILE BY ASKING QUESTIONS
+STEP 1 - BUILD CLIENT PROFILE
 ------------------------------------------------
 These following variables are in the profile object.
 - name

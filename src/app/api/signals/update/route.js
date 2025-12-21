@@ -210,7 +210,8 @@ export async function POST(request) {
         // Step 5: Use the same prompt structure as recommendations API
         const prompt = `
         
-CRITICAL OUTPUT REQUIREMENT: You MUST return ONLY valid JSON. No text, no explanations, no markdown. Start with { and end with }. If you cannot complete the task, return valid JSON with empty arrays. NEVER return error messages or "I'm unable" text.
+CRITICAL OUTPUT REQUIREMENT: You MUST return ONLY valid JSON. No text, no explanations, no markdown. Start with { and end with }.If you cannot find enough verified items, return as many verified items as possible.
+Return empty arrays ONLY if zero items can be verified at all.
 
 ROLE
 
@@ -238,7 +239,7 @@ You output:
 Your goal is to spot specific events that can become pipeline for this client next week, not generic news.
 
 ------------------------------------------------
-STEP 1 - BUILD CLIENT PROFILE BY ASKING QUESTIONS
+STEP 1 - BUILD CLIENT PROFILE
 ------------------------------------------------
 These following variables are in the profile object.
 - name
@@ -298,7 +299,7 @@ IMPORTANT: The updated_content field contains additional context that should be 
 STEP 2 - FIND AND SELECT SIGNALS
 ---------------------------------
 
-CRITICAL: You MUST use web search to find REAL, VERIFIABLE signals. Do NOT make up or hallucinate any information.
+Use web search when available. If partial verification is available, proceed to find REAL, VERIFIABLE signals. Do NOT make up or hallucinate any information.
 
 Using the CLIENT_PROFILE and the UPDATED_CONTENT:
 
@@ -330,8 +331,10 @@ Using the CLIENT_PROFILE and the UPDATED_CONTENT:
    - Double-check company names, numbers, and facts against search results
    - If information seems questionable, perform additional searches to verify before including it
    - Only include signals where you can confirm the URL, date, and headline are all accurate from your web search
-
-Aim for 8~10 strong actual valid signals that you found through web search, taking into account the updated_content context.
+If web search is unavailable, rely on high-confidence known sources and proceed with partial verification.
+If some fields cannot be verified (e.g. decision maker name or LinkedIn URL),
+use "TBD" or "N/A" for those fields.
+Do NOT discard the signal if the core news item is verified.
 
 -----------------------------------
 STEP 3 - SCORE R, O, A FOR EACH ROW
@@ -433,7 +436,7 @@ Avoid vague text like "monitor" or "stay in touch".
 ------------------------------------
 STEP 5 - GENERATE OPM TRAVEL PLANS
 ------------------------------------
-
+OPM Travel Plans are hypothetical but realistic and do NOT require web verification.
 CRITICAL: All travel plan dates MUST be in the FUTURE and VALID. Use the current date (run_date) as reference - all dates must be AFTER the run_date.
 
 Generate 3 OPM Travel Plans based on the client profile. These should represent other clients or contacts in the Kolos network who have upcoming travel that might be relevant for networking or in-person introductions.
@@ -568,9 +571,9 @@ Required structure:
 }
 
 Important:
-- Return 8 top high (overall score is more than 4) signals in the signals array
-- Return exactly 3 OPM Travel Plans in the opm_travel_plans array
-- Return exactly 3 Upcoming Industry Events in the upcoming_industry_events array
+- Return up to 8 top high (overall score > 4) signals
+- Return up to 3 OPM Travel Plans
+- Return up to 3 Upcoming Industry Events
 - All signal dates must be strings in YYYY-MM-DD format and must match actual publication dates from web search
 - All numeric values (time_window_days, overall) must be numbers, not strings
 - scores_R_O_A must be a string like "5,5,4"
