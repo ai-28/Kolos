@@ -591,6 +591,8 @@ Important:
 
         // Step 6: Call OpenAI with the same structure as recommendations API
         let parsedData;
+        // Store profileForLLM in outer scope for error logging
+        const profileForLLMForError = profileForLLM;
         try {
             const completion = await openaiClient.responses.create({
                 model: "gpt-5.1",  // Try gpt-5.1 first, fallback to "gpt-4o" if unavailable
@@ -625,8 +627,14 @@ Important:
             // Validate that we got signals
             if (!parsedData.signals || !Array.isArray(parsedData.signals) || parsedData.signals.length === 0) {
                 console.error("⚠️ OpenAI returned no signals or empty signals array");
-                console.error("Response content preview:", responseContent?.substring(0, 500));
-                throw new Error("OpenAI returned no signals. Please check the response.");
+                console.error("Response content preview:", responseContent?.substring(0, 1000));
+                console.error("Full parsed data:", JSON.stringify(parsedData, null, 2).substring(0, 1000));
+                console.error("Profile data that was sent:", JSON.stringify(profileForLLM, null, 2).substring(0, 500));
+
+                const errorMsg = `OpenAI returned no signals. Response preview: ${responseContent?.substring(0, 200) || 'No response content'}. ` +
+                    `This may be due to insufficient profile data or OpenAI API limitations.`;
+
+                throw new Error(errorMsg);
             }
 
             console.log(`✅ OpenAI generated ${parsedData.signals.length} signals`);
@@ -636,14 +644,43 @@ Important:
             console.error("Error details:", {
                 message: apiError.message,
                 name: apiError.name,
-                stack: apiError.stack?.substring(0, 500)
+                code: apiError.code,
+                status: apiError.status,
+                statusText: apiError.statusText,
+                response: apiError.response?.data,
+                stack: apiError.stack?.substring(0, 1000)
             });
 
-            // Return error response instead of continuing with empty data
+            // Extract more detailed error information
+            let errorDetails = apiError.message || "OpenAI API call failed";
+            let errorCode = apiError.code || apiError.status || "UNKNOWN";
+
+            // If it's an OpenAI API error, get more details
+            if (apiError.response?.data) {
+                const openaiError = apiError.response.data;
+                errorDetails = openaiError.error?.message || errorDetails;
+                errorCode = openaiError.error?.code || errorCode;
+                console.error("OpenAI API error response:", JSON.stringify(openaiError, null, 2));
+            }
+
+            // Log profile data for debugging
+            console.error("Profile data that caused the error:", JSON.stringify(profileForLLMForError, null, 2).substring(0, 1000));
+
+            // Return error response with detailed information
             return NextResponse.json(
                 {
                     error: "Failed to generate signals",
-                    details: apiError.message || "OpenAI API call failed. Please check the logs for more details.",
+                    details: errorDetails,
+                    error_code: String(errorCode),
+                    error_type: apiError.name || "APIError",
+                    profile_id: profile_id,
+                    suggestion: errorCode === "model_not_found" || errorCode === 404 || String(errorCode).includes("404")
+                        ? "The model 'gpt-5.1' may not be available. Try using 'gpt-4o' instead."
+                        : errorCode === "invalid_api_key" || errorCode === 401 || String(errorCode).includes("401")
+                            ? "Please check your OPENAI_API_KEY environment variable."
+                            : errorCode === "rate_limit_exceeded" || errorCode === 429 || String(errorCode).includes("429")
+                                ? "OpenAI API rate limit exceeded. Please try again later."
+                                : "Please check the server logs for more details. The error may be due to insufficient profile data, API issues, or model unavailability.",
                 },
                 { status: 500 }
             );
@@ -774,11 +811,20 @@ Important:
         });
 
     } catch (error) {
-        console.error("Error updating signals:", error);
+        console.error("❌ Error updating signals:", error);
+        console.error("Full error details:", {
+            message: error.message,
+            name: error.name,
+            stack: error.stack?.substring(0, 1000),
+            cause: error.cause,
+        });
+
         return NextResponse.json(
             {
                 error: "Failed to update signals",
-                details: error.message,
+                details: error.message || "An unexpected error occurred",
+                error_type: error.name || "Error",
+                suggestion: "Please check the server logs for more details. Common issues: missing profile data, OpenAI API errors, Google Sheets connection issues, or model unavailability.",
             },
             { status: 500 }
         );

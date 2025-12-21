@@ -496,7 +496,30 @@ function ClientDashboardContent() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || data.details || "Failed to update signals")
+        // Build detailed error message
+        let errorMessage = data.error || data.details || "Failed to update signals"
+        
+        // Add error code if available
+        if (data.error_code) {
+          errorMessage += ` (Error Code: ${data.error_code})`
+        }
+        
+        // Add suggestion if available
+        if (data.suggestion) {
+          errorMessage += `\n\n${data.suggestion}`
+        }
+        
+        // Log full error details to console
+        console.error("Detailed error from API:", {
+          error: data.error,
+          details: data.details,
+          error_code: data.error_code,
+          error_type: data.error_type,
+          suggestion: data.suggestion,
+          profile_id: data.profile_id
+        })
+        
+        throw new Error(errorMessage)
       }
 
       toast.success("Signals updated successfully!", { id: loadingToast })
@@ -506,7 +529,11 @@ function ClientDashboardContent() {
       setUpdatedContent("")
     } catch (error) {
       console.error("Error updating signals:", error)
-      toast.error(error.message || "Failed to update signals", { id: loadingToast })
+      // Show detailed error message (toast supports multi-line)
+      toast.error(error.message || "Failed to update signals", { 
+        id: loadingToast,
+        duration: 10000 // Show longer for detailed errors
+      })
     } finally {
       setUpdatingSignals(false)
     }
