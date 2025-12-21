@@ -653,20 +653,60 @@ Important:
 
             // Extract more detailed error information
             let errorDetails = apiError.message || "OpenAI API call failed";
-            let errorCode = apiError.code || apiError.status || "UNKNOWN";
+            let errorCode = "UNKNOWN";
 
             // If it's an OpenAI API error, get more details
             if (apiError.response?.data) {
                 const openaiError = apiError.response.data;
                 errorDetails = openaiError.error?.message || errorDetails;
-                errorCode = openaiError.error?.code || errorCode;
+                // Prioritize OpenAI error code over HTTP status code
+                errorCode = openaiError.error?.code || openaiError.error?.type || apiError.status || apiError.code || "UNKNOWN";
                 console.error("OpenAI API error response:", JSON.stringify(openaiError, null, 2));
+            } else {
+                // Fallback to status code or error code if no response data
+                errorCode = apiError.status || apiError.code || "UNKNOWN";
+            }
+
+            // Also check error message for quota/billing keywords if code extraction failed
+            if (errorCode === "UNKNOWN" || errorCode === 429) {
+                const errorMsgLower = errorDetails.toLowerCase();
+                if (errorMsgLower.includes("quota") || errorMsgLower.includes("billing")) {
+                    errorCode = "insufficient_quota";
+                } else if (errorMsgLower.includes("rate limit")) {
+                    errorCode = "rate_limit_exceeded";
+                }
             }
 
             // Log profile data for debugging
             console.error("Profile data that caused the error:", JSON.stringify(profileForLLMForError, null, 2).substring(0, 1000));
 
             // Return error response with detailed information
+            const getSuggestion = (code, details = "") => {
+                const codeStr = String(code).toLowerCase();
+                const detailsLower = String(details).toLowerCase();
+
+                // Check both code and details for quota/billing
+                if (code === "insufficient_quota" || codeStr.includes("quota") || codeStr.includes("billing") ||
+                    detailsLower.includes("quota") || detailsLower.includes("billing") || detailsLower.includes("exceeded your current quota")) {
+                    return "OpenAI API quota exceeded. Please check your OpenAI account billing and upgrade your plan at https://platform.openai.com/account/billing";
+                }
+
+                // Check for rate limit (but not quota)
+                if (code === "rate_limit_exceeded" || (code === 429 && !detailsLower.includes("quota")) || codeStr.includes("rate_limit")) {
+                    return "OpenAI API rate limit exceeded. Please try again in a few minutes.";
+                }
+
+                if (code === "model_not_found" || code === 404 || codeStr.includes("404")) {
+                    return "The model 'gpt-5.1' may not be available. Try using 'gpt-4o' instead.";
+                }
+
+                if (code === "invalid_api_key" || code === 401 || codeStr.includes("401")) {
+                    return "Please check your OPENAI_API_KEY environment variable.";
+                }
+
+                return "Please check the server logs for more details. The error may be due to insufficient profile data, API issues, or model unavailability.";
+            };
+
             return NextResponse.json(
                 {
                     error: "Failed to generate signals",
@@ -674,13 +714,7 @@ Important:
                     error_code: String(errorCode),
                     error_type: apiError.name || "APIError",
                     profile_id: profile_id,
-                    suggestion: errorCode === "model_not_found" || errorCode === 404 || String(errorCode).includes("404")
-                        ? "The model 'gpt-5.1' may not be available. Try using 'gpt-4o' instead."
-                        : errorCode === "invalid_api_key" || errorCode === 401 || String(errorCode).includes("401")
-                            ? "Please check your OPENAI_API_KEY environment variable."
-                            : errorCode === "rate_limit_exceeded" || errorCode === 429 || String(errorCode).includes("429")
-                                ? "OpenAI API rate limit exceeded. Please try again later."
-                                : "Please check the server logs for more details. The error may be due to insufficient profile data, API issues, or model unavailability.",
+                    suggestion: getSuggestion(errorCode, errorDetails),
                 },
                 { status: 500 }
             );
