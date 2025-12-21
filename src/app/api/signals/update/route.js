@@ -590,19 +590,20 @@ Important:
 `;
 
         // Step 6: Call OpenAI with the same structure as recommendations API
-        const completion = await openaiClient.responses.create({
-            model: "gpt-5.1",
-            input: prompt,
-            tools: [
-                { type: "web_search" }
-            ],
-            temperature: 0.3
-        });
-
-        // Parse the JSON response
-        const responseContent = completion.output_text;
         let parsedData;
         try {
+            const completion = await openaiClient.responses.create({
+                model: "gpt-5.1",  // Try gpt-5.1 first, fallback to "gpt-4o" if unavailable
+                input: prompt,
+                tools: [
+                    { type: "web_search" }
+                ],
+                temperature: 0.3
+            });
+
+            // Parse the JSON response
+            const responseContent = completion.output_text;
+
             if (typeof responseContent === 'object') {
                 parsedData = responseContent;
             } else {
@@ -620,20 +621,36 @@ Important:
                 jsonString = jsonString.trim();
                 parsedData = JSON.parse(jsonString);
             }
-        } catch (parseError) {
-            console.error("Error parsing OpenAI JSON response:", parseError);
-            parsedData = {
-                client_name: profile.name || "Unknown",
-                run_date: new Date().toISOString().split('T')[0],
-                time_window_days: 7,
-                signals: [],
-                opm_travel_plans: [],
-                upcoming_industry_events: []
-            };
+
+            // Validate that we got signals
+            if (!parsedData.signals || !Array.isArray(parsedData.signals) || parsedData.signals.length === 0) {
+                console.error("⚠️ OpenAI returned no signals or empty signals array");
+                console.error("Response content preview:", responseContent?.substring(0, 500));
+                throw new Error("OpenAI returned no signals. Please check the response.");
+            }
+
+            console.log(`✅ OpenAI generated ${parsedData.signals.length} signals`);
+
+        } catch (apiError) {
+            console.error("❌ Error calling OpenAI API:", apiError);
+            console.error("Error details:", {
+                message: apiError.message,
+                name: apiError.name,
+                stack: apiError.stack?.substring(0, 500)
+            });
+
+            // Return error response instead of continuing with empty data
+            return NextResponse.json(
+                {
+                    error: "Failed to generate signals",
+                    details: apiError.message || "OpenAI API call failed. Please check the logs for more details.",
+                },
+                { status: 500 }
+            );
         }
 
         // Step 7: Save new signals to Signals table IMMEDIATELY (no Apollo delay)
-        if (parsedData.signals && Array.isArray(parsedData.signals)) {
+        if (parsedData.signals && Array.isArray(parsedData.signals) && parsedData.signals.length > 0) {
             let signalsSaved = 0;
 
             // Save all signals immediately without Apollo enrichment
@@ -658,8 +675,21 @@ Important:
                     signalsSaved++;
                 } catch (error) {
                     console.error('❌ Error saving signal to Google Sheets:', error);
+                    console.error('Signal data that failed to save:', signalRow);
                 }
             }
+
+            if (signalsSaved === 0) {
+                console.error("⚠️ No signals were saved! Check Google Sheets connection.");
+                return NextResponse.json(
+                    {
+                        error: "No signals were saved",
+                        details: "Failed to save signals to Google Sheets. Please check the logs.",
+                    },
+                    { status: 500 }
+                );
+            }
+
             console.log(`✅ ${signalsSaved} new signals saved to Google Sheets`);
 
             // Enrich with Apollo in background and update signals automatically (non-blocking)
@@ -754,4 +784,5 @@ Important:
         );
     }
 }
+
 
