@@ -18,7 +18,15 @@ export async function POST(req) {
 
     const prompt = `
         
-CRITICAL OUTPUT REQUIREMENT: You MUST return ONLY valid JSON. No text, no explanations, no markdown. Start with { and end with }. If you cannot complete the task, return valid JSON with empty arrays. NEVER return error messages or "I'm unable" text.
+CRITICAL OUTPUT REQUIREMENT FOR GPT-5.2: 
+You MUST return ONLY valid JSON. No text, no explanations, no markdown, no code blocks. 
+- Start your response with { and end with }
+- Return valid JSON even if you cannot find all items - return as many verified items as possible
+- Return empty arrays ONLY if zero items can be verified at all
+- NEVER return error messages, "I'm unable" text, or apologies
+- The JSON must be parseable by JSON.parse() without any preprocessing
+- Ensure all strings are properly escaped
+- Ensure all dates are valid and in correct format
 
 ROLE
 
@@ -309,12 +317,27 @@ Focus on events that:
 If you cannot find 3 real, verifiable future events through web search, return fewer events rather than making them up.
 
 -----------------
-STEP 7 - OUTPUT
+STEP 7 - OUTPUT FORMAT (CRITICAL FOR GPT-5.2)
 -----------------
 
-CRITICAL: You MUST return ONLY valid JSON. Your entire response must be valid JSON only - no markdown, no code blocks, no explanations, no other text whatsoever. Start with { and end with }.
+YOUR ENTIRE RESPONSE MUST BE VALID JSON ONLY. NO MARKDOWN, NO CODE BLOCKS, NO EXPLANATIONS, NO TEXT BEFORE OR AFTER.
 
-ABSOLUTELY NO TEXT BEFORE OR AFTER THE JSON. NO APOLOGIES, NO EXPLANATIONS, NO "I'M UNABLE" MESSAGES. ONLY THE JSON OBJECT.
+REQUIREMENTS:
+1. Start your response with { (opening brace)
+2. End your response with } (closing brace)
+3. All JSON must be properly formatted and parseable
+4. All strings must be properly escaped
+5. All dates must be valid and in correct format
+6. If you cannot find enough items, return as many verified items as possible
+7. Return empty arrays ONLY if zero items can be verified
+
+ABSOLUTELY FORBIDDEN:
+- NO text before the opening {
+- NO text after the closing }
+- NO markdown code blocks (backticks with json or just backticks)
+- NO explanations or apologies
+- NO "I'm unable" messages
+- NO error messages
 
 If you cannot complete the task, return a valid JSON object with empty arrays:
 {
@@ -367,7 +390,7 @@ Required structure:
   ]
 }
 
-Important:
+FINAL OUTPUT REQUIREMENTS (GPT-5.2):
 - Return 8 top high (overall score is more than 4) signals in the signals array
 - Return exactly 3 OPM Travel Plans in the opm_travel_plans array
 - Return exactly 3 Upcoming Industry Events in the upcoming_industry_events array
@@ -386,6 +409,8 @@ Important:
 - For travel_plans with multiple routes, separate with newline character (\n)
 - For date fields with multiple dates, separate with newline character (\n)
 - Verify all dates are valid (correct number of days in month, valid month names, etc.)
+
+REMEMBER: Your response must be ONLY valid JSON starting with { and ending with }. No other text whatsoever.
 `;
 
     // Use Responses API with web search tool
@@ -409,6 +434,11 @@ Important:
 
     // Responses API returns content in output_text field
     const responseContent = completion.output_text;
+
+    console.log(`📝 Model used: gpt-5.2`);
+    console.log(`📝 Response type: ${typeof responseContent}`);
+    console.log(`📝 Response length: ${responseContent?.length || 0} characters`);
+    console.log(`📝 Response preview (first 500 chars): ${responseContent?.substring(0, 500) || 'No content'}`);
 
     // Parse the JSON string from OpenAI response
     let parsedData;

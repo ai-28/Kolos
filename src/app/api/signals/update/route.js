@@ -210,8 +210,15 @@ export async function POST(request) {
         // Step 5: Use the same prompt structure as recommendations API
         const prompt = `
         
-CRITICAL OUTPUT REQUIREMENT: You MUST return ONLY valid JSON. No text, no explanations, no markdown. Start with { and end with }.If you cannot find enough verified items, return as many verified items as possible.
-Return empty arrays ONLY if zero items can be verified at all.
+CRITICAL OUTPUT REQUIREMENT FOR GPT-5.2: 
+You MUST return ONLY valid JSON. No text, no explanations, no markdown, no code blocks. 
+- Start your response with { and end with }
+- Return valid JSON even if you cannot find all items - return as many verified items as possible
+- Return empty arrays ONLY if zero items can be verified at all
+- NEVER return error messages, "I'm unable" text, or apologies
+- The JSON must be parseable by JSON.parse() without any preprocessing
+- Ensure all strings are properly escaped
+- Ensure all dates are valid and in correct format
 
 ROLE
 
@@ -292,19 +299,20 @@ ${JSON.stringify(profileForLLM, null, 2)}
 For the investor or asset manager, strategy_focus, check_size, active_raise_amount are distinctly used than other roles.
 For the entrepreneur or founder, business_stage, revenue_range, project_size, raise_amount,active_raise amount are distinctly used than other roles.
 For the facilitator, facilitator_clients, deal_type, deal_size, ideal_ceo_profile, ideal_intro are distinctly used than other roles.
-
-IMPORTANT: The updated_content field contains additional context that should be prioritized when generating signals. Consider this information carefully when searching for and scoring signals.
+${updated_content ? `\nIMPORTANT: The updated_content field contains additional context that should be prioritized when generating signals. Consider this information carefully when searching for and scoring signals.\n` : ''}
 
 ---------------------------------
 STEP 2 - FIND AND SELECT SIGNALS
 ---------------------------------
 
-Use web search when available. If partial verification is available, proceed to find REAL, VERIFIABLE signals. Do NOT make up or hallucinate any information.
+CRITICAL: You MUST use web search to find REAL, VERIFIABLE signals. Do NOT make up or hallucinate any information.
 
-Using the CLIENT_PROFILE and the UPDATED_CONTENT:
+Using the CLIENT_PROFILE${updated_content ? ' and the UPDATED_CONTENT' : ''}:
+
+${updated_content ? `\nIMPORTANT: The updated_content field contains additional context that should be prioritized when generating signals. Consider this information carefully when searching for and scoring signals.\n` : ''}
 
 1) Use web search to find recent news and events that match the client's regions, sectors, and triggers.
-   - Pay special attention to the updated_content field - it may contain new priorities, recent developments, or specific requirements
+   ${updated_content ? `   - Pay special attention to the updated_content field - it may contain new priorities, recent developments, or specific requirements\n` : ''}
    - Search for specific companies, projects, announcements, layoffs, funding rounds, regulatory changes, etc.
    - Search across various domains and sources to find diverse signals (news sites, press releases, official announcements, industry publications, etc.)
    - Only use information from sources you can verify through web search.
@@ -315,7 +323,7 @@ Using the CLIENT_PROFILE and the UPDATED_CONTENT:
    
 2) Only keep items that are directly useful to create conversations or deals for this client.  
    - For ${profile.company || 'the client'}: things like mass layoffs, new data center build, grid expansion, utility digitalization, veteran hiring programs, workforce boards initiatives.  
-   - Consider the updated_content when determining relevance
+   ${updated_content ? `   - Consider the updated_content when determining relevance\n` : ''}
    
 3) Ignore:
    - Macro opinion pieces with no named company or project.
@@ -331,10 +339,8 @@ Using the CLIENT_PROFILE and the UPDATED_CONTENT:
    - Double-check company names, numbers, and facts against search results
    - If information seems questionable, perform additional searches to verify before including it
    - Only include signals where you can confirm the URL, date, and headline are all accurate from your web search
-If web search is unavailable, rely on high-confidence known sources and proceed with partial verification.
-If some fields cannot be verified (e.g. decision maker name or LinkedIn URL),
-use "TBD" or "N/A" for those fields.
-Do NOT discard the signal if the core news item is verified.
+
+Aim for 8~10 strong actual valid signals that you found through web search.
 
 -----------------------------------
 STEP 3 - SCORE R, O, A FOR EACH ROW
@@ -436,7 +442,7 @@ Avoid vague text like "monitor" or "stay in touch".
 ------------------------------------
 STEP 5 - GENERATE OPM TRAVEL PLANS
 ------------------------------------
-OPM Travel Plans are hypothetical but realistic and do NOT require web verification.
+
 CRITICAL: All travel plan dates MUST be in the FUTURE and VALID. Use the current date (run_date) as reference - all dates must be AFTER the run_date.
 
 Generate 3 OPM Travel Plans based on the client profile. These should represent other clients or contacts in the Kolos network who have upcoming travel that might be relevant for networking or in-person introductions.
@@ -512,12 +518,27 @@ Focus on events that:
 If you cannot find 3 real, verifiable future events through web search, return fewer events rather than making them up.
 
 -----------------
-STEP 7 - OUTPUT
+STEP 7 - OUTPUT FORMAT (CRITICAL FOR GPT-5.2)
 -----------------
 
-CRITICAL: You MUST return ONLY valid JSON. Your entire response must be valid JSON only - no markdown, no code blocks, no explanations, no other text whatsoever. Start with { and end with }.
+YOUR ENTIRE RESPONSE MUST BE VALID JSON ONLY. NO MARKDOWN, NO CODE BLOCKS, NO EXPLANATIONS, NO TEXT BEFORE OR AFTER.
 
-ABSOLUTELY NO TEXT BEFORE OR AFTER THE JSON. NO APOLOGIES, NO EXPLANATIONS, NO "I'M UNABLE" MESSAGES. ONLY THE JSON OBJECT.
+REQUIREMENTS:
+1. Start your response with { (opening brace)
+2. End your response with } (closing brace)
+3. All JSON must be properly formatted and parseable
+4. All strings must be properly escaped
+5. All dates must be valid and in correct format
+6. If you cannot find enough items, return as many verified items as possible
+7. Return empty arrays ONLY if zero items can be verified
+
+ABSOLUTELY FORBIDDEN:
+- NO text before the opening {
+- NO text after the closing }
+- NO markdown code blocks (backticks with json or just backticks)
+- NO explanations or apologies
+- NO "I'm unable" messages
+- NO error messages
 
 If you cannot complete the task, return a valid JSON object with empty arrays:
 {
@@ -570,10 +591,10 @@ Required structure:
   ]
 }
 
-Important:
-- Return up to 8 top high (overall score > 4) signals
-- Return up to 3 OPM Travel Plans
-- Return up to 3 Upcoming Industry Events
+FINAL OUTPUT REQUIREMENTS (GPT-5.2):
+- Return 8 top high (overall score is more than 4) signals in the signals array
+- Return exactly 3 OPM Travel Plans in the opm_travel_plans array
+- Return exactly 3 Upcoming Industry Events in the upcoming_industry_events array
 - All signal dates must be strings in YYYY-MM-DD format and must match actual publication dates from web search
 - All numeric values (time_window_days, overall) must be numbers, not strings
 - scores_R_O_A must be a string like "5,5,4"
@@ -589,7 +610,9 @@ Important:
 - For travel_plans with multiple routes, separate with newline character (\n)
 - For date fields with multiple dates, separate with newline character (\n)
 - Verify all dates are valid (correct number of days in month, valid month names, etc.)
-- IMPORTANT: Consider the updated_content field when generating signals - it contains additional context that should influence signal selection and scoring
+${updated_content ? `- IMPORTANT: Consider the updated_content field when generating signals - it contains additional context that should influence signal selection and scoring\n` : ''}
+
+REMEMBER: Your response must be ONLY valid JSON starting with { and ending with }. No other text whatsoever.
 `;
 
         // Step 6: Call OpenAI with the same structure as recommendations API
@@ -609,22 +632,43 @@ Important:
             // Parse the JSON response
             const responseContent = completion.output_text;
 
+            console.log(`📝 Model used: gpt-5.2`);
+            console.log(`📝 Response type: ${typeof responseContent}`);
+            console.log(`📝 Response length: ${responseContent?.length || 0} characters`);
+            console.log(`📝 Response preview (first 500 chars): ${responseContent?.substring(0, 500) || 'No content'}`);
+
             if (typeof responseContent === 'object') {
                 parsedData = responseContent;
             } else {
                 let jsonString = responseContent.trim();
+
+                // Remove markdown code blocks if present (gpt-5.2 might add them)
                 if (jsonString.startsWith('```json')) {
-                    jsonString = jsonString.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+                    jsonString = jsonString.replace(/^```json\s*/i, '').replace(/\s*```\s*$/i, '');
                 } else if (jsonString.startsWith('```')) {
-                    jsonString = jsonString.replace(/^```\s*/, '').replace(/\s*```$/, '');
+                    jsonString = jsonString.replace(/^```\s*/i, '').replace(/\s*```\s*$/i, '');
                 }
+
+                // Extract JSON object (find first { and last })
                 const firstBrace = jsonString.indexOf('{');
                 const lastBrace = jsonString.lastIndexOf('}');
+
                 if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
                     jsonString = jsonString.substring(firstBrace, lastBrace + 1);
                 }
+
                 jsonString = jsonString.trim();
+
+                // Log before parsing for debugging
+                console.log(`📝 Extracted JSON length: ${jsonString.length}`);
+                console.log(`📝 JSON starts with: ${jsonString.substring(0, 50)}`);
+                console.log(`📝 JSON ends with: ${jsonString.substring(Math.max(0, jsonString.length - 50))}`);
+
                 parsedData = JSON.parse(jsonString);
+
+                // Log parsed structure
+                console.log(`📝 Parsed data keys: ${Object.keys(parsedData || {}).join(', ')}`);
+                console.log(`📝 Signals count: ${parsedData.signals?.length || 0}`);
             }
 
             // Validate that we got signals
