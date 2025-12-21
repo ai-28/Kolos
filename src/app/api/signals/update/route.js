@@ -593,7 +593,7 @@ Important:
         let parsedData;
         try {
             const completion = await openaiClient.responses.create({
-                model: "gpt-4o",  // Try gpt-5.1 first, fallback to "gpt-4o" if unavailable
+                model: "gpt-5.1",  // Try gpt-5.1 first, fallback to "gpt-4o" if unavailable
                 input: prompt,
                 tools: [
                     { type: "web_search" }
