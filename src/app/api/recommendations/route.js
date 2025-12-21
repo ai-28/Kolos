@@ -390,7 +390,7 @@ Important:
 
     // Use Responses API with web search tool
     const completion = await client.responses.create({
-      model: "gpt-5.1",  // Try gpt-5.1 first, fallback to "gpt-4o" if unavailable
+      model: "gpt-5.2",  // Try gpt-5.1 first, fallback to "gpt-4o" if unavailable
       input: prompt,  // Responses API uses input (string) instead of messages
       tools: [
         { type: "web_search" }
