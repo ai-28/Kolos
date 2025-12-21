@@ -1265,7 +1265,7 @@ console.log("client",client)
                     return (
                       <Card className="bg-[#fffff4] !border !border-[#ffe0ccff] !shadow-none rounded-lg">
                         <CardContent className="p-4">
-                          <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Raise Amount</div>
+                          <div className="text-[22px] mb-2" style={{ fontFamily: 'var(--font-marcellus), serif', color: '#67534F' }}>Capital Raise</div>
                           {isEditing ? (
                             <input
                               type="text"

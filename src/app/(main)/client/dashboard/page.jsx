@@ -879,7 +879,7 @@ console.log("client",client)
                       
                       return (
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Raise Amount</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Capital Raise</label>
                           <input
                             type="text"
                             value={editData.raise_amount || ""}
