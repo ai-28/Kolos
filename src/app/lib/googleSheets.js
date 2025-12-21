@@ -327,15 +327,15 @@ export async function updateOrCreateUserWithProfileId(email, profileId) {
             if (userIndex !== -1) break;
         }
 
-        // Find or create profile_id column
-        let profileIdColumnIndex = headers.findIndex(
-            h => h && (h.toLowerCase() === 'profile_id' || h.toLowerCase() === 'profile id' || h.toLowerCase() === 'profileid')
+        // Find or create client_id column (save profile_id value to client_id column)
+        let clientIdColumnIndex = headers.findIndex(
+            h => h && (h.toLowerCase() === 'client_id' || h.toLowerCase() === 'client id' || h.toLowerCase() === 'clientid' || h.toLowerCase() === 'id')
         );
 
-        if (profileIdColumnIndex === -1) {
+        if (clientIdColumnIndex === -1) {
             // Column doesn't exist, add it
-            profileIdColumnIndex = headers.length;
-            const columnLetter = getColumnLetter(profileIdColumnIndex);
+            clientIdColumnIndex = headers.length;
+            const columnLetter = getColumnLetter(clientIdColumnIndex);
 
             // Add header
             await sheets.spreadsheets.values.update({
@@ -343,26 +343,26 @@ export async function updateOrCreateUserWithProfileId(email, profileId) {
                 range: `${SHEETS.USERS}!${columnLetter}1`,
                 valueInputOption: 'USER_ENTERED',
                 resource: {
-                    values: [['profile_id']],
+                    values: [['client_id']],
                 },
             });
         }
 
         if (userIndex !== -1 && userRow) {
-            // User exists, update profile_id
+            // User exists, update client_id with profile_id value
             const rowNumber = userIndex + 2; // +2 because: +1 for header row, +1 for 0-based index
-            const columnLetter = getColumnLetter(profileIdColumnIndex);
+            const columnLetter = getColumnLetter(clientIdColumnIndex);
 
             await sheets.spreadsheets.values.update({
                 spreadsheetId: SPREADSHEET_ID,
                 range: `${SHEETS.USERS}!${columnLetter}${rowNumber}`,
                 valueInputOption: 'USER_ENTERED',
                 resource: {
-                    values: [[profileId]],
+                    values: [[profileId]], // Save profile_id value to client_id column
                 },
             });
 
-            console.log(`✅ Updated user profile_id for email: ${email}`);
+            console.log(`✅ Updated user client_id (with profile_id: ${profileId}) for email: ${email}`);
         } else {
             // User doesn't exist, create new user entry
             // Find email column index
@@ -378,7 +378,7 @@ export async function updateOrCreateUserWithProfileId(email, profileId) {
             }
 
             // Create new user row
-            const newUserRow = new Array(Math.max(headers.length, profileIdColumnIndex + 1)).fill('');
+            const newUserRow = new Array(Math.max(headers.length, clientIdColumnIndex + 1)).fill('');
 
             // Set email
             if (emailColumnIndex >= 0) {
@@ -387,11 +387,11 @@ export async function updateOrCreateUserWithProfileId(email, profileId) {
                 newUserRow[0] = email;
             }
 
-            // Set profile_id
-            newUserRow[profileIdColumnIndex] = profileId;
+            // Set client_id with profile_id value
+            newUserRow[clientIdColumnIndex] = profileId;
 
             await appendToSheet(SHEETS.USERS, newUserRow);
-            console.log(`✅ Created new user entry with profile_id for email: ${email}`);
+            console.log(`✅ Created new user entry with client_id (profile_id: ${profileId}) for email: ${email}`);
         }
 
         return { success: true };

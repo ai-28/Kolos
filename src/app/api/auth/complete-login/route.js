@@ -15,7 +15,7 @@ export async function GET(request) {
 
         // Look up user in Users sheet
         const user = await findUserByEmail(email)
-        
+
         if (!user) {
             console.error(`User not found in Users sheet: ${email}`)
             return NextResponse.json(
@@ -27,7 +27,7 @@ export async function GET(request) {
         // Get client_id from user record (check multiple possible field names including 'id')
         const clientId = user.client_id || user.clientId || user['client_id'] || user['Client ID'] || user['Client_ID'] || user.id || user.ID || user['id'] || user['ID']
         const role = user.role || user.Role || user['role'] || ''
-        
+
         // Normalize role to check if admin
         const roleLower = role.toLowerCase().trim()
         const isAdmin = roleLower.includes('admin') || roleLower.includes('administrator')
@@ -44,7 +44,7 @@ export async function GET(request) {
 
         // For admin, use email or a special identifier as client_id if not provided
         const finalClientId = clientId || (isAdmin ? `admin_${email}` : null)
-        
+
         if (!finalClientId) {
             console.error(`No client_id found for user: ${email}`)
             return NextResponse.json(
@@ -69,7 +69,7 @@ export async function GET(request) {
             maxAge: 60 * 60 * 24 * 7, // 7 days
             path: '/',
         })
-        
+
         response.cookies.set('client_id', finalClientId, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
@@ -77,7 +77,7 @@ export async function GET(request) {
             maxAge: 60 * 60 * 24 * 7,
             path: '/',
         })
-        
+
         response.cookies.set('user_role', role, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
