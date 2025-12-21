@@ -207,43 +207,34 @@ export async function POST(request) {
             updated_content: updated_content.trim(),
         };
 
-        // Step 5: Use the same prompt structure as recommendations API
+        // Ensure profile is always defined and safe
+        const safeProfile = profileForLLM || {};
+
+        // Step 5: Use GPT-5.2 compatible prompt structure
         const prompt = `
-        
-CRITICAL OUTPUT REQUIREMENT FOR GPT-5.2: 
-You MUST return ONLY valid JSON. No text, no explanations, no markdown, no code blocks. 
-- Start your response with { and end with }
-- Return valid JSON even if you cannot find all items - return as many verified items as possible
-- Return empty arrays ONLY if zero items can be verified at all
-- NEVER return error messages, "I'm unable" text, or apologies
-- The JSON must be parseable by JSON.parse() without any preprocessing
-- Ensure all strings are properly escaped
-- Ensure all dates are valid and in correct format
+PRECONDITIONS:
+- Client profile is provided below (guaranteed to exist)
+- Web search tool is available for use
+- Updated content is provided for context
+- You must return valid JSON regardless of data availability
 
-ROLE
+CRITICAL OUTPUT REQUIREMENT: 
+Return ONLY valid JSON. Start with {, end with }. No markdown, no code blocks, no explanations.
+- If you cannot find all items, return as many verified items as possible (minimum 0)
+- Return empty arrays if zero items can be verified
+- NEVER return error messages or apologies
+- JSON must be parseable without preprocessing
 
-You are the Kolos Signals engine for B2B clients.
+ROLE: Kolos Signals engine for B2B clients.
 
-You take:
-- a short client profile
-- a time window (usually "next 7 days" or "next 14 days")
-- optional priority themes or keywords
-- additional context or updated information (provided in updated_content field)
+GOAL: Find specific events that can become pipeline for this client, not generic news.
 
-You output:
-- 8 high value "signals" that look like the Colaberry example
-- each signal is a row with fields:
-  - date
-  - headline_source
-  - url
-  - signal_type
-  - scores_R_O_A
-  - overall
-  - next_step
-- 3 OPM Travel Plans (other clients' travel plans that might be relevant for networking)
-- 3 Upcoming Industry Events (industry events that match the client's focus areas)
+OUTPUT TARGETS (flexible based on availability):
+- Up to 8 high-value signals (aim for 8, but return as many as you can verify, minimum 0)
+- Up to 3 OPM Travel Plans (aim for 3, but return as many as you can create, minimum 0)
+- Up to 3 Upcoming Industry Events (aim for 3, but return as many as you can verify, minimum 0)
 
-Your goal is to spot specific events that can become pipeline for this client next week, not generic news.
+Each signal includes: date, headline_source, url, signal_type, scores_R_O_A, overall, next_step, decision_maker_role, decision_maker_name, decision_maker_linkedin_url, estimated_target_value_USD
 
 ------------------------------------------------
 STEP 1 - BUILD CLIENT PROFILE
@@ -342,110 +333,30 @@ ${updated_content ? `\nIMPORTANT: The updated_content field contains additional 
 
 Aim for 8~10 strong actual valid signals that you found through web search.
 
------------------------------------
-STEP 3 - SCORE R, O, A FOR EACH ROW
------------------------------------
+SCORING (R,O,A - each 1,3,5):
+R (Relevance): 5=Direct ICP+region+trigger hit, 3=Related, 1=Background
+O (Opportunity): 5=Act within days, 3=Act within weeks, 1=Long-term/stale
+A (Actionability): 5=Clear next step, 3=Needs shaping, 1=No obvious action
+Format: scores_R_O_A as "R,O,A" string, overall = rounded average
 
-For each selected item, decide:
+SIGNAL FIELDS:
+- date: YYYY-MM-DD format (publication date from source)
+- headline_source: One line combining headline + context (Colaberry style)
+- url: Real, accessible URL verified through web search (when available)
+- signal_type: funding, event, regulation, partner, trend, or opportunity
+- scores_R_O_A: "R,O,A" string (e.g., "5,5,4")
+- overall: Number 1-5 (rounded average)
+- next_step: Concrete action (who, what, timeframe) - avoid "monitor" or "stay in touch"
+- decision_maker_role: Key roles (e.g., "CEO, CFO, CTO, HR Director") or "Executive Leadership"
+- decision_maker_name: Full name(s) or "TBD" if not found
+- decision_maker_linkedin_url: LinkedIn URL or "N/A" if not found
+- estimated_target_value_USD: Currency string (e.g., "$25,000,000") or "N/A"
 
-R - Strategic Relevance (1, 3, 5)  
-- 5: Direct hit on ICP + region + trigger. Clear fit with client offers.  
-- 3: Related to target sector or region but not perfect fit.  
-- 1: Mostly background or far from core focus.
+OPM TRAVEL PLANS:
 
-O - Opportunity Window (1, 3, 5)  
-- 5: We should act within days (fresh layoffs, new project approval, hot news).  
-- 3: Action useful within weeks (early planning, non urgent expansion).  
-- 1: Very long term or already "stale".
+CRITICAL: All travel plan dates MUST be in the FUTURE and VALID (after run_date).
 
-A - Actionability (1, 3, 5)  
-- 5: Clear next step, obvious contact type, we know what to offer.  
-- 3: Some angle exists but needs work to shape the offer.  
-- 1: No obvious action from our side.
-
-Then:
-
-- scores_R_O_A = "R,O,A" as a string (for example "5,5,4").  
-- overall = rounded average of R, O, A to the nearest integer (1–5).
-
-------------------------------------
-STEP 4 - FILL THE ROWS LIKE EXAMPLE
-------------------------------------
-
-For each valid signal create one row with these definitions:
-
-- date:  
-  - Event or publication date in client time zone (for Kolos use CT).  
-
-- headline_source:  
-  - One line.  
-  - Combine short headline + short context phrase.  
-  - Example (Colaberry):  
-    - "Mass layoff wave hits ~1,300 Texans across metros (incl. DFW) - fresh WARN flow for reskilling"  
-
-- url:  
-  - Direct link to the original article or event page that you found through web search.
-  - It must be a real, accessible URL that you verified through web search.
-  - Do NOT make up URLs or use placeholder links.
-
-- signal_type:  
-  - Choose one of: funding, event, regulation, partner, trend, opportunity.  
-  - Be consistent within one report.
-
-- scores_R_O_A:  
-  - String "R,O,A" such as "5,4,5" based on the rules above.
-
-- overall:  
-  - Single number 1–5, rounded average of R,O,A.
-
-- next_step:  
-  - Very concrete action to take this week or next week.  
-  - Include who to approach and what to propose.  
-  - Use Colaberry style:  
-    - Pull latest TWC WARN list; offer 2–4 week AI/Data reskill cohorts to affected employers + boards; align WIOA funding paths.  
-    - Request 20 min intro; propose AI ready workforce pilots for grid build; set quarterly reporting cadence.  
-
-Next_step should always answer:
-- who we talk to  
-- what we offer  
-- how it ties to the news item  
-- ideal time frame (this week / this month).
-
-Avoid vague text like "monitor" or "stay in touch".
-
-- decision_maker_role:
-  - The role/title of the key decision maker at the company or organization mentioned in the signal (e.g., "CEO", "CFO", "CTO", "HR Director", "VP of Operations").
-  - If multiple roles are relevant, list them separated by commas (e.g., "CEO, CFO, CTO, HR Director").
-  - If no specific decision maker can be identified, use a general role like "Executive Leadership" or "Management Team".
-  - Use web search to find actual decision makers when possible.
-
-- decision_maker_name:
-  - The full name of the key decision maker (e.g., "John Doe", "Jane Smith").
-  - If multiple decision makers are relevant, list them separated by commas.
-  - If no specific name can be found through web search, use "TBD" or leave empty.
-  - Prioritize finding real, verifiable names through web search.
-
-- decision_maker_linkedin_url:
-  - The LinkedIn profile URL of the decision maker (e.g., "https://www.linkedin.com/in/john-doe-1234567890/").
-  - Use web search to find actual LinkedIn profiles when possible.
-  - If no LinkedIn profile can be found, leave empty or use "N/A".
-  - Only include URLs that you can verify through web search.
-
-- estimated_target_value_USD:
-  - The estimated monetary value or deal size associated with this signal opportunity in USD.
-  - Format: Currency string with dollar sign and commas (e.g., "$25,000,000", "$5,000,000", "$100,000").
-  - This should represent the potential deal value, contract size, investment amount, or revenue opportunity.
-  - Use web search to find actual funding amounts, contract values, or deal sizes when available.
-  - If no specific value can be determined, estimate based on company size, industry standards, or project scope.
-  - If no reasonable estimate can be made, leave empty or use "N/A".
-
-------------------------------------
-STEP 5 - GENERATE OPM TRAVEL PLANS
-------------------------------------
-
-CRITICAL: All travel plan dates MUST be in the FUTURE and VALID. Use the current date (run_date) as reference - all dates must be AFTER the run_date.
-
-Generate 3 OPM Travel Plans based on the client profile. These should represent other clients or contacts in the Kolos network who have upcoming travel that might be relevant for networking or in-person introductions.
+Generate up to 3 OPM Travel Plans based on client profile. These represent other clients in Kolos network with upcoming travel relevant for networking. Return as many as you can create (minimum 0).
 
 For each travel plan, include:
 - customer: 
@@ -472,15 +383,13 @@ Focus on travel that could enable:
 - Industry event attendance
 - Strategic partnership meetings
 
-------------------------------------
-STEP 6 - GENERATE UPCOMING INDUSTRY EVENTS
-------------------------------------
+INDUSTRY EVENTS:
 
-CRITICAL: All event dates MUST be in the FUTURE and VALID. Use the current date (run_date) as reference - all dates must be AFTER the run_date.
+CRITICAL: All event dates MUST be in the FUTURE and VALID (after run_date).
 
-Use web search to find REAL, VERIFIABLE upcoming industry events. Search for actual conferences, summits, webinars, and industry gatherings that are scheduled for the future.
+Use web search when available to find REAL, VERIFIABLE upcoming industry events. If web search returns limited results, return as many verified events as possible (minimum 0).
 
-Generate 3 Upcoming Industry Events that match the client's industries, regions, and business goals.
+Generate up to 3 Upcoming Industry Events matching client's industries, regions, and business goals. Return fewer if you cannot verify 3 real events - do not fabricate.
 
 For each event, include:
 - event_name:
@@ -515,32 +424,19 @@ Focus on events that:
 - Could provide networking, learning, or business development opportunities
 - Are actual industry events (conferences, summits, meetups, webinars) with verifiable information
 
-If you cannot find 3 real, verifiable future events through web search, return fewer events rather than making them up.
+Return as many verified events as possible (minimum 0). Quality over quantity.
 
------------------
-STEP 7 - OUTPUT FORMAT (CRITICAL FOR GPT-5.2)
------------------
+OUTPUT FORMAT:
 
-YOUR ENTIRE RESPONSE MUST BE VALID JSON ONLY. NO MARKDOWN, NO CODE BLOCKS, NO EXPLANATIONS, NO TEXT BEFORE OR AFTER.
+Return ONLY valid JSON. Start with {, end with }. No markdown, no code blocks, no text before/after.
 
 REQUIREMENTS:
-1. Start your response with { (opening brace)
-2. End your response with } (closing brace)
-3. All JSON must be properly formatted and parseable
-4. All strings must be properly escaped
-5. All dates must be valid and in correct format
-6. If you cannot find enough items, return as many verified items as possible
-7. Return empty arrays ONLY if zero items can be verified
+- Valid JSON only (parseable without preprocessing)
+- Return as many verified items as possible (arrays can be empty if no items verified)
+- All dates must be valid and in correct format
+- All strings properly escaped
 
-ABSOLUTELY FORBIDDEN:
-- NO text before the opening {
-- NO text after the closing }
-- NO markdown code blocks (backticks with json or just backticks)
-- NO explanations or apologies
-- NO "I'm unable" messages
-- NO error messages
-
-If you cannot complete the task, return a valid JSON object with empty arrays:
+If no items can be verified, return this structure with empty arrays:
 {
   "client_name": "<CLIENT_NAME>",
   "run_date": "<YYYY-MM-DD>",
@@ -549,8 +445,6 @@ If you cannot complete the task, return a valid JSON object with empty arrays:
   "opm_travel_plans": [],
   "upcoming_industry_events": []
 }
-
-DO NOT return any text that is not valid JSON. DO NOT explain why you cannot complete the task. ONLY return the JSON structure above, even if arrays are empty.
 
 Required structure:
 
@@ -591,26 +485,26 @@ Required structure:
   ]
 }
 
-FINAL OUTPUT REQUIREMENTS (GPT-5.2):
-- Return 8 top high (overall score is more than 4) signals in the signals array
-- Return exactly 3 OPM Travel Plans in the opm_travel_plans array
-- Return exactly 3 Upcoming Industry Events in the upcoming_industry_events array
-- All signal dates must be strings in YYYY-MM-DD format and must match actual publication dates from web search
-- All numeric values (time_window_days, overall) must be numbers, not strings
-- scores_R_O_A must be a string like "5,5,4"
-- Every signal must be valid and verified through web search - NO fake data, NO hallucinated URLs, NO made-up headlines
-- Use web search extensively to find real, current information from various domains before including any signal
-- Search across diverse sources (news sites, press releases, industry publications, official announcements) but verify all information
-- If you cannot verify a URL, date, or headline through web search, DO NOT include that signal
-- CRITICAL: All travel plan and event dates MUST be in the FUTURE relative to run_date - verify all dates are valid and after the run_date
-- For Industry Events: Use web search to find REAL, VERIFIABLE upcoming events - do NOT make up event names or dates
-- For OPM Travel Plans: Create realistic entries that align with the client profile - ensure all dates are valid future dates
-- Travel plan dates should be in the format shown in examples (e.g., "February 21 - 23, 2025") and must be valid calendar dates
-- Event dates should include time for virtual events when available (e.g., "March 8, 2025 (11 AM ET)") and must be valid calendar dates
-- For travel_plans with multiple routes, separate with newline character (\n)
-- For date fields with multiple dates, separate with newline character (\n)
+FINAL REQUIREMENTS:
+- Return up to 8 signals (overall score > 4) - return as many as verified (minimum 0)
+- Return up to 3 OPM Travel Plans - return as many as created (minimum 0)
+- Return up to 3 Industry Events - return as many as verified (minimum 0)
+- All signal dates: YYYY-MM-DD format matching publication dates
+- All numeric values as numbers (not strings)
+- scores_R_O_A as string like "5,5,4"
+- Prioritize verified signals from web search when available
+- Use web search to find real, current information when possible
+- If web search unavailable or returns limited results, use verified knowledge but indicate limitations
+- Only include signals you can reasonably verify - prefer fewer verified signals over more unverified ones
+- CRITICAL: All travel plan and event dates MUST be in the FUTURE (after run_date) and valid
+- For Industry Events: Use web search when available to find verified events - return fewer if unable to verify
+- For OPM Travel Plans: Create realistic entries aligned with client profile - ensure dates are valid future dates
+- Travel plan dates: "Month DD - DD, YYYY" format, valid calendar dates
+- Event dates: Include time for virtual events when available
+- For travel_plans with multiple routes, separate with newline character (\\n)
+- For date fields with multiple dates, separate with newline character (\\n)
 - Verify all dates are valid (correct number of days in month, valid month names, etc.)
-${updated_content ? `- IMPORTANT: Consider the updated_content field when generating signals - it contains additional context that should influence signal selection and scoring\n` : ''}
+${updated_content ? `- IMPORTANT: Consider updated_content when generating signals - it contains additional context that should influence signal selection and scoring\n` : ''}
 
 REMEMBER: Your response must be ONLY valid JSON starting with { and ending with }. No other text whatsoever.
 `;

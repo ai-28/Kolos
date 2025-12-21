@@ -16,330 +16,135 @@ export async function POST(req) {
       );
     }
 
+    // Ensure profile is always defined and safe
+    const safeProfile = profile || {};
+
     const prompt = `
-        
-CRITICAL OUTPUT REQUIREMENT FOR GPT-5.2: 
-You MUST return ONLY valid JSON. No text, no explanations, no markdown, no code blocks. 
-- Start your response with { and end with }
-- Return valid JSON even if you cannot find all items - return as many verified items as possible
-- Return empty arrays ONLY if zero items can be verified at all
-- NEVER return error messages, "I'm unable" text, or apologies
-- The JSON must be parseable by JSON.parse() without any preprocessing
-- Ensure all strings are properly escaped
-- Ensure all dates are valid and in correct format
+PRECONDITIONS:
+- Client profile is provided below (guaranteed to exist)
+- Web search tool is available for use
+- You must return valid JSON regardless of data availability
 
-ROLE
+CRITICAL OUTPUT REQUIREMENT: 
+Return ONLY valid JSON. Start with {, end with }. No markdown, no code blocks, no explanations.
+- If you cannot find all items, return as many verified items as possible (minimum 0)
+- Return empty arrays if zero items can be verified
+- NEVER return error messages or apologies
+- JSON must be parseable without preprocessing
 
-You are the Kolos Signals engine for B2B clients.
+ROLE: Kolos Signals engine for B2B clients.
 
-You take:
-- a short client profile
-- a time window (usually "next 7 days" or "next 14 days")
-- optional priority themes or keywords
+GOAL: Find specific events that can become pipeline for this client, not generic news.
 
-You output:
-- 8 high value "signals" that look like the Colaberry example
-- each signal is a row with fields:
-  - date
-  - headline_source
-  - url
-  - signal_type
-  - scores_R_O_A
-  - overall
-  - next_step
-- 3 OPM Travel Plans (other clients' travel plans that might be relevant for networking)
-- 3 Upcoming Industry Events (industry events that match the client's focus areas)
+OUTPUT TARGETS (flexible based on availability):
+- Up to 8 high-value signals (aim for 8, but return as many as you can verify, minimum 0)
+- Up to 3 OPM Travel Plans (aim for 3, but return as many as you can create, minimum 0)
+- Up to 3 Upcoming Industry Events (aim for 3, but return as many as you can verify, minimum 0)
 
-Your goal is to spot specific events that can become pipeline for this client next week, not generic news.
+Each signal includes: date, headline_source, url, signal_type, scores_R_O_A, overall, next_step, decision_maker_role, decision_maker_name, decision_maker_linkedin_url, estimated_target_value_USD
 
-------------------------------------------------
-STEP 1 - BUILD CLIENT PROFILE
-------------------------------------------------
-These following variables are in the profile object.
-- name
-- email
-- role
-- company
-- industries
-The top one to three industries or themes the user is currently focused on.
-- project_size
-The approximate total size or value of the user’s main project or deal (e.g., 50–150 million).
-- raise_amount
-The amount of capital the user aims to raise for their project in the next 6–12 months (range in millions).
-- check_size
-The typical investment amount the user commits per deal (e.g., 5–15 million).
-- active_raise_amount
-Details of any active fundraising the user is doing now, including amount and timeline.
-- goals
-The user’s top one or two business goals for the next 12 months.
-- regions
-The regions or locations the user focuses on for deals (e.g., US, Europe, MENA, specific cities).
-- partner_types
-The types of partners the user wants to meet through Kolos (e.g., co-GPs, LPs, operators, clients, suppliers).
-- constraints_notes
-Any restrictions or requirements to consider when matching partners (e.g., minimum LP ticket size, preferred structure, risk preferences).
-- active_deal
-A brief description (1–2 sentences) of any active deal where an intro this month would help.
-- travel_cities
-Cities the user expects to visit in the next 6–12 months for business, for event or in-person intro planning.
-- strategy_focus
-The investment strategy focus of the user (e.g., VC, growth, buyout, credit).
-- business_stage
-The current business stage of the user's company or target companies (e.g., idea, early revenue, growth, scaling).
-- revenue_range
-The current annual revenue range of the user's business or target businesses.
-- facilitator_clients
-The primary types of clients the user serves or works with (e.g., CEOs, family offices, funds, corporates).
-- deal_type
-The types of deals the user supports or focuses on (e.g., M&A, capital raise, buy side, sell side, equity, debt).
-- deal_size
-The typical deal size range the user works with or targets.
-- ideal_ceo_profile
-The characteristics of the ideal CEO or business owner match for the user (size, situation, industry, etc.).
-- ideal_intro
-The single most valuable introduction the user needs right now.
+CLIENT PROFILE (guaranteed to exist):
+${JSON.stringify(safeProfile, null, 2)}
 
-And this is the client profile.
-${JSON.stringify(profile, null, 2)}
-For the investor or asset manager, strategy_focus, check_size, active_raise_amount are distinctly used than other roles.
-For the entrepreneur or founder, business_stage, revenue_range, project_size, raise_amount,active_raise amount are distinctly used than other roles.
-For the facilitator, facilitator_clients, deal_type, deal_size, ideal_ceo_profile, ideal_intro are distinctly used than other roles.
----------------------------------
-STEP 2 - FIND AND SELECT SIGNALS
----------------------------------
+Role-specific field usage:
+- Investor/Asset Manager: strategy_focus, check_size, active_raise_amount
+- Entrepreneur/Founder: business_stage, revenue_range, project_size, raise_amount, active_raise_amount
+- Facilitator: facilitator_clients, deal_type, deal_size, ideal_ceo_profile, ideal_intro
 
-CRITICAL: You MUST use web search to find REAL, VERIFIABLE signals. Do NOT make up or hallucinate any information.
+SIGNAL GENERATION:
 
-Using the CLIENT_PROFILE:
+Use web search when available to find REAL, VERIFIABLE signals. If web search is unavailable or returns limited results, use your knowledge base but clearly indicate verification status.
 
-1) Use web search to find recent news and events that match the client's regions, sectors, and triggers.
-   - Search for specific companies, projects, announcements, layoffs, funding rounds, regulatory changes, etc.
-   - Search across various domains and sources to find diverse signals (news sites, press releases, official announcements, industry publications, etc.)
-   - Only use information from sources you can verify through web search.
-   - Every signal MUST have a real, verifiable URL that you found through web search and can access.
-   - Perform multiple targeted searches to find diverse, high-quality signals from various sources.
-   - Cross-verify critical information (dates, company names, numbers) by checking multiple search results when possible.
-   - Prefer reputable sources but include signals from any domain if the information is verifiable and relevant.
+1) Use web search to find recent news and events matching client's regions, sectors, and triggers:
+   - Search for companies, projects, announcements, layoffs, funding rounds, regulatory changes
+   - Search diverse sources: news sites, press releases, official announcements, industry publications
+   - Verify information through web search when possible
+   - Every signal should have a verifiable URL when available
+   - Cross-verify critical information (dates, company names, numbers) when possible
+   - Prefer reputable sources but include any verifiable and relevant information
    
-2) Only keep items that are directly useful to create conversations or deals for this client.  
-   - For ${profile.company || 'the client'}: things like mass layoffs, new data center build, grid expansion, utility digitalization, veteran hiring programs, workforce boards initiatives.  
+2) Keep items directly useful for creating conversations or deals:
+   - For ${safeProfile.company || 'the client'}: mass layoffs, new data center builds, grid expansion, utility digitalization, veteran hiring programs, workforce boards initiatives
    
 3) Ignore:
-   - Macro opinion pieces with no named company or project.
-   - Very small local stories with no enterprise angle.
-   - Items older than the recency window unless they are still clearly actionable.
-   - ANY information you cannot verify through web search
-   - Fake link URL or content
+   - Macro opinion pieces with no named company or project
+   - Very small local stories with no enterprise angle
+   - Items older than recency window unless still actionable
+   - Information you cannot verify (when web search is available)
 
-4) For each signal you find:
-   - Verify the URL is real and accessible through web search - click through or verify the link works
-   - Confirm the date is accurate and matches the actual publication date from the source
-   - Ensure the headline matches actual news content from the source page
-   - Double-check company names, numbers, and facts against search results
-   - If information seems questionable, perform additional searches to verify before including it
-   - Only include signals where you can confirm the URL, date, and headline are all accurate from your web search
+4) For each signal:
+   - Verify URL is real and accessible (when web search available)
+   - Confirm date matches publication date from source
+   - Ensure headline matches actual news content
+   - Double-check company names, numbers, and facts
+   - Only include signals where you can reasonably verify URL, date, and headline
 
-Aim for 8~10 strong actual valid signals that you found through web search.
+Target: 8-10 strong verified signals. Return as many as you can verify (minimum 0). Quality over quantity.
 
------------------------------------
-STEP 3 - SCORE R, O, A FOR EACH ROW
------------------------------------
+SCORING (R,O,A - each 1,3,5):
+R (Relevance): 5=Direct ICP+region+trigger hit, 3=Related, 1=Background
+O (Opportunity): 5=Act within days, 3=Act within weeks, 1=Long-term/stale
+A (Actionability): 5=Clear next step, 3=Needs shaping, 1=No obvious action
+Format: scores_R_O_A as "R,O,A" string, overall = rounded average
 
-For each selected item, decide:
+SIGNAL FIELDS:
+- date: YYYY-MM-DD format (publication date from source)
+- headline_source: One line combining headline + context (Colaberry style)
+- url: Real, accessible URL verified through web search (when available)
+- signal_type: funding, event, regulation, partner, trend, or opportunity
+- scores_R_O_A: "R,O,A" string (e.g., "5,5,4")
+- overall: Number 1-5 (rounded average)
+- next_step: Concrete action (who, what, timeframe) - avoid "monitor" or "stay in touch"
+- decision_maker_role: Key roles (e.g., "CEO, CFO, CTO, HR Director") or "Executive Leadership"
+- decision_maker_name: Full name(s) or "TBD" if not found
+- decision_maker_linkedin_url: LinkedIn URL or "N/A" if not found
+- estimated_target_value_USD: Currency string (e.g., "$25,000,000") or "N/A"
 
-R - Strategic Relevance (1, 3, 5)  
-- 5: Direct hit on ICP + region + trigger. Clear fit with client offers.  
-- 3: Related to target sector or region but not perfect fit.  
-- 1: Mostly background or far from core focus.
+OPM TRAVEL PLANS:
 
-O - Opportunity Window (1, 3, 5)  
-- 5: We should act within days (fresh layoffs, new project approval, hot news).  
-- 3: Action useful within weeks (early planning, non urgent expansion).  
-- 1: Very long term or already “stale”.
+CRITICAL: All travel plan dates MUST be in the FUTURE and VALID (after run_date).
 
-A - Actionability (1, 3, 5)  
-- 5: Clear next step, obvious contact type, we know what to offer.  
-- 3: Some angle exists but needs work to shape the offer.  
-- 1: No obvious action from our side.
+Generate up to 3 OPM Travel Plans based on client profile. These represent other clients in Kolos network with upcoming travel relevant for networking. Return as many as you can create (minimum 0).
 
-Then:
+For each travel plan:
+- customer: Name/initials (e.g., "Vit Goncharuk/AI", "Zoe Zhao/Re", "Hans Hammer")
+- opm_number: "OPM" + 2-digit number (50-99 range)
+- travel_plans: Route(s) separated by \\n if multiple
+- date: Future date range(s) after run_date, separated by \\n if multiple
+- Format: "Month DD - DD, YYYY" (must be valid calendar dates)
 
-- scores_R_O_A = "R,O,A" as a string (for example "5,5,4").  
-- overall = rounded average of R, O, A to the nearest integer (1–5).
+Focus on: In-person networking, regional alignment, industry events, strategic partnerships
 
-------------------------------------
-STEP 4 - FILL THE ROWS LIKE EXAMPLE
-------------------------------------
+INDUSTRY EVENTS:
 
-For each valid signal create one row with these definitions:
+CRITICAL: All event dates MUST be in the FUTURE and VALID (after run_date).
 
-- date:  
-  - Event or publication date in client time zone (for Kolos use CT).  
+Use web search when available to find REAL, VERIFIABLE upcoming industry events. If web search returns limited results, return as many verified events as possible (minimum 0).
 
-- headline_source:  
-  - One line.  
-  - Combine short headline + short context phrase.  
-  - Example (Colaberry):  
-    - "Mass layoff wave hits ~1,300 Texans across metros (incl. DFW) - fresh WARN flow for reskilling"  
+Generate up to 3 Upcoming Industry Events matching client's industries, regions, and business goals. Return fewer if you cannot verify 3 real events - do not fabricate.
 
-- url:  
-  - Direct link to the original article or event page that you found through web search.
-  - It must be a real, accessible URL that you verified through web search.
-  - Do NOT make up URLs or use placeholder links.
+For each event:
+- event_name: Full event name from actual event listings (when verified)
+- industry: Category with emoji (e.g., "💼 Finance & Private Equity", "🏗 Real Estate & Infrastructure", "⚡ Renewable Energy")
+- location: "Virtual" or "City, State"
+- event_date: Future date after run_date, include time if virtual
+- Format: "Month DD, YYYY" or "Month DD - DD, YYYY" with optional time (e.g., "March 8, 2025 (11 AM ET)")
 
-- signal_type:  
-  - Choose one of: funding, event, regulation, partner, trend, opportunity.  
-  - Be consistent within one report.
+Focus on: Real verified events, matching primary industries, in client's regions (or virtual), providing networking/learning opportunities
 
-- scores_R_O_A:  
-  - String "R,O,A" such as "5,4,5" based on the rules above.
+Return as many verified events as possible (minimum 0). Quality over quantity.
 
-- overall:  
-  - Single number 1–5, rounded average of R,O,A.
+OUTPUT FORMAT:
 
-- next_step:  
-  - Very concrete action to take this week or next week.  
-  - Include who to approach and what to propose.  
-  - Use Colaberry style:  
-    - Pull latest TWC WARN list; offer 2–4 week AI/Data reskill cohorts to affected employers + boards; align WIOA funding paths.  
-    - Request 20 min intro; propose AI ready workforce pilots for grid build; set quarterly reporting cadence.  
-
-Next_step should always answer:
-- who we talk to  
-- what we offer  
-- how it ties to the news item  
-- ideal time frame (this week / this month).
-
-Avoid vague text like "monitor" or "stay in touch".
-
-- decision_maker_role:
-  - The role/title of the key decision maker at the company or organization mentioned in the signal (e.g., "CEO", "CFO", "CTO", "HR Director", "VP of Operations").
-  - If multiple roles are relevant, list them separated by commas (e.g., "CEO, CFO, CTO, HR Director").
-  - If no specific decision maker can be identified, use a general role like "Executive Leadership" or "Management Team".
-  - Use web search to find actual decision makers when possible.
-
-- decision_maker_name:
-  - The full name of the key decision maker (e.g., "John Doe", "Jane Smith").
-  - If multiple decision makers are relevant, list them separated by commas.
-  - If no specific name can be found through web search, use "TBD" or leave empty.
-  - Prioritize finding real, verifiable names through web search.
-
-- decision_maker_linkedin_url:
-  - The LinkedIn profile URL of the decision maker (e.g., "https://www.linkedin.com/in/john-doe-1234567890/").
-  - Use web search to find actual LinkedIn profiles when possible.
-  - If no LinkedIn profile can be found, leave empty or use "N/A".
-  - Only include URLs that you can verify through web search.
-
-- estimated_target_value_USD:
-  - The estimated monetary value or deal size associated with this signal opportunity in USD.
-  - Format: Currency string with dollar sign and commas (e.g., "$25,000,000", "$5,000,000", "$100,000").
-  - This should represent the potential deal value, contract size, investment amount, or revenue opportunity.
-  - Use web search to find actual funding amounts, contract values, or deal sizes when available.
-  - If no specific value can be determined, estimate based on company size, industry standards, or project scope.
-  - If no reasonable estimate can be made, leave empty or use "N/A".
-
-------------------------------------
-STEP 5 - GENERATE OPM TRAVEL PLANS
-------------------------------------
-
-CRITICAL: All travel plan dates MUST be in the FUTURE and VALID. Use the current date (run_date) as reference - all dates must be AFTER the run_date.
-
-Generate 3 OPM Travel Plans based on the client profile. These should represent other clients or contacts in the Kolos network who have upcoming travel that might be relevant for networking or in-person introductions.
-
-For each travel plan, include:
-- customer: 
-  - Customer name or initials (e.g., "Vit Goncharuk/AI", "Zoe Zhao/Re", "Hans Hammer")
-  - Use realistic names that fit the client's industry and regions
-- opm_number:
-  - OPM cohort number (e.g., "OPM62", "OPM55", "OPM53")
-  - Format: "OPM" followed by 2-digit number (50-99 range)
-- travel_plans:
-  - Travel route description (e.g., "Washington → Miami", "New York City → Barcelona/YPO Edge", "Germany → New York City")
-  - Can include multiple routes per customer (separate with newline character \n)
-  - Should align with client's regions, industries, or partner_types when possible
-- date:
-  - Travel date range (e.g., "February 21 - 23, 2025", "February 18 - 25, 2025")
-  - MUST be future dates - all dates must be AFTER the run_date
-  - Use dates within the next 6-12 months from run_date
-  - Format: "Month DD - DD, YYYY" or "Month DD - Month DD, YYYY" for multi-month spans
-  - If multiple date ranges, separate with newline character (\n)
-  - Verify dates are valid (e.g., February has 28/29 days, months have correct number of days)
-
-Focus on travel that could enable:
-- In-person networking opportunities
-- Regional alignment with client's focus areas
-- Industry event attendance
-- Strategic partnership meetings
-
-------------------------------------
-STEP 6 - GENERATE UPCOMING INDUSTRY EVENTS
-------------------------------------
-
-CRITICAL: All event dates MUST be in the FUTURE and VALID. Use the current date (run_date) as reference - all dates must be AFTER the run_date.
-
-Use web search to find REAL, VERIFIABLE upcoming industry events. Search for actual conferences, summits, webinars, and industry gatherings that are scheduled for the future.
-
-Generate 3 Upcoming Industry Events that match the client's industries, regions, and business goals.
-
-For each event, include:
-- event_name:
-  - Full event name from actual event listings found through web search
-  - Should be a real, verifiable event that you found through web search
-  - Must match the client's industry focus
-- industry:
-  - Industry category with emoji badge. Use one of:
-    - "💼 Finance & Private Equity" (for finance, PE, investment events)
-    - "🏗 Real Estate & Infrastructure" (for real estate, construction, infrastructure events)
-    - "⚡ Renewable Energy" (for energy, renewables, sustainability events)
-    - Or other relevant industry categories based on client profile
-- location:
-  - Event location (e.g., "Virtual", "Dallas, TX", "Houston, TX", "New York, NY")
-  - Use "Virtual" for online events
-  - Use city and state format for in-person events
-  - Should align with client's regions when possible
-  - Must match the actual event location from web search
-- event_date:
-  - Event date or date range from the actual event listing
-  - MUST be future dates - all dates must be AFTER the run_date
-  - Include time if available (especially for virtual events)
-  - Use dates within the next 6-12 months from run_date
-  - Format: "Month DD, YYYY" or "Month DD - DD, YYYY" with optional time (e.g., "March 8, 2025 (11 AM ET)")
-  - Verify dates are valid (e.g., February has 28/29 days, months have correct number of days)
-  - Only use dates from verified event listings found through web search
-
-Focus on events that:
-- Are REAL events found through web search - verify the event exists and has the stated date
-- Match the client's primary industries
-- Are in regions the client focuses on (or virtual)
-- Could provide networking, learning, or business development opportunities
-- Are actual industry events (conferences, summits, meetups, webinars) with verifiable information
-
-If you cannot find 3 real, verifiable future events through web search, return fewer events rather than making them up.
-
------------------
-STEP 7 - OUTPUT FORMAT (CRITICAL FOR GPT-5.2)
------------------
-
-YOUR ENTIRE RESPONSE MUST BE VALID JSON ONLY. NO MARKDOWN, NO CODE BLOCKS, NO EXPLANATIONS, NO TEXT BEFORE OR AFTER.
+Return ONLY valid JSON. Start with {, end with }. No markdown, no code blocks, no text before/after.
 
 REQUIREMENTS:
-1. Start your response with { (opening brace)
-2. End your response with } (closing brace)
-3. All JSON must be properly formatted and parseable
-4. All strings must be properly escaped
-5. All dates must be valid and in correct format
-6. If you cannot find enough items, return as many verified items as possible
-7. Return empty arrays ONLY if zero items can be verified
+- Valid JSON only (parseable without preprocessing)
+- Return as many verified items as possible (arrays can be empty if no items verified)
+- All dates must be valid and in correct format
+- All strings properly escaped
 
-ABSOLUTELY FORBIDDEN:
-- NO text before the opening {
-- NO text after the closing }
-- NO markdown code blocks (backticks with json or just backticks)
-- NO explanations or apologies
-- NO "I'm unable" messages
-- NO error messages
-
-If you cannot complete the task, return a valid JSON object with empty arrays:
+If no items can be verified, return this structure with empty arrays:
 {
   "client_name": "<CLIENT_NAME>",
   "run_date": "<YYYY-MM-DD>",
@@ -349,10 +154,7 @@ If you cannot complete the task, return a valid JSON object with empty arrays:
   "upcoming_industry_events": []
 }
 
-DO NOT return any text that is not valid JSON. DO NOT explain why you cannot complete the task. ONLY return the JSON structure above, even if arrays are empty.
-
 Required structure:
-
 {
   "client_name": "<CLIENT_NAME>",
   "run_date": "<YYYY-MM-DD>",
@@ -376,8 +178,8 @@ Required structure:
     {
       "customer": "Vit Goncharuk/AI",
       "opm_number": "OPM62",
-      "travel_plans": "Washington → Miami\nWashington → Finland",
-      "date": "February 21 - 23, 2025\nFebruary 27 - March 5, 2025"
+      "travel_plans": "Washington → Miami\\nWashington → Finland",
+      "date": "February 21 - 23, 2025\\nFebruary 27 - March 5, 2025"
     }
   ],
   "upcoming_industry_events": [
@@ -390,24 +192,24 @@ Required structure:
   ]
 }
 
-FINAL OUTPUT REQUIREMENTS (GPT-5.2):
-- Return 8 top high (overall score is more than 4) signals in the signals array
-- Return exactly 3 OPM Travel Plans in the opm_travel_plans array
-- Return exactly 3 Upcoming Industry Events in the upcoming_industry_events array
-- All signal dates must be strings in YYYY-MM-DD format and must match actual publication dates from web search
-- All numeric values (time_window_days, overall) must be numbers, not strings
-- scores_R_O_A must be a string like "5,5,4"
-- Every signal must be valid and verified through web search - NO fake data, NO hallucinated URLs, NO made-up headlines
-- Use web search extensively to find real, current information from various domains before including any signal
-- Search across diverse sources (news sites, press releases, industry publications, official announcements) but verify all information
-- If you cannot verify a URL, date, or headline through web search, DO NOT include that signal
-- CRITICAL: All travel plan and event dates MUST be in the FUTURE relative to run_date - verify all dates are valid and after the run_date
-- For Industry Events: Use web search to find REAL, VERIFIABLE upcoming events - do NOT make up event names or dates
-- For OPM Travel Plans: Create realistic entries that align with the client profile - ensure all dates are valid future dates
-- Travel plan dates should be in the format shown in examples (e.g., "February 21 - 23, 2025") and must be valid calendar dates
-- Event dates should include time for virtual events when available (e.g., "March 8, 2025 (11 AM ET)") and must be valid calendar dates
-- For travel_plans with multiple routes, separate with newline character (\n)
-- For date fields with multiple dates, separate with newline character (\n)
+FINAL REQUIREMENTS:
+- Return up to 8 signals (overall score > 4) - return as many as verified (minimum 0)
+- Return up to 3 OPM Travel Plans - return as many as created (minimum 0)
+- Return up to 3 Industry Events - return as many as verified (minimum 0)
+- All signal dates: YYYY-MM-DD format matching publication dates
+- All numeric values as numbers (not strings)
+- scores_R_O_A as string like "5,5,4"
+- Prioritize verified signals from web search when available
+- Use web search to find real, current information when possible
+- If web search unavailable or returns limited results, use verified knowledge but indicate limitations
+- Only include signals you can reasonably verify - prefer fewer verified signals over more unverified ones
+- CRITICAL: All travel plan and event dates MUST be in the FUTURE (after run_date) and valid
+- For Industry Events: Use web search when available to find verified events - return fewer if unable to verify
+- For OPM Travel Plans: Create realistic entries aligned with client profile - ensure dates are valid future dates
+- Travel plan dates: "Month DD - DD, YYYY" format, valid calendar dates
+- Event dates: Include time for virtual events when available
+- For travel_plans with multiple routes, separate with newline character (\\n)
+- For date fields with multiple dates, separate with newline character (\\n)
 - Verify all dates are valid (correct number of days in month, valid month names, etc.)
 
 REMEMBER: Your response must be ONLY valid JSON starting with { and ending with }. No other text whatsoever.
@@ -415,19 +217,10 @@ REMEMBER: Your response must be ONLY valid JSON starting with { and ending with 
 
     // Use Responses API with web search tool
     const completion = await client.responses.create({
-      model: "gpt-5.2",  // Try gpt-5.1 first, fallback to "gpt-4o" if unavailable
-      input: prompt,  // Responses API uses input (string) instead of messages
+      model: "gpt-5.2",
+      input: prompt,
       tools: [
         { type: "web_search" }
-        // { 
-        //   type: "web_search",
-        //   filters: {
-        //     allowed_domains: [
-        //       "reuters.com", "bloomberg.com", "techcrunch.com",
-        //       "wsj.com", "forbes.com", "crunchbase.com"
-        //     ]
-        //   }
-        // }
       ],
       temperature: 0.3
     });
@@ -449,15 +242,14 @@ REMEMBER: Your response must be ONLY valid JSON starting with { and ending with 
       } else {
         let jsonString = responseContent.trim();
 
-        // Remove markdown code blocks if present (even though we asked for pure JSON)
+        // Remove markdown code blocks if present (gpt-5.2 might add them)
         if (jsonString.startsWith('```json')) {
-          jsonString = jsonString.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+          jsonString = jsonString.replace(/^```json\s*/i, '').replace(/\s*```\s*$/i, '');
         } else if (jsonString.startsWith('```')) {
-          jsonString = jsonString.replace(/^```\s*/, '').replace(/\s*```$/, '');
+          jsonString = jsonString.replace(/^```\s*/i, '').replace(/\s*```\s*$/i, '');
         }
 
-        // Try to extract JSON if there's text before/after it
-        // Look for the first { and last }
+        // Extract JSON object (find first { and last })
         const firstBrace = jsonString.indexOf('{');
         const lastBrace = jsonString.lastIndexOf('}');
 
@@ -465,114 +257,59 @@ REMEMBER: Your response must be ONLY valid JSON starting with { and ending with 
           jsonString = jsonString.substring(firstBrace, lastBrace + 1);
         }
 
-        // Remove any leading/trailing non-JSON text
         jsonString = jsonString.trim();
 
+        // Log before parsing for debugging
+        console.log(`📝 Extracted JSON length: ${jsonString.length}`);
+        console.log(`📝 JSON starts with: ${jsonString.substring(0, 50)}`);
+        console.log(`📝 JSON ends with: ${jsonString.substring(Math.max(0, jsonString.length - 50))}`);
+
         parsedData = JSON.parse(jsonString);
+
+        // Log parsed structure
+        console.log(`📝 Parsed data keys: ${Object.keys(parsedData || {}).join(', ')}`);
+        console.log(`📝 Signals count: ${parsedData.signals?.length || 0}`);
       }
     } catch (parseError) {
-      console.error("Error parsing OpenAI JSON response:", parseError);
-      console.error("Raw response content (first 500 chars):", responseContent?.substring(0, 500));
-
-      // Try to provide a more helpful error message
-      let errorMessage = parseError.message;
-      if (responseContent && typeof responseContent === 'string') {
-        if (responseContent.includes("I'm unable") || responseContent.includes("I cannot")) {
-          errorMessage = "AI returned an error message instead of JSON. The AI may be unable to complete the request. Please try again or check the client profile data.";
-        } else if (!responseContent.includes('{')) {
-          errorMessage = "AI response does not contain valid JSON. The response may be empty or in an unexpected format.";
-        }
-      }
-
-      // As a last resort, try to return empty structure so the API doesn't completely fail
-      console.warn("⚠️ Failed to parse JSON, returning empty structure as fallback");
-      parsedData = {
-        client_name: profile.name || "Unknown",
-        run_date: new Date().toISOString().split('T')[0],
-        time_window_days: 7,
-        signals: [],
-        opm_travel_plans: [],
-        upcoming_industry_events: []
-      };
-
-      // Still log the error for debugging
-      console.error("Parse error details:", {
-        message: errorMessage,
-        preview: responseContent?.substring(0, 200) || "No response content"
-      });
+      console.error("❌ Error parsing JSON response:", parseError);
+      console.error("Response content:", responseContent?.substring(0, 1000));
+      return NextResponse.json(
+        { error: "Failed to parse OpenAI response", details: parseError.message },
+        { status: 500 }
+      );
     }
 
-    // Import Google Sheets utility
-    const { appendToSheet, SHEETS, updateOrCreateUserWithProfileId } = await import('@/app/lib/googleSheets');
-
-    // Generate a profile_id (using timestamp for uniqueness)
-    const profileId = `profile_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    // 1. Save Profile to Profiles table
-    // Convert travel plans and events arrays to JSON strings for storage
-    const opmTravelPlansJson = parsedData.opm_travel_plans && Array.isArray(parsedData.opm_travel_plans)
-      ? JSON.stringify(parsedData.opm_travel_plans)
-      : '';
-    const upcomingEventsJson = parsedData.upcoming_industry_events && Array.isArray(parsedData.upcoming_industry_events)
-      ? JSON.stringify(parsedData.upcoming_industry_events)
-      : '';
-
-    const profileRow = [
-      profileId, // id (first column)
-      profile.name || '',
-      profile.email || '',
-      profile.role || '',
-      profile.company || '',
-      profile.industries || '',
-      profile.project_size || '',
-      profile.raise_amount || '',
-      profile.check_size || '',
-      profile.active_raise_amount || '',
-      profile.goals || '',
-      profile.regions || '',
-      profile.partner_types || '',
-      profile.constraints_notes || '',
-      profile.active_deal || '',
-      profile.travel_cities || '',
-      profile.strategy_focus || '',
-      profile.business_stage || '',
-      profile.revenue_range || '',
-      profile.facilitator_clients || '',
-      profile.deal_type || '',
-      profile.deal_size || '',
-      profile.ideal_ceo_profile || '',
-      profile.ideal_intro || '',
-      profile.linkedin_url || '',
-      opmTravelPlansJson, // opm_travel_plans (JSON string)
-      upcomingEventsJson, // upcoming_industry_events (JSON string)
-    ];
-
-    try {
-      await appendToSheet(SHEETS.PROFILES, profileRow);
-      console.log('✅ Profile saved to Google Sheets');
-    } catch (error) {
-      console.error('❌ Error saving profile to Google Sheets:', error);
-      console.error('Profile data that failed to save:', profileRow);
-      // Continue even if profile save fails, but log the error
+    // Validate response structure
+    if (!parsedData || typeof parsedData !== 'object') {
+      return NextResponse.json(
+        { error: "Invalid response structure from OpenAI" },
+        { status: 500 }
+      );
     }
 
-    // 1.5. Update or create user entry with profile_id
-    if (profile.email) {
-      try {
-        await updateOrCreateUserWithProfileId(profile.email, profileId);
-        console.log('✅ User sheet updated with profile_id');
-      } catch (error) {
-        console.error('❌ Error updating user sheet with profile_id:', error);
-        // Continue even if user update fails, but log the error
-      }
+    // Ensure arrays exist (can be empty)
+    const signals = Array.isArray(parsedData.signals) ? parsedData.signals : [];
+    const opmTravelPlans = Array.isArray(parsedData.opm_travel_plans) ? parsedData.opm_travel_plans : [];
+    const upcomingIndustryEvents = Array.isArray(parsedData.upcoming_industry_events) ? parsedData.upcoming_industry_events : [];
+
+    console.log(`✅ Parsed ${signals.length} signals, ${opmTravelPlans.length} travel plans, ${upcomingIndustryEvents.length} events`);
+
+    // Save signals to Google Sheets
+    const { getSheetData, findRowsByProfileId, SHEETS, appendToSheet } = await import("@/app/lib/googleSheets");
+
+    const profileId = profile.id || profile.ID || profile.profile_id;
+    if (!profileId) {
+      return NextResponse.json(
+        { error: "Profile ID not found in profile data" },
+        { status: 400 }
+      );
     }
 
-    // 2. Save Signals to Signals table IMMEDIATELY (no Apollo delay)
-    if (parsedData.signals && Array.isArray(parsedData.signals)) {
+    // Save signals
+    if (signals.length > 0) {
       let signalsSaved = 0;
 
-      // Save all signals immediately without Apollo enrichment
-      for (const signal of parsedData.signals) {
+      for (const signal of signals) {
         const signalRow = [
           profileId,
           signal.date || '',
@@ -584,7 +321,7 @@ REMEMBER: Your response must be ONLY valid JSON starting with { and ending with 
           signal.next_step || '',
           signal.decision_maker_role || '',
           signal.decision_maker_name || '',
-          signal.decision_maker_linkedin_url || '', // Original from AI
+          signal.decision_maker_linkedin_url || '',
           signal.estimated_target_value_USD || '',
         ];
 
@@ -593,19 +330,16 @@ REMEMBER: Your response must be ONLY valid JSON starting with { and ending with 
           signalsSaved++;
         } catch (error) {
           console.error('❌ Error saving signal to Google Sheets:', error);
-          console.error('Signal data that failed to save:', signalRow);
         }
       }
       console.log(`✅ ${signalsSaved} signals saved to Google Sheets`);
 
-      // Enrich with Apollo in background and update signals automatically (non-blocking)
-      if (process.env.APOLLO_API_KEY && parsedData.signals.length > 0) {
-        // Don't await - let it run in background
-        enrichSignalsBatch(parsedData.signals).then(async (enrichedSignals) => {
+      // Enrich with Apollo in background
+      if (process.env.APOLLO_API_KEY && signals.length > 0) {
+        enrichSignalsBatch(signals).then(async (enrichedSignals) => {
           const enrichedCount = enrichedSignals.filter(s => s.apollo_enriched).length;
           console.log(`✅ Background Apollo enrichment completed: ${enrichedCount}/${enrichedSignals.length} signals enriched`);
 
-          // Automatically update signals with enriched LinkedIn URLs
           let updatedCount = 0;
           for (const enrichedSignal of enrichedSignals) {
             if (enrichedSignal.apollo_enriched && enrichedSignal.decision_maker_linkedin_url) {
@@ -613,7 +347,7 @@ REMEMBER: Your response must be ONLY valid JSON starting with { and ending with 
                 const result = await updateSignalLinkedInUrl(
                   profileId,
                   enrichedSignal.headline_source || '',
-                  enrichedSignal.date || '',
+                  enrichedSignal.signal_type || '',
                   enrichedSignal.decision_maker_linkedin_url
                 );
                 if (result.success) {
@@ -627,32 +361,24 @@ REMEMBER: Your response must be ONLY valid JSON starting with { and ending with 
           console.log(`✅ Updated ${updatedCount} signals with enriched LinkedIn URLs`);
         }).catch(error => {
           console.error('❌ Background Apollo enrichment failed:', error);
-          // Fail silently - user already has their signals
         });
       }
     }
 
-    // Check if we're using fallback empty data
-    const isFallback = parsedData.signals?.length === 0 &&
-      parsedData.opm_travel_plans?.length === 0 &&
-      parsedData.upcoming_industry_events?.length === 0 &&
-      responseContent && typeof responseContent === 'string' &&
-      (responseContent.includes("I'm unable") || responseContent.includes("I cannot") || !responseContent.includes('"signals"'));
-
-    // Return the recommendations
     return NextResponse.json({
-      status: isFallback ? "partial_success" : "success",
-      recommendations: parsedData,
-      profile_id: profileId,
-      warning: isFallback ? "AI response parsing had issues. Returning empty data structure. Please check the logs for details." : undefined,
+      success: true,
+      signals: signals,
+      opm_travel_plans: opmTravelPlans,
+      upcoming_industry_events: upcomingIndustryEvents,
+      client_name: parsedData.client_name,
+      run_date: parsedData.run_date,
+      time_window_days: parsedData.time_window_days,
     });
+
   } catch (error) {
-    console.error("Error generating recommendations:", error);
+    console.error("❌ Error in recommendations API:", error);
     return NextResponse.json(
-      {
-        error: "Failed to generate recommendations",
-        details: error.message,
-      },
+      { error: "Failed to generate recommendations", details: error.message },
       { status: 500 }
     );
   }
