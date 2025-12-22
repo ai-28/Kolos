@@ -390,6 +390,13 @@ async function searchPersonInApollo({ name, companyName, jobTitle }) {
       return result;
     }
 
+    // No contacts found
+    console.log(`⚠️ Apollo returned 0 contacts for search:`, {
+      name: name || 'null',
+      companyName: companyName || 'null',
+      jobTitle: jobTitle || 'null',
+    });
+
     // Cache null result to avoid repeated failed searches
     cache.set(cacheKey, {
       data: null,
@@ -524,15 +531,19 @@ export async function enrichSignalWithApollo(signal) {
   if (apolloSearchRole) {
     // Simplify complex roles for better Apollo matching
     // e.g., "Independent Directors / Strategic Committee Members" -> "Board Member" or "Director"
-    if (apolloSearchRole.toLowerCase().includes('director') || apolloSearchRole.toLowerCase().includes('committee')) {
+    const roleLower = apolloSearchRole.toLowerCase();
+    if (roleLower.includes('director') || roleLower.includes('committee')) {
       apolloSearchRole = 'Board Member';
-    } else if (apolloSearchRole.toLowerCase().includes('ceo')) {
+    } else if (roleLower.includes('chair')) {
+      // Handle "Chair", "Chairman", "Chair of the Board", "Independent Chair", etc.
+      apolloSearchRole = 'Chair';
+    } else if (roleLower.includes('ceo')) {
       apolloSearchRole = 'CEO';
-    } else if (apolloSearchRole.toLowerCase().includes('cfo')) {
+    } else if (roleLower.includes('cfo')) {
       apolloSearchRole = 'CFO';
-    } else if (apolloSearchRole.toLowerCase().includes('cto')) {
+    } else if (roleLower.includes('cto')) {
       apolloSearchRole = 'CTO';
-    } else if (apolloSearchRole.toLowerCase().includes('executive')) {
+    } else if (roleLower.includes('executive')) {
       apolloSearchRole = 'Executive';
     }
     // Keep first 50 chars if still too long
@@ -553,11 +564,23 @@ export async function enrichSignalWithApollo(signal) {
     // Try each name individually
     for (const name of names) {
       console.log(`🔍 Searching Apollo for: ${name} at ${companyName}${apolloSearchRole ? ` (${apolloSearchRole})` : ''}`);
-      const apolloData = await searchPersonInApollo({
+
+      // First try: with role filter
+      let apolloData = await searchPersonInApollo({
         name: name,
         companyName: companyName,
         jobTitle: apolloSearchRole || null,
       });
+
+      // Fallback: if not found with role, try without role filter
+      if (!apolloData && apolloSearchRole) {
+        console.log(`⚠️ Not found with role filter "${apolloSearchRole}", trying without role...`);
+        apolloData = await searchPersonInApollo({
+          name: name,
+          companyName: companyName,
+          jobTitle: null,
+        });
+      }
 
       if (apolloData) {
         console.log(`✅ Found decision maker in Apollo:`, {
