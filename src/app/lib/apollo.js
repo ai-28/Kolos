@@ -411,16 +411,27 @@ export async function enrichSignalWithApollo(signal) {
   });
 
   // Extract both company name and role in ONE LLM call (best practice)
-  console.log('🤖 Extracting company name and role with single GPT-5.2 call...');
+  // This happens BEFORE Apollo search to get necessary data
+  console.log('🤖 Step 1: Using LLM to extract company name and role BEFORE Apollo search...');
+  console.log('📝 Input data for LLM:', {
+    headline_source: signal.headline_source?.substring(0, 100) || 'N/A',
+    url: signal.url?.substring(0, 100) || 'N/A',
+    next_step: signal.next_step?.substring(0, 100) || 'N/A',
+  });
+
   const llmResult = await extractWithLLM(signal);
+  console.log('📝 LLM extraction result:', {
+    companyName: llmResult.companyName || 'null',
+    role: llmResult.role || 'null',
+  });
 
   // Use LLM results, fall back to pattern matching if needed (skipLLM=true to avoid duplicate calls)
   let companyName = llmResult.companyName;
   if (!companyName) {
-    console.log('📝 LLM did not extract company name, trying pattern matching only...');
+    console.log('⚠️ LLM did not extract company name, trying pattern matching only...');
     companyName = await extractCompanyNameFromSignal(signal, true); // skipLLM=true since we already called it
   }
-  console.log(`📝 Extracted company name: ${companyName || 'null'}`);
+  console.log(`✅ Final extracted company name: ${companyName || 'null'}`);
 
   // Extract decision maker role from signal if not provided
   let decisionMakerRole = signal.decision_maker_role;
@@ -438,15 +449,24 @@ export async function enrichSignalWithApollo(signal) {
     console.log(`📝 Using provided role: ${decisionMakerRole}`);
   }
 
-  // Need at least company name to search
+  // Need at least company name to search Apollo
   if (!companyName) {
-    console.log('⚠️ Cannot search Apollo: company name extraction failed');
+    console.log('❌ Cannot search Apollo: company name extraction failed');
+    console.log('📝 Extraction attempt summary:', {
+      llm_extracted: llmResult.companyName || 'null',
+      pattern_matched: companyName || 'null',
+      headline_source: signal.headline_source?.substring(0, 100) || 'N/A',
+      url: signal.url?.substring(0, 100) || 'N/A',
+      next_step: signal.next_step?.substring(0, 100) || 'N/A',
+    });
     return {
       ...signal,
       apollo_enriched: false,
-      apollo_error: 'Insufficient data for search - need company name',
+      apollo_error: 'Insufficient data for search - need company name. LLM extraction failed to identify company from provided data.',
     };
   }
+
+  console.log('✅ Step 2: Company name extracted successfully, proceeding to Apollo search...');
 
   // If we have a name, search with it
   // If not, search by role and company

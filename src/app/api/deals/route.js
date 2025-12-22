@@ -102,9 +102,15 @@ export async function POST(req) {
         });
 
         // Enrich deal with Apollo (await to get enriched data before saving)
+        // Apollo will use LLM to extract company name and role from deal data first
         let enrichedDeal = deal;
         if (process.env.APOLLO_API_KEY && (deal.deal_name || deal.source || deal.next_step)) {
             console.log(`🔍 Starting Apollo enrichment for deal ${dealId}...`);
+            console.log(`📝 Deal data for extraction:`, {
+                deal_name: deal.deal_name?.substring(0, 100),
+                source: deal.source?.substring(0, 100),
+                next_step: deal.next_step?.substring(0, 100),
+            });
             try {
                 enrichedDeal = await enrichDealWithApollo({
                     deal_name: deal.deal_name || '',
