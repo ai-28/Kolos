@@ -258,20 +258,32 @@ function ClientDashboardContent() {
     try {
       console.log('📝 Creating deal for client:', profileId, 'with data:', dealFormData)
       
+      // Include signal data for Apollo enrichment (company name, decision maker info)
+      const dealPayload = {
+        profile_id: profileId,
+        deal_name: dealFormData.deal_name,
+        target: dealFormData.target,
+        source: dealFormData.source,
+        stage: dealFormData.stage,
+        target_deal_size: dealFormData.target_deal_size,
+        next_step: dealFormData.next_step,
+      };
+
+      // If we have a selected signal, include its data for Apollo to extract company/decision maker info
+      if (selectedSignal) {
+        dealPayload.headline_source = selectedSignal.headline_source || '';  // Signal headline - important for extraction
+        dealPayload.company_name = selectedSignal.company_name || selectedSignal.company || '';
+        dealPayload.decision_maker_name = selectedSignal.decision_maker_name || '';
+        dealPayload.decision_maker_role = selectedSignal.decision_maker_role || '';
+        dealPayload.decision_maker_linkedin_url = selectedSignal.decision_maker_linkedin_url || selectedSignal.linkedin_url || '';
+      }
+
       const response = await fetch('/api/deals', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          profile_id: profileId,
-          deal_name: dealFormData.deal_name,
-          target: dealFormData.target,
-          source: dealFormData.source,
-          stage: dealFormData.stage,
-          target_deal_size: dealFormData.target_deal_size,
-          next_step: dealFormData.next_step,
-        }),
+        body: JSON.stringify(dealPayload),
       })
 
       const data = await response.json()

@@ -1,816 +1,335 @@
-
 import OpenAI from "openai";
 
-const APOLLO_API_KEY = process.env.APOLLO_API_KEY;
-const APOLLO_BASE_URL = 'https://api.apollo.io/v1';
-const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
-
-const RATE_LIMIT_DELAY_MS = 500; // 500ms between requests = ~120 requests/minute
-let lastRequestTime = 0;
-
-// Simple in-memory cache to avoid duplicate API calls
-const cache = new Map();
-const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 /**
- * Rate-limited delay between Apollo API requests
+ * Extract company name, decision maker role, and name from signal data
+ * Uses GPT 5.2 with web search to extract structured information from signal
+ * Extracts ONLY from signal fields: headline_source, next_step, and source (URL)
  */
-async function rateLimit() {
-  const now = Date.now();
-  const timeSinceLastRequest = now - lastRequestTime;
-
-  if (timeSinceLastRequest < RATE_LIMIT_DELAY_MS) {
-    await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY_MS - timeSinceLastRequest));
-  }
-
-  lastRequestTime = Date.now();
-}
-
-/**
- * Generate cache key for Apollo search
- */
-function getCacheKey(name, companyName, jobTitle) {
-  return `${name || ''}|${companyName || ''}|${jobTitle || ''}`.toLowerCase().trim();
-}
-
-/**
- * Extract decision maker role from signal context (next_step, headline)
- * Tries to infer the role from the action described
- * Falls back to LLM extraction if pattern matching fails
- * @param {Object} signal - Signal data
- * @param {boolean} skipLLM - If true, skip LLM extraction and only use pattern matching
- */
-export async function extractDecisionMakerRoleFromSignal(signal, skipLLM = false) {
-  // Strategy 1: Extract from next_step
-  if (signal.next_step) {
-    const nextStep = signal.next_step.toLowerCase();
-
-    // Common role patterns in next_step
-    const rolePatterns = [
-      { pattern: /\b(ceo|chief executive officer)\b/i, role: 'CEO' },
-      { pattern: /\b(cfo|chief financial officer)\b/i, role: 'CFO' },
-      { pattern: /\b(cto|chief technology officer)\b/i, role: 'CTO' },
-      { pattern: /\b(chro|chief human resources officer|hr director|hr head)\b/i, role: 'HR Director' },
-      { pattern: /\b(coo|chief operating officer)\b/i, role: 'COO' },
-      { pattern: /\b(cmo|chief marketing officer)\b/i, role: 'CMO' },
-      { pattern: /\b(vp|vice president|vice-president)\b/i, role: 'VP' },
-      { pattern: /\b(director|director of)\b/i, role: 'Director' },
-      { pattern: /\b(manager|managing director)\b/i, role: 'Manager' },
-      { pattern: /\b(executive|exec)\b/i, role: 'Executive' },
-      { pattern: /\b(founder|co-founder)\b/i, role: 'Founder' },
-      { pattern: /\b(president)\b/i, role: 'President' },
-    ];
-
-    for (const { pattern, role } of rolePatterns) {
-      if (pattern.test(nextStep)) {
-        return role;
-      }
-    }
-  }
-
-  // Strategy 2: Extract from headline_source
-  if (signal.headline_source) {
-    const headline = signal.headline_source.toLowerCase();
-
-    const rolePatterns = [
-      { pattern: /\b(ceo|chief executive officer)\b/i, role: 'CEO' },
-      { pattern: /\b(cfo|chief financial officer)\b/i, role: 'CFO' },
-      { pattern: /\b(cto|chief technology officer)\b/i, role: 'CTO' },
-      { pattern: /\b(chro|chief human resources officer|hr director)\b/i, role: 'HR Director' },
-      { pattern: /\b(coo|chief operating officer)\b/i, role: 'COO' },
-      { pattern: /\b(cmo|chief marketing officer)\b/i, role: 'CMO' },
-      { pattern: /\b(vp|vice president)\b/i, role: 'VP' },
-      { pattern: /\b(director|director of)\b/i, role: 'Director' },
-      { pattern: /\b(executive|exec)\b/i, role: 'Executive' },
-      { pattern: /\b(founder|co-founder)\b/i, role: 'Founder' },
-    ];
-
-    for (const { pattern, role } of rolePatterns) {
-      if (pattern.test(headline)) {
-        return role;
-      }
-    }
-  }
-
-  // Strategy 3: Use LLM if pattern matching failed (unless skipLLM is true)
-  if (skipLLM) {
-    return null;
-  }
-  const llmResult = await extractWithLLM(signal);
-  return llmResult.role || null;
-}
-
-/**
- * Use LLM to extract company name and decision maker role from signal data
- * Analyzes all available context to intelligently determine company and role
- * 
- * @param {Object} signal - Signal object with headline, url, next_step
- * @returns {Promise<Object>} - { companyName: string|null, role: string|null }
- */
-async function extractWithLLM(signal) {
-  if (!openai) {
-    console.log('⚠️ OpenAI client not available, skipping LLM extraction');
-    return { companyName: null, role: null };
-  }
-
-  console.log('🤖 Using LLM with web search to extract company name and role...');
-  try {
-    // Extract domain from URL if available
-    let urlDomain = null;
-    if (signal.url) {
-      try {
-        const url = new URL(signal.url);
-        urlDomain = url.hostname.replace('www.', '');
-      } catch (e) {
-        // URL parsing failed, use as-is
-        urlDomain = signal.url;
-      }
-    }
-
-    const prompt = `Analyze the following business signal information and extract the company name, decision maker role, and decision maker name (if mentioned).
-Use web search if needed to verify or find information from the URL or headline.
-
-Headline: ${signal.headline_source || 'N/A'}
-URL: ${signal.url || 'N/A'}
-URL Domain: ${urlDomain || 'N/A'}
-Next Step: ${signal.next_step || 'N/A'}
-
-Return ONLY a valid JSON object with this exact structure:
-{
-  "companyName": "Company Name or null",
-  "role": "Decision Maker Role (e.g., CEO, CFO, HR Director) or null",
-  "name": "Decision Maker Full Name (e.g., John Smith) or null"
-}
-
-CRITICAL EXTRACTION RULES:
-1. COMPANY NAME EXTRACTION:
-   - Look for company names at the START of the headline (e.g., "NN, Inc. (NNBR) forms..." → extract "NN, Inc.")
-   - If headline contains "Company Name (TICKER)", extract the company name BEFORE the ticker (e.g., "NN, Inc. (NNBR)" → "NN, Inc.")
-   - If the URL is a news site (reuters.com, bloomberg.com, techcrunch.com, thefilingfool.com, etc.), use web search to find the company name mentioned in the article, NOT the news site name
-   - If the URL is the company's own website, extract the company name from the domain
-   - Use web search to verify company names when the headline or URL is unclear
-   - Common patterns: "Company Name announces...", "Company Name (TICKER) forms...", "Company Name hires..."
-   - ALWAYS extract the actual company name, even if it includes "Inc.", "Corp.", "LLC", etc.
-
-2. DECISION MAKER ROLE EXTRACTION:
-   - Look for roles in the headline or next_step (CEO, CFO, CTO, HR Director, Board, Committee, etc.)
-   - If no specific role mentioned, infer from context (e.g., "strategic committee" → "Board Member" or "Executive")
-   - Return null only if absolutely no role can be inferred
-
-3. DECISION MAKER NAME EXTRACTION:
-   - Look for person names in the headline or next_step (e.g., "John Smith", "CEO John Smith", "Smith announced...")
-   - Use web search to find executive names mentioned in the article if the headline references a person
-   - Extract full names when available (first name + last name)
-   - If multiple names are found, return ONLY the PRIMARY or FIRST name (e.g., if "Raynard Benvenuti; Jeri Harman; Thomas Wilson" are found, return "Raynard Benvenuti")
-   - Return a SINGLE name only, not multiple names separated by semicolons or commas
-   - Return null if no name is mentioned or cannot be determined
-
-4. OUTPUT REQUIREMENTS:
-   - Return null ONLY if you cannot determine with confidence even after web search
-   - Be confident in extracting company names from headlines - they are usually clear
-   - Use web search to verify ambiguous cases
-   - Do not include any explanation, only the JSON object`;
-
-    // Use Responses API with web search tool (like recommendations API)
-    const response = await openai.responses.create({
-      model: "gpt-5.1",
-      input: prompt,
-      tools: [
-        { type: "web_search" }
-      ],
-      temperature: 0.3,
-    });
-
-    const content = response.output_text?.trim();
-    if (!content) {
-      console.error('❌ LLM returned empty content');
-      return { companyName: null, role: null };
-    }
-
-    console.log('📝 LLM raw response:', content.substring(0, 500));
-
-    // Remove markdown code blocks if present
-    let jsonContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-
-    // Try to extract JSON if there's extra text
-    const firstBrace = jsonContent.indexOf('{');
-    const lastBrace = jsonContent.lastIndexOf('}');
-    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-      jsonContent = jsonContent.substring(firstBrace, lastBrace + 1);
-    }
-
-    let parsed;
-    try {
-      parsed = JSON.parse(jsonContent);
-    } catch (parseError) {
-      console.error('❌ Failed to parse LLM JSON response:', parseError.message);
-      console.error('📝 JSON content that failed to parse:', jsonContent);
-      return { companyName: null, role: null };
-    }
-
-    console.log('✅ LLM extraction result (with web search):', {
-      companyName: parsed.companyName || 'null',
-      role: parsed.role || 'null',
-      name: parsed.name || 'null',
-    });
-
-    // Validate that we got at least one useful value
-    if (!parsed.companyName && !parsed.role && !parsed.name) {
-      console.warn('⚠️ LLM extraction returned all null values - extraction may have failed');
-    }
-
-    return {
-      companyName: parsed.companyName || null,
-      role: parsed.role || null,
-      name: parsed.name || null,
-    };
-  } catch (error) {
-    console.error('❌ Error in LLM extraction:', error.message);
-    console.error('📝 LLM extraction error details:', {
-      message: error.message,
-      stack: error.stack,
-    });
-    return { companyName: null, role: null };
-  }
-}
-
-/**
- * Extract company name from signal context
- * Uses GPT-5.2 as primary method for intelligent extraction
- * Pattern matching is only used for very obvious cases to save on LLM costs
- * @param {Object} signal - Signal data
- * @param {boolean} skipLLM - If true, skip LLM extraction and only use pattern matching
- */
-export async function extractCompanyNameFromSignal(signal, skipLLM = false) {
-  console.log(`📝 Extracting company name from signal...`);
-  console.log(`📝 Headline: "${signal.headline_source?.substring(0, 100)}..."`);
-  console.log(`📝 URL: ${signal.url?.substring(0, 80)}...`);
-  console.log(`📝 Next Step: "${signal.next_step?.substring(0, 80)}..."`);
-
-  // Strategy 1: Quick pattern matching for very obvious cases only (fast, free)
-  // Only use for simple, clear patterns to save on LLM costs
-  if (signal.headline_source) {
-    const headline = signal.headline_source;
-
-    // Pattern 1: "Company Name (TICKER) ..." - handles "NN, Inc. (NNBR)", "Astrotech Corporation (ASTC)", etc.
-    const tickerPattern = /^([A-Z][a-zA-Z0-9\s&,\.]+?)\s*\([A-Z]{1,5}\)/i;
-    let match = headline.match(tickerPattern);
-    if (match && match[1]) {
-      const company = match[1].trim();
-      // Validate it's a reasonable company name
-      if (company.length > 2 && company.length < 50 &&
-        company.split(' ').length <= 5 &&
-        !company.toLowerCase().includes('mass') &&
-        !company.toLowerCase().includes('wave')) {
-        console.log(`✅ Quick pattern match (ticker): "${company}"`);
-        return company;
-      }
-    }
-  }
-
-  // Strategy 2: Use GPT-5.2 for intelligent extraction (PRIMARY METHOD)
-  // This handles all complex cases, news sites, ambiguous situations, etc.
-  // Skip if skipLLM is true (we already called LLM once)
-  if (skipLLM) {
-    console.log('⚠️ Pattern matching failed, skipping LLM (already called)');
-    return null;
-  }
-
-  console.log('🤖 Using GPT-5.2 to extract company name (primary method)...');
-  const llmResult = await extractWithLLM(signal);
-
-  if (llmResult.companyName) {
-    console.log(`✅ GPT-5.2 extracted company: "${llmResult.companyName}"`);
-    return llmResult.companyName;
-  } else {
-    console.log(`⚠️ GPT-5.2 could not extract company name`);
-    return null;
-  }
-}
-
-/**
- * Search for a person in Apollo by name, company, and role
- * @param {Object} params - Search parameters
- * @param {string} params.name - Person's name (optional)
- * @param {string} params.companyName - Company name
- * @param {string} params.jobTitle - Job title/role
- * @returns {Promise<Object|null>} - Apollo person data or null if not found
- */
-async function searchPersonInApollo({ name, companyName, jobTitle }) {
-  if (!APOLLO_API_KEY) {
-    console.warn('⚠️ APOLLO_API_KEY not set, skipping Apollo enrichment');
-    return null;
-  }
-
-  if (!companyName && !name) {
-    return null; // Need at least company or name to search
-  }
-
-  // Check cache first
-  const cacheKey = getCacheKey(name, companyName, jobTitle);
-  const cached = cache.get(cacheKey);
-  if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
-    return cached.data;
-  }
-
-  // Rate limiting
-  await rateLimit();
-
-  try {
-    // Build search query
-    // Note: Apollo API accepts api_key in body OR X-Api-Key header (or both)
-    // Master keys work the same way as regular API keys
-    const searchParams = {
-      api_key: APOLLO_API_KEY, // In request body
-      page: 1,
-      per_page: 5, // Get more results to find better matches
-    };
-
-    if (name) {
-      // Better name parsing: handle "Thomas B. Pickens III", "John Smith Jr.", etc.
-      const nameParts = name.trim().split(/\s+/).filter(part => part.length > 0);
-
-      // Common suffixes to remove (Jr., Sr., II, III, IV, etc.)
-      const suffixes = ['jr', 'sr', 'ii', 'iii', 'iv', 'v', 'esq', 'phd', 'md', 'jr.', 'sr.'];
-      const lastPart = nameParts.length > 0 ? nameParts[nameParts.length - 1].toLowerCase().replace('.', '') : '';
-      const hasSuffix = suffixes.includes(lastPart);
-
-      if (nameParts.length >= 2) {
-        searchParams.first_name = nameParts[0];
-
-        if (hasSuffix && nameParts.length >= 3) {
-          // "Thomas B. Pickens III" -> first_name: "Thomas", last_name: "Pickens"
-          // Skip middle initial(s) and suffix
-          // Find the last name part before the suffix
-          let lastNameIndex = nameParts.length - 2;
-          // Skip middle initials (single letters with or without period)
-          while (lastNameIndex > 0 && /^[a-z]\.?$/i.test(nameParts[lastNameIndex])) {
-            lastNameIndex--;
-          }
-          searchParams.last_name = nameParts[lastNameIndex];
-        } else if (nameParts.length === 2) {
-          // Simple case: "John Smith"
-          searchParams.last_name = nameParts[1];
-        } else {
-          // Multiple parts: "John Michael Smith" -> first: "John", last: "Smith"
-          // Or "John B. Smith" -> first: "John", last: "Smith" (skip middle initial)
-          let lastNameIndex = nameParts.length - 1;
-          // Skip middle initials
-          while (lastNameIndex > 0 && /^[a-z]\.?$/i.test(nameParts[lastNameIndex])) {
-            lastNameIndex--;
-          }
-          searchParams.last_name = nameParts[lastNameIndex];
-        }
-      } else {
-        // Single word name - use keyword search
-        searchParams.q_keywords = name;
-      }
-    }
-
-    if (companyName) {
-      searchParams.organization_name = companyName;
-    }
-
-    if (jobTitle) {
-      searchParams.person_titles = [jobTitle];
-    }
-
-    // Use /v1/people/search endpoint to search Apollo's entire database
-    // This endpoint searches all prospects in Apollo's database, not just saved contacts
-    // This is different from /v1/contacts/search which only searches your saved contacts
-    let response = await fetch(`${APOLLO_BASE_URL}/people/search`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache',
-        'X-Api-Key': APOLLO_API_KEY,
-      },
-      body: JSON.stringify(searchParams),
-    });
-
-    // Fallback: try /v1/mixed_people/api_search if people/search endpoint fails
-    if (!response.ok) {
-      console.log(`⚠️ /v1/people/search failed (${response.status}), trying /v1/mixed_people/api_search...`);
-      response = await fetch(`${APOLLO_BASE_URL}/mixed_people/api_search`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache',
-          'X-Api-Key': APOLLO_API_KEY,
-        },
-        body: JSON.stringify(searchParams),
-      });
-    }
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Apollo API error (${response.status}):`, errorText);
-      console.error(`📝 Search params were:`, {
-        first_name: searchParams.first_name || searchParams.q_keywords || 'null',
-        last_name: searchParams.last_name || 'null',
-        organization_name: searchParams.organization_name || 'null',
-        person_titles: searchParams.person_titles || 'null',
-      });
-
-      // Don't throw - return null to allow fallback to original data
-      return null;
-    }
-
-    const data = await response.json();
-
-    // /v1/people/search returns people in 'people' array
-    // This searches Apollo's entire database, not just saved contacts
-    const contacts = data.people || data.contacts || [];
-    if (contacts.length > 0) {
-      // Find the best match: prefer contacts with LinkedIn URL and matching company
-      let person = contacts[0];
-      for (const contact of contacts) {
-        // Prefer contacts with LinkedIn URL
-        if (contact.linkedin_url && (!person.linkedin_url ||
-          (contact.organization?.name && contact.organization.name.toLowerCase() === companyName?.toLowerCase()))) {
-          person = contact;
-          break;
-        }
-      }
-
-      const result = {
-        name: person.first_name && person.last_name
-          ? `${person.first_name} ${person.last_name}`
-          : person.name || name,
-        linkedin_url: person.linkedin_url || null,
-        email: person.email || null,
-        phone_number: person.phone_numbers && person.phone_numbers.length > 0
-          ? person.phone_numbers[0].raw_number
-          : null,
-        title: person.title || jobTitle,
-        company: person.organization?.name || companyName,
-      };
-
-      // Cache the result
-      cache.set(cacheKey, {
-        data: result,
-        timestamp: Date.now(),
-      });
-
-      return result;
-    }
-
-    // No contacts found
-    console.log(`⚠️ Apollo returned 0 contacts for search:`, {
-      name: name || 'null',
-      companyName: companyName || 'null',
-      jobTitle: jobTitle || 'null',
-    });
-
-    // Cache null result to avoid repeated failed searches
-    cache.set(cacheKey, {
-      data: null,
-      timestamp: Date.now(),
-    });
-
-    return null;
-  } catch (error) {
-    console.error('Error searching Apollo:', error.message);
-    // Don't throw - return null to allow fallback
-    return null;
-  }
-}
-
-/**
- * Enrich a signal with Apollo contact information
- * This is the main function to use for enriching signals
- * 
- * @param {Object} signal - Signal object with decision maker info
- * @param {string} signal.decision_maker_name - Decision maker name
- * @param {string} signal.decision_maker_role - Decision maker role
- * @param {string} signal.headline_source - Signal headline (may contain company name)
- * @param {string} signal.url - Signal URL (may contain company domain)
- * @returns {Promise<Object>} - Enriched signal with valid contact info
- */
-export async function enrichSignalWithApollo(signal) {
-  // Skip if Apollo API key is not configured
-  if (!APOLLO_API_KEY) {
-    console.log('⚠️ APOLLO_API_KEY not configured, skipping enrichment');
-    return {
-      ...signal,
-      apollo_enriched: false,
-      apollo_error: 'API key not configured',
-    };
-  }
-
-  console.log('🔍 Starting Apollo enrichment with signal data:', {
-    headline_source: signal.headline_source?.substring(0, 50) + '...',
-    url: signal.url?.substring(0, 50) + '...',
-    next_step: signal.next_step?.substring(0, 50) + '...',
-  });
-
-  // Extract both company name and role in ONE LLM call (best practice)
-  // This happens BEFORE Apollo search to get necessary data
-  console.log('🤖 Step 1: Using LLM to extract company name and role BEFORE Apollo search...');
-  console.log('📝 Input data for LLM:', {
-    headline_source: signal.headline_source?.substring(0, 100) || 'N/A',
-    url: signal.url?.substring(0, 100) || 'N/A',
-    next_step: signal.next_step?.substring(0, 100) || 'N/A',
-  });
-
-  const llmResult = await extractWithLLM(signal);
-  const llmDebugInfo = {
-    companyName: llmResult.companyName || 'null',
-    role: llmResult.role || 'null',
-    name: llmResult.name || 'null',
-    hasCompanyName: !!llmResult.companyName,
-    hasRole: !!llmResult.role,
-    hasName: !!llmResult.name,
-  };
-  console.log('📝 LLM extraction result:', llmDebugInfo);
-
-  // Use LLM results, fall back to pattern matching if needed (skipLLM=true to avoid duplicate calls)
-  let companyName = llmResult.companyName;
-  let patternMatchResult = null;
-  if (!companyName) {
-    console.log('⚠️ LLM did not extract company name, trying pattern matching only...');
-    patternMatchResult = await extractCompanyNameFromSignal(signal, true); // skipLLM=true since we already called it
-    companyName = patternMatchResult;
-    console.log(`📝 Pattern matching result: ${companyName || 'null'}`);
-  } else {
-    console.log(`✅ Using company name from LLM: ${companyName}`);
-  }
-  console.log(`✅ Final extracted company name: ${companyName || 'null'}`);
-
-  // Store debug info for frontend (defined here so it's available in all return paths)
-  const extractionDebug = {
-    llm_result: llmDebugInfo,
-    pattern_match_result: patternMatchResult !== null ? (patternMatchResult || 'null') : 'not_attempted',
-    final_company_name: companyName || 'null',
-    input_data: {
-      headline_source: signal.headline_source?.substring(0, 100) || 'N/A',
-      url: signal.url?.substring(0, 100) || 'N/A',
-      next_step: signal.next_step?.substring(0, 100) || 'N/A',
-    }
-  };
-
-  // Extract decision maker role from signal if not provided
-  let decisionMakerRole = signal.decision_maker_role;
-  if (!decisionMakerRole || decisionMakerRole === 'TBD' || decisionMakerRole.trim() === '' || decisionMakerRole === 'N/A') {
-    // Use LLM result if available, otherwise try pattern matching (skipLLM=true to avoid duplicate calls)
-    if (llmResult.role) {
-      decisionMakerRole = llmResult.role;
-      console.log(`📝 Extracted role from LLM: ${decisionMakerRole}`);
-    } else {
-      console.log('📝 LLM did not extract role, trying pattern matching only...');
-      decisionMakerRole = await extractDecisionMakerRoleFromSignal(signal, true) || 'Executive Leadership'; // skipLLM=true since we already called it
-      console.log(`📝 Extracted role: ${decisionMakerRole}`);
-    }
-  } else {
-    console.log(`📝 Using provided role: ${decisionMakerRole}`);
-  }
-
-  // Need at least company name to search Apollo
-  if (!companyName) {
-    console.log('❌ Cannot search Apollo: company name extraction failed');
-    console.log('📝 Extraction attempt summary:', extractionDebug);
-    return {
-      ...signal,
-      apollo_enriched: false,
-      apollo_error: 'Insufficient data for search - need company name. LLM extraction failed to identify company from provided data.',
-      apollo_debug: extractionDebug, // Include debug info for frontend
-    };
-  }
-
-  console.log('✅ Step 2: Company name extracted successfully, proceeding to Apollo search...');
-
-  // Extract decision maker name from LLM if available
-  let decisionMakerName = signal.decision_maker_name;
-  if (!decisionMakerName || decisionMakerName === 'TBD' || decisionMakerName.trim() === '' || decisionMakerName === 'N/A') {
-    // Use LLM extracted name if available
-    if (llmResult.name) {
-      decisionMakerName = llmResult.name;
-      console.log(`📝 Extracted name from LLM: ${decisionMakerName}`);
-    }
-  } else {
-    console.log(`📝 Using provided name: ${decisionMakerName}`);
-  }
-
-  // Simplify role for Apollo search and create variations to try
-  let apolloSearchRole = decisionMakerRole;
-  let apolloSearchRoleVariations = [];
-
-  if (apolloSearchRole) {
-    const roleLower = apolloSearchRole.toLowerCase();
-
-    // Create role variations for better matching
-    if (roleLower.includes('chair') && roleLower.includes('ceo')) {
-      // "Chairman and CEO" -> try both variations
-      apolloSearchRole = 'CEO';
-      apolloSearchRoleVariations = ['CEO', 'Chief Executive Officer', 'Chair', 'Chairman'];
-    } else if (roleLower.includes('director') || roleLower.includes('committee')) {
-      apolloSearchRole = 'Board Member';
-      apolloSearchRoleVariations = ['Board Member', 'Director'];
-    } else if (roleLower.includes('chair')) {
-      apolloSearchRole = 'Chair';
-      apolloSearchRoleVariations = ['Chair', 'Chairman', 'Chair of the Board'];
-    } else if (roleLower.includes('ceo')) {
-      apolloSearchRole = 'CEO';
-      apolloSearchRoleVariations = ['CEO', 'Chief Executive Officer'];
-    } else if (roleLower.includes('cfo')) {
-      apolloSearchRole = 'CFO';
-      apolloSearchRoleVariations = ['CFO', 'Chief Financial Officer'];
-    } else if (roleLower.includes('cto')) {
-      apolloSearchRole = 'CTO';
-      apolloSearchRoleVariations = ['CTO', 'Chief Technology Officer'];
-    } else if (roleLower.includes('executive')) {
-      apolloSearchRole = 'Executive';
-      apolloSearchRoleVariations = ['Executive'];
-    }
-
-    // Keep first 50 chars if still too long
-    if (apolloSearchRole.length > 50) {
-      apolloSearchRole = apolloSearchRole.substring(0, 50);
-    }
-  }
-
-  // Search Apollo with available information (name, company, role)
-  // Priority: name + company > name + role > role + company > company only
-  if (decisionMakerName && companyName) {
-    // Handle multiple names (separated by semicolon or comma)
-    const nameSeparators = /[;,]/;
-    const names = decisionMakerName.split(nameSeparators).map(n => n.trim()).filter(n => n.length > 0);
-
-    console.log(`📝 Found ${names.length} name(s) to search: ${names.join(', ')}`);
-
-    // Try each name individually
-    for (const name of names) {
-      console.log(`🔍 Searching Apollo for: ${name} at ${companyName}${apolloSearchRole ? ` (${apolloSearchRole})` : ''}`);
-
-      let apolloData = null;
-
-      // Strategy 1: Try with role variations (if we have variations)
-      if (apolloSearchRole && apolloSearchRoleVariations.length > 0) {
-        for (const roleVar of apolloSearchRoleVariations) {
-          console.log(`  🔍 Trying with role: "${roleVar}"`);
-          apolloData = await searchPersonInApollo({
-            name: name,
-            companyName: companyName,
-            jobTitle: roleVar,
-          });
-          if (apolloData) {
-            console.log(`  ✅ Found with role: "${roleVar}"`);
-            break;
-          }
-        }
-      } else if (apolloSearchRole) {
-        // Single role to try
-        apolloData = await searchPersonInApollo({
-          name: name,
-          companyName: companyName,
-          jobTitle: apolloSearchRole,
-        });
-      }
-
-      // Strategy 2: If not found with role, try without role filter
-      if (!apolloData && apolloSearchRole) {
-        console.log(`  ⚠️ Not found with role filter, trying without role...`);
-        apolloData = await searchPersonInApollo({
-          name: name,
-          companyName: companyName,
-          jobTitle: null,
-        });
-      }
-
-      // Strategy 3: Try company name variations (remove "Corporation", "Inc.", etc.)
-      if (!apolloData) {
-        const companyVariations = [];
-        // Remove common suffixes
-        const baseCompany = companyName.replace(/\s+(Corporation|Corp|Inc|Inc\.|LLC|Ltd|Limited)$/i, '').trim();
-        if (baseCompany && baseCompany !== companyName) {
-          companyVariations.push(baseCompany);
-        }
-
-        for (const companyVar of companyVariations) {
-          console.log(`  ⚠️ Trying company variation: "${companyVar}"`);
-          apolloData = await searchPersonInApollo({
-            name: name,
-            companyName: companyVar,
-            jobTitle: null,
-          });
-          if (apolloData) {
-            console.log(`  ✅ Found with company variation: "${companyVar}"`);
-            break;
-          }
-        }
-      }
-
-      if (apolloData) {
-        console.log(`✅ Found decision maker in Apollo:`, {
-          name: apolloData.name,
-          email: apolloData.email ? 'found' : 'not found',
-          linkedin: apolloData.linkedin_url ? 'found' : 'not found',
-        });
+async function extractCompanyAndDecisionMaker(signalData) {
+    const {
+        headline_source,  // Signal headline - most important
+        next_step,         // Signal next step - often contains decision maker info
+        source,            // Signal source URL - can contain company info
+    } = signalData;
+
+    // Combine ONLY signal fields for extraction (these are the source of truth)
+    const combinedText = [
+        headline_source,  // Signal headline - most important
+        next_step,         // Signal next step - often contains decision maker info
+        source,            // Signal source URL - can contain company info
+    ]
+        .filter(Boolean)
+        .join(' ');
+
+    if (!combinedText || combinedText.trim().length === 0) {
         return {
-          ...signal,
-          decision_maker_name: apolloData.name || name,
-          decision_maker_linkedin_url: apolloData.linkedin_url || signal.decision_maker_linkedin_url || '',
-          decision_maker_email: apolloData.email || '',
-          decision_maker_phone: apolloData.phone_number || '',
-          decision_maker_role: apolloData.title || decisionMakerRole,
-          apollo_enriched: true,
-          apollo_company: companyName,
-          apollo_debug: extractionDebug,
+            company_name: null,
+            decision_makers: [],
         };
-      } else {
-        console.log(`⚠️ No decision maker found in Apollo for ${name} at ${companyName}`);
-      }
     }
 
-    // If all name searches failed, log it
-    console.log(`⚠️ All name searches failed for: ${names.join(', ')}`);
-  }
+    try {
+        const prompt = `
+CRITICAL OUTPUT REQUIREMENT: 
+Return ONLY valid JSON. Start with {, end with }. No markdown, no code blocks, no explanations.
+- If you cannot find all items, return as many verified items as possible
+- Return null for fields that cannot be found
+- JSON must be parseable without preprocessing
 
-  // Fallback: If we don't have a name, or name search failed, try by role and company
-  if ((!decisionMakerName || decisionMakerName === 'TBD' || decisionMakerName.trim() === '' || decisionMakerName === 'N/A') && companyName && apolloSearchRole) {
-    console.log(`🔍 Searching Apollo for: ${apolloSearchRole} at ${companyName} (no name available)`);
-    const apolloData = await searchPersonInApollo({
-      name: null,
-      companyName: companyName,
-      jobTitle: apolloSearchRole,
-    });
+TASK: Extract the following information from the signal data below:
+1. Company name (the organization or business mentioned in the signal)
+2. Decision makers (ALL people who are decision makers, executives, or key contacts mentioned in the signal)
+   - Each decision maker should have: name (full name) and role (job title, e.g., CEO, CTO, VP of Sales, Director, etc.)
+   - If multiple people are mentioned, extract ALL of them
+   - If only one person is mentioned, return an array with one item
+   - If no specific person is named but a role is mentioned, use web search to find the person in that role at the company
 
-    if (apolloData) {
-      console.log(`✅ Found decision maker in Apollo:`, {
-        name: apolloData.name,
-        email: apolloData.email ? 'found' : 'not found',
-        linkedin: apolloData.linkedin_url ? 'found' : 'not found',
-      });
-      return {
-        ...signal,
-        decision_maker_name: apolloData.name || signal.decision_maker_name || '',
-        decision_maker_linkedin_url: apolloData.linkedin_url || signal.decision_maker_linkedin_url || '',
-        decision_maker_email: apolloData.email || '',
-        decision_maker_phone: apolloData.phone_number || '',
-        decision_maker_role: apolloData.title || decisionMakerRole,
-        apollo_enriched: true,
-        apollo_company: companyName,
-        apollo_debug: extractionDebug, // Include debug info for frontend
-      };
-    } else {
-      console.log(`⚠️ No decision maker found in Apollo for ${decisionMakerRole} at ${companyName}`);
+SIGNAL DATA TO ANALYZE:
+${combinedText}
+
+INSTRUCTIONS:
+- Use web search to verify company names, find decision maker information, or clarify ambiguous references
+- The source URL may contain additional information - use web search to fetch and analyze the page content if needed
+- Look for specific company names, executive names, and their titles in the signal headline and next_step text
+- The signal headline (headline_source) and next_step fields are the primary sources for finding decision maker information
+- If multiple decision makers are mentioned (e.g., "Contact John Smith (CEO) or Jane Doe (CTO)"), extract ALL of them
+- If a company is mentioned but no specific person is named, use web search to find the appropriate decision maker(s) (e.g., CEO, CTO, VP) for that company
+- Extract the actual company name and all person names with their roles from the signal data - do not make assumptions
+
+Return ONLY valid JSON in this exact format:
+{
+  "company_name": "Company Name or null",
+  "decision_makers": [
+    {
+      "name": "Full Name",
+      "role": "Job Title"
     }
-  }
+  ]
+}
 
-  // If we still don't have a match, return error
-  return {
-    ...signal,
-    apollo_enriched: false,
-    apollo_error: 'No decision maker found in Apollo',
-    apollo_debug: extractionDebug,
-  };
+If no decision makers are found, return an empty array: "decision_makers": []
+If company name cannot be found, use null: "company_name": null
+Return only the JSON object.
+`;
+
+        const completion = await openaiClient.responses.create({
+            model: "gpt-5.1",  // Use GPT 5.1 (same as signals/update route)
+            input: prompt,
+            tools: [
+                { type: "web_search" }  // Enable web search to verify and find information
+            ],
+            temperature: 0.3
+        });
+
+        const responseText = completion.output_text || '{}';
+        let extractedData;
+
+        // Remove markdown code blocks if present
+        let jsonString = responseText.trim();
+        if (jsonString.startsWith('```json')) {
+            jsonString = jsonString.replace(/^```json\s*/i, '').replace(/\s*```\s*$/i, '');
+        } else if (jsonString.startsWith('```')) {
+            jsonString = jsonString.replace(/^```\s*/i, '').replace(/\s*```\s*$/i, '');
+        }
+
+        // Extract JSON object
+        const firstBrace = jsonString.indexOf('{');
+        const lastBrace = jsonString.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+            jsonString = jsonString.substring(firstBrace, lastBrace + 1);
+        }
+
+        extractedData = JSON.parse(jsonString);
+
+        // Handle both old format (single decision maker) and new format (array)
+        const decisionMakers = extractedData.decision_makers || [];
+
+        // If old format exists, convert to new format
+        if (extractedData.decision_maker_name && !decisionMakers.length) {
+            decisionMakers.push({
+                name: extractedData.decision_maker_name,
+                role: extractedData.decision_maker_role || null,
+            });
+        }
+
+        return {
+            company_name: extractedData.company_name || null,
+            decision_makers: decisionMakers,
+        };
+    } catch (error) {
+        console.error('❌ Error extracting company and decision maker:', error);
+        return {
+            company_name: null,
+            decision_makers: [],
+        };
+    }
 }
 
 /**
- * Enrich deal data with Apollo contact information
- * Used when a deal is created from a signal
- * 
- * @param {Object} dealData - Deal data with signal information
- * @param {string} dealData.deal_name - Deal name (from headline_source)
- * @param {string} dealData.source - Source URL
- * @param {string} dealData.next_step - Next step action
- * @returns {Promise<Object>} - Deal data enriched with decision maker info
+ * Search for a person in Apollo using company name, person name, and role
+ * Returns email and LinkedIn URL if found
  */
-export async function enrichDealWithApollo(dealData) {
-  // Skip if Apollo API key is not configured
-  if (!APOLLO_API_KEY) {
-    return {
-      ...dealData,
-      apollo_enriched: false,
-      apollo_error: 'API key not configured',
-    };
-  }
+async function searchPersonInApollo(companyName, personName, personRole) {
+    if (!process.env.APOLLO_API_KEY) {
+        throw new Error('APOLLO_API_KEY is not configured');
+    }
 
-  // Create a signal-like object from deal data
-  const signalData = {
-    headline_source: dealData.deal_name || '',
-    url: dealData.source || '',
-    next_step: dealData.next_step || '',
-    decision_maker_name: dealData.decision_maker_name || '',
-    decision_maker_role: dealData.decision_maker_role || '',
-    decision_maker_linkedin_url: dealData.decision_maker_linkedin_url || '',
-  };
+    if (!companyName || !personName) {
+        throw new Error('Company name and person name are required for Apollo search');
+    }
 
-  // Enrich using the signal enrichment function
-  const enriched = await enrichSignalWithApollo(signalData);
+    try {
+        // Apollo API: Search for people
+        // Documentation: https://apolloio.github.io/apollo-api-docs/?shell#search-people
+        const searchResponse = await fetch('https://api.apollo.io/v1/mixed_people/search', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache',
+                'X-Api-Key': process.env.APOLLO_API_KEY,
+            },
+            body: JSON.stringify({
+                q_keywords: personName,
+                person_titles: personRole ? [personRole] : [],
+                organization_name: companyName,
+                page: 1,
+                per_page: 1,
+            }),
+        });
 
-  // Return deal data with enriched decision maker info
-  return {
-    ...dealData,
-    decision_maker_name: enriched.decision_maker_name || dealData.decision_maker_name || '',
-    decision_maker_role: enriched.decision_maker_role || dealData.decision_maker_role || '',
-    decision_maker_linkedin_url: enriched.decision_maker_linkedin_url || dealData.decision_maker_linkedin_url || '',
-    decision_maker_email: enriched.decision_maker_email || dealData.decision_maker_email || '',
-    decision_maker_phone: enriched.decision_maker_phone || dealData.decision_maker_phone || '',
-    apollo_enriched: enriched.apollo_enriched || false,
-    apollo_error: enriched.apollo_error || null,
-    apollo_debug: enriched.apollo_debug || null, // Pass debug info through
-  };
+        if (!searchResponse.ok) {
+            const errorText = await searchResponse.text();
+            throw new Error(`Apollo API error: ${searchResponse.status} - ${errorText}`);
+        }
+
+        const searchData = await searchResponse.json();
+        const people = searchData.people || [];
+
+        if (people.length === 0) {
+            return {
+                email: null,
+                linkedin_url: null,
+                phone: null,
+            };
+        }
+
+        // Get the first matching person
+        const person = people[0];
+
+        return {
+            email: person.email || null,
+            linkedin_url: person.linkedin_url || null,
+            phone: person.phone_numbers?.[0]?.raw_number || person.phone_numbers?.[0]?.sanitized_number || null,
+        };
+    } catch (error) {
+        console.error('❌ Error searching Apollo:', error);
+        throw error;
+    }
 }
 
+/**
+ * Search for multiple people in Apollo
+ * Returns an array of enriched decision makers with their contact information
+ */
+async function searchMultiplePeopleInApollo(companyName, decisionMakers) {
+    if (!decisionMakers || decisionMakers.length === 0) {
+        return [];
+    }
+
+    const enrichedDecisionMakers = [];
+
+    // Search Apollo for each decision maker
+    for (const decisionMaker of decisionMakers) {
+        if (!decisionMaker.name) continue;
+
+        try {
+            const apolloResult = await searchPersonInApollo(
+                companyName,
+                decisionMaker.name,
+                decisionMaker.role || null
+            );
+
+            enrichedDecisionMakers.push({
+                name: decisionMaker.name,
+                role: decisionMaker.role || null,
+                email: apolloResult.email || null,
+                linkedin_url: apolloResult.linkedin_url || null,
+                phone: apolloResult.phone || null,
+            });
+        } catch (error) {
+            console.error(`❌ Error searching Apollo for ${decisionMaker.name}:`, error);
+            // Continue with other decision makers even if one fails
+            enrichedDecisionMakers.push({
+                name: decisionMaker.name,
+                role: decisionMaker.role || null,
+                email: null,
+                linkedin_url: null,
+                phone: null,
+                error: error.message,
+            });
+        }
+    }
+
+    return enrichedDecisionMakers;
+}
+
+/**
+ * Enrich deal with Apollo data
+ * Extracts company name, decision maker info from signal, then searches Apollo for email/LinkedIn
+ */
+export async function enrichDealWithApollo(signalData) {
+    const debug = {
+        input_data: signalData,
+        llm_result: null,
+        apollo_result: null,
+        final_company_name: null,
+        final_decision_maker_name: null,
+        final_decision_maker_role: null,
+    };
+
+    try {
+        // Step 1: Extract company name and decision makers from signal data
+        console.log('🔍 Step 1: Extracting company and decision makers info from signal...');
+        const extracted = await extractCompanyAndDecisionMaker(signalData);
+        debug.llm_result = extracted;
+
+        const companyName = extracted.company_name;
+        const decisionMakers = extracted.decision_makers || [];
+
+        debug.final_company_name = companyName;
+        debug.final_decision_maker_name = decisionMakers.length > 0 ? decisionMakers[0].name : null;
+        debug.final_decision_maker_role = decisionMakers.length > 0 ? decisionMakers[0].role : null;
+
+        // If we don't have company name or any decision makers, we can't search Apollo
+        if (!companyName || decisionMakers.length === 0) {
+            console.log('⚠️ Missing required data for Apollo search:', {
+                companyName: !!companyName,
+                decisionMakersCount: decisionMakers.length,
+            });
+            return {
+                ...signalData,
+                apollo_enriched: false,
+                apollo_error: 'Missing company name or decision makers',
+                apollo_debug: debug,
+                decision_maker_name: decisionMakers.length > 0 ? decisionMakers[0].name : (signalData.decision_maker_name || ''),
+                decision_maker_role: decisionMakers.length > 0 ? decisionMakers[0].role : (signalData.decision_maker_role || ''),
+                decision_maker_email: '',
+                decision_maker_linkedin_url: signalData.decision_maker_linkedin_url || '',
+                decision_maker_phone: '',
+                all_decision_makers: JSON.stringify(decisionMakers),
+            };
+        }
+
+        // Step 2: Search Apollo for all decision makers
+        console.log('🔍 Step 2: Searching Apollo for decision makers...', {
+            companyName,
+            decisionMakersCount: decisionMakers.length,
+            decisionMakers: decisionMakers.map(dm => ({ name: dm.name, role: dm.role })),
+        });
+
+        const enrichedDecisionMakers = await searchMultiplePeopleInApollo(companyName, decisionMakers);
+        debug.apollo_result = enrichedDecisionMakers;
+
+        // Get primary decision maker (first one) for backward compatibility
+        const primaryDecisionMaker = enrichedDecisionMakers.length > 0 ? enrichedDecisionMakers[0] : null;
+
+        console.log('✅ Apollo search completed:', {
+            totalFound: enrichedDecisionMakers.length,
+            withEmail: enrichedDecisionMakers.filter(dm => dm.email).length,
+            withLinkedIn: enrichedDecisionMakers.filter(dm => dm.linkedin_url).length,
+            primaryFound: !!(primaryDecisionMaker?.email || primaryDecisionMaker?.linkedin_url),
+        });
+
+        return {
+            ...signalData,
+            apollo_enriched: true,
+            apollo_error: null,
+            apollo_debug: debug,
+            // Primary decision maker (for backward compatibility with existing deal structure)
+            decision_maker_name: primaryDecisionMaker?.name || '',
+            decision_maker_role: primaryDecisionMaker?.role || '',
+            decision_maker_email: primaryDecisionMaker?.email || '',
+            decision_maker_linkedin_url: primaryDecisionMaker?.linkedin_url || signalData.decision_maker_linkedin_url || '',
+            decision_maker_phone: primaryDecisionMaker?.phone || '',
+            // All decision makers as JSON string (for storing in spreadsheet)
+            all_decision_makers: JSON.stringify(enrichedDecisionMakers),
+        };
+    } catch (error) {
+        console.error('❌ Error in enrichDealWithApollo:', error);
+        return {
+            ...signalData,
+            apollo_enriched: false,
+            apollo_error: error.message || 'Unknown error during Apollo enrichment',
+            apollo_debug: debug,
+            decision_maker_name: signalData.decision_maker_name || '',
+            decision_maker_role: signalData.decision_maker_role || '',
+            decision_maker_email: '',
+            decision_maker_linkedin_url: signalData.decision_maker_linkedin_url || '',
+            decision_maker_phone: '',
+            all_decision_makers: '[]',
+        };
+    }
+}
 

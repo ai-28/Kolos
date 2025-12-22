@@ -102,20 +102,26 @@ export async function POST(req) {
         });
 
         // Enrich deal with Apollo (await to get enriched data before saving)
-        // Apollo will use LLM to extract company name and role from deal data first
+        // Apollo will extract company name, decision maker name and role from signal data, then search Apollo for email/LinkedIn
         let enrichedDeal = deal;
-        if (process.env.APOLLO_API_KEY && (deal.deal_name || deal.source || deal.next_step)) {
+        if (process.env.APOLLO_API_KEY && (deal.deal_name || deal.source || deal.next_step || deal.company_name || deal.decision_maker_name)) {
             console.log(`🔍 Starting Apollo enrichment for deal ${dealId}...`);
             console.log(`📝 Deal data for extraction:`, {
                 deal_name: deal.deal_name?.substring(0, 100),
+                headline_source: deal.headline_source?.substring(0, 100),
                 source: deal.source?.substring(0, 100),
                 next_step: deal.next_step?.substring(0, 100),
+                company_name: deal.company_name,
+                decision_maker_name: deal.decision_maker_name,
+                decision_maker_role: deal.decision_maker_role,
             });
             try {
                 enrichedDeal = await enrichDealWithApollo({
                     deal_name: deal.deal_name || '',
                     source: deal.source || '',
                     next_step: deal.next_step || '',
+                    headline_source: deal.headline_source || '',  // Signal headline - important for extraction
+                    company_name: deal.company_name || '',
                     decision_maker_name: deal.decision_maker_name || '',
                     decision_maker_role: deal.decision_maker_role || '',
                     decision_maker_linkedin_url: deal.decision_maker_linkedin_url || '',
@@ -161,12 +167,14 @@ export async function POST(req) {
             deal.stage || 'list',
             deal.target_deal_size || '',
             deal.next_step || '',
-            // Apollo enriched fields
+            // Apollo enriched fields (primary decision maker for backward compatibility)
             enrichedDeal.decision_maker_name || '',
             enrichedDeal.decision_maker_role || '',
             enrichedDeal.decision_maker_linkedin_url || '',
             enrichedDeal.decision_maker_email || '',
             enrichedDeal.decision_maker_phone || '',
+            // All decision makers (JSON array with all people found)
+            enrichedDeal.all_decision_makers || '[]',
         ];
 
         console.log(`💾 Saving deal ${dealId} to Google Sheets with ${dealRow.length} columns...`);
@@ -200,6 +208,9 @@ export async function POST(req) {
                 email: enrichedDeal.decision_maker_email,
                 phone: enrichedDeal.decision_maker_phone,
             } : null,
+            all_decision_makers: enrichedDeal.apollo_enriched && enrichedDeal.all_decision_makers
+                ? JSON.parse(enrichedDeal.all_decision_makers)
+                : [],
             deal_data: {
                 deal_name: deal.deal_name,
                 source: deal.source,
