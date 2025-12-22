@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
-import { enrichSignalsBatch } from "@/app/lib/apollo";
-import { updateSignalLinkedInUrl } from "@/app/lib/googleSheets";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -41,7 +39,7 @@ OUTPUT TARGETS (flexible based on availability):
 - Up to 3 OPM Travel Plans (aim for 3, but return as many as you can create, minimum 0)
 - Up to 3 Upcoming Industry Events (aim for 3, but return as many as you can verify, minimum 0)
 
-Each signal includes: date, headline_source, url, signal_type, scores_R_O_A, overall, next_step, decision_maker_role, decision_maker_name, decision_maker_linkedin_url, estimated_target_value_USD
+Each signal includes: date, headline_source, url, signal_type, scores_R_O_A, overall, next_step, estimated_target_value_USD
 
 CLIENT PROFILE (guaranteed to exist):
 ${JSON.stringify(safeProfile, null, 2)}
@@ -95,9 +93,6 @@ SIGNAL FIELDS:
 - scores_R_O_A: "R,O,A" string (e.g., "5,5,4")
 - overall: Number 1-5 (rounded average)
 - next_step: Concrete action (who, what, timeframe) - avoid "monitor" or "stay in touch"
-- decision_maker_role: Key roles (e.g., "CEO, CFO, CTO, HR Director") or "Executive Leadership"
-- decision_maker_name: Full name(s) or "TBD" if not found
-- decision_maker_linkedin_url: LinkedIn URL or "N/A" if not found
 - estimated_target_value_USD: Currency string (e.g., "$25,000,000") or "N/A"
 
 OPM TRAVEL PLANS:
@@ -168,9 +163,6 @@ Required structure:
       "scores_R_O_A": "5,5,4",
       "overall": 5,
       "next_step": "Pull latest TWC WARN list; offer 2–4 week AI/Data reskill cohorts to affected employers + boards; align WIOA funding paths.",
-      "decision_maker_role": "CEO, CFO, CTO, HR Director",
-      "decision_maker_name": "John Doe",
-      "decision_maker_linkedin_url": "https://www.linkedin.com/in/john-doe-1234567890/",
       "estimated_target_value_USD": "$25,000,000"
     }
   ],
@@ -217,7 +209,7 @@ REMEMBER: Your response must be ONLY valid JSON starting with { and ending with 
 
     // Use Responses API with web search tool
     const completion = await client.responses.create({
-      model: "gpt-5.2",
+      model: "gpt-5.1",
       input: prompt,
       tools: [
         { type: "web_search" }
@@ -319,9 +311,6 @@ REMEMBER: Your response must be ONLY valid JSON starting with { and ending with 
           signal.scores_R_O_A || '',
           signal.overall || '',
           signal.next_step || '',
-          signal.decision_maker_role || '',
-          signal.decision_maker_name || '',
-          signal.decision_maker_linkedin_url || '',
           signal.estimated_target_value_USD || '',
         ];
 
@@ -333,36 +322,6 @@ REMEMBER: Your response must be ONLY valid JSON starting with { and ending with 
         }
       }
       console.log(`✅ ${signalsSaved} signals saved to Google Sheets`);
-
-      // Enrich with Apollo in background
-      if (process.env.APOLLO_API_KEY && signals.length > 0) {
-        enrichSignalsBatch(signals).then(async (enrichedSignals) => {
-          const enrichedCount = enrichedSignals.filter(s => s.apollo_enriched).length;
-          console.log(`✅ Background Apollo enrichment completed: ${enrichedCount}/${enrichedSignals.length} signals enriched`);
-
-          let updatedCount = 0;
-          for (const enrichedSignal of enrichedSignals) {
-            if (enrichedSignal.apollo_enriched && enrichedSignal.decision_maker_linkedin_url) {
-              try {
-                const result = await updateSignalLinkedInUrl(
-                  profileId,
-                  enrichedSignal.headline_source || '',
-                  enrichedSignal.signal_type || '',
-                  enrichedSignal.decision_maker_linkedin_url
-                );
-                if (result.success) {
-                  updatedCount++;
-                }
-              } catch (error) {
-                console.error('Error updating signal LinkedIn URL:', error);
-              }
-            }
-          }
-          console.log(`✅ Updated ${updatedCount} signals with enriched LinkedIn URLs`);
-        }).catch(error => {
-          console.error('❌ Background Apollo enrichment failed:', error);
-        });
-      }
     }
 
     return NextResponse.json({
