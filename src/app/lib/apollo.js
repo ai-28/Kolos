@@ -161,6 +161,8 @@ CRITICAL EXTRACTION RULES:
    - Look for person names in the headline or next_step (e.g., "John Smith", "CEO John Smith", "Smith announced...")
    - Use web search to find executive names mentioned in the article if the headline references a person
    - Extract full names when available (first name + last name)
+   - If multiple names are found, return ONLY the PRIMARY or FIRST name (e.g., if "Raynard Benvenuti; Jeri Harman; Thomas Wilson" are found, return "Raynard Benvenuti")
+   - Return a SINGLE name only, not multiple names separated by semicolons or commas
    - Return null if no name is mentioned or cannot be determined
 
 4. OUTPUT REQUIREMENTS:
@@ -517,46 +519,79 @@ export async function enrichSignalWithApollo(signal) {
     console.log(`📝 Using provided name: ${decisionMakerName}`);
   }
 
-  // Search Apollo with available information (name, company, role)
-  // Priority: name + company > name + role > role + company > company only
-  if (decisionMakerName && companyName) {
-    // Best case: we have both name and company
-    console.log(`🔍 Searching Apollo for: ${decisionMakerName} at ${companyName}${decisionMakerRole ? ` (${decisionMakerRole})` : ''}`);
-    const apolloData = await searchPersonInApollo({
-      name: decisionMakerName,
-      companyName: companyName,
-      jobTitle: decisionMakerRole || null,
-    });
-
-    if (apolloData) {
-      console.log(`✅ Found decision maker in Apollo:`, {
-        name: apolloData.name,
-        email: apolloData.email ? 'found' : 'not found',
-        linkedin: apolloData.linkedin_url ? 'found' : 'not found',
-      });
-      return {
-        ...signal,
-        decision_maker_name: apolloData.name || decisionMakerName,
-        decision_maker_linkedin_url: apolloData.linkedin_url || signal.decision_maker_linkedin_url || '',
-        decision_maker_email: apolloData.email || '',
-        decision_maker_phone: apolloData.phone_number || '',
-        decision_maker_role: apolloData.title || decisionMakerRole,
-        apollo_enriched: true,
-        apollo_company: companyName,
-        apollo_debug: extractionDebug,
-      };
-    } else {
-      console.log(`⚠️ No decision maker found in Apollo for ${decisionMakerName} at ${companyName}`);
+  // Simplify role for Apollo search (remove complex descriptions)
+  let apolloSearchRole = decisionMakerRole;
+  if (apolloSearchRole) {
+    // Simplify complex roles for better Apollo matching
+    // e.g., "Independent Directors / Strategic Committee Members" -> "Board Member" or "Director"
+    if (apolloSearchRole.toLowerCase().includes('director') || apolloSearchRole.toLowerCase().includes('committee')) {
+      apolloSearchRole = 'Board Member';
+    } else if (apolloSearchRole.toLowerCase().includes('ceo')) {
+      apolloSearchRole = 'CEO';
+    } else if (apolloSearchRole.toLowerCase().includes('cfo')) {
+      apolloSearchRole = 'CFO';
+    } else if (apolloSearchRole.toLowerCase().includes('cto')) {
+      apolloSearchRole = 'CTO';
+    } else if (apolloSearchRole.toLowerCase().includes('executive')) {
+      apolloSearchRole = 'Executive';
+    }
+    // Keep first 50 chars if still too long
+    if (apolloSearchRole.length > 50) {
+      apolloSearchRole = apolloSearchRole.substring(0, 50);
     }
   }
 
+  // Search Apollo with available information (name, company, role)
+  // Priority: name + company > name + role > role + company > company only
+  if (decisionMakerName && companyName) {
+    // Handle multiple names (separated by semicolon or comma)
+    const nameSeparators = /[;,]/;
+    const names = decisionMakerName.split(nameSeparators).map(n => n.trim()).filter(n => n.length > 0);
+
+    console.log(`📝 Found ${names.length} name(s) to search: ${names.join(', ')}`);
+
+    // Try each name individually
+    for (const name of names) {
+      console.log(`🔍 Searching Apollo for: ${name} at ${companyName}${apolloSearchRole ? ` (${apolloSearchRole})` : ''}`);
+      const apolloData = await searchPersonInApollo({
+        name: name,
+        companyName: companyName,
+        jobTitle: apolloSearchRole || null,
+      });
+
+      if (apolloData) {
+        console.log(`✅ Found decision maker in Apollo:`, {
+          name: apolloData.name,
+          email: apolloData.email ? 'found' : 'not found',
+          linkedin: apolloData.linkedin_url ? 'found' : 'not found',
+        });
+        return {
+          ...signal,
+          decision_maker_name: apolloData.name || name,
+          decision_maker_linkedin_url: apolloData.linkedin_url || signal.decision_maker_linkedin_url || '',
+          decision_maker_email: apolloData.email || '',
+          decision_maker_phone: apolloData.phone_number || '',
+          decision_maker_role: apolloData.title || decisionMakerRole,
+          apollo_enriched: true,
+          apollo_company: companyName,
+          apollo_debug: extractionDebug,
+        };
+      } else {
+        console.log(`⚠️ No decision maker found in Apollo for ${name} at ${companyName}`);
+      }
+    }
+
+    // If all name searches failed, log it
+    console.log(`⚠️ All name searches failed for: ${names.join(', ')}`);
+  }
+
   // Fallback: If we don't have a name, or name search failed, try by role and company
-  if ((!decisionMakerName || decisionMakerName === 'TBD' || decisionMakerName.trim() === '' || decisionMakerName === 'N/A') && companyName && decisionMakerRole) {
-    console.log(`🔍 Searching Apollo for: ${decisionMakerRole} at ${companyName} (no name available)`);
+  if ((!decisionMakerName || decisionMakerName === 'TBD' || decisionMakerName.trim() === '' || decisionMakerName === 'N/A') && companyName && apolloSearchRole) {
+    console.log(`🔍 Searching Apollo for: ${apolloSearchRole} at ${companyName} (no name available)`);
     const apolloData = await searchPersonInApollo({
       name: null,
       companyName: companyName,
-      jobTitle: decisionMakerRole,
+      jobTitle: apolloSearchRole,
     });
 
     if (apolloData) {
