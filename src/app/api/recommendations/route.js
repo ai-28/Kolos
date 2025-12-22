@@ -220,9 +220,6 @@ REMEMBER: Your response must be ONLY valid JSON starting with { and ending with 
     // Responses API returns content in output_text field
     const responseContent = completion.output_text;
 
-    console.log(`📝 Model used: gpt-5.2`);
-    console.log(`📝 Response type: ${typeof responseContent}`);
-    console.log(`📝 Response length: ${responseContent?.length || 0} characters`);
     console.log(`📝 Response preview (first 500 chars): ${responseContent?.substring(0, 500) || 'No content'}`);
 
     // Parse the JSON string from OpenAI response
@@ -251,20 +248,11 @@ REMEMBER: Your response must be ONLY valid JSON starting with { and ending with 
 
         jsonString = jsonString.trim();
 
-        // Log before parsing for debugging
-        console.log(`📝 Extracted JSON length: ${jsonString.length}`);
-        console.log(`📝 JSON starts with: ${jsonString.substring(0, 50)}`);
-        console.log(`📝 JSON ends with: ${jsonString.substring(Math.max(0, jsonString.length - 50))}`);
-
         parsedData = JSON.parse(jsonString);
 
-        // Log parsed structure
-        console.log(`📝 Parsed data keys: ${Object.keys(parsedData || {}).join(', ')}`);
-        console.log(`📝 Signals count: ${parsedData.signals?.length || 0}`);
       }
     } catch (parseError) {
       console.error("❌ Error parsing JSON response:", parseError);
-      console.error("Response content:", responseContent?.substring(0, 1000));
       return NextResponse.json(
         { error: "Failed to parse OpenAI response", details: parseError.message },
         { status: 500 }
@@ -286,16 +274,50 @@ REMEMBER: Your response must be ONLY valid JSON starting with { and ending with 
 
     console.log(`✅ Parsed ${signals.length} signals, ${opmTravelPlans.length} travel plans, ${upcomingIndustryEvents.length} events`);
 
-    // Save signals to Google Sheets
-    const { getSheetData, findRowsByProfileId, SHEETS, appendToSheet } = await import("@/app/lib/googleSheets");
+    // Save profile and signals to Google Sheets
+    const { SHEETS, appendToSheet } = await import("@/app/lib/googleSheets");
 
-    const profileId = profile.id || profile.ID || profile.profile_id;
-    if (!profileId) {
-      return NextResponse.json(
-        { error: "Profile ID not found in profile data" },
-        { status: 400 }
-      );
+    const timestamp = Date.now();
+    const randomStr = Math.random().toString(36).substring(2, 11); // Ensure 9 characters
+    const profileId = `profile_${timestamp}_${randomStr}`;
+    console.log(`📝 Generated new profile ID: ${profileId}`);
+
+    const profileFields = [
+      'id', 'name', 'email', 'role', 'company', 'industries', 'project_size',
+      'raise_amount', 'check_size', 'active_raise_amount', 'goals', 'regions',
+      'partner_types', 'constraints_notes', 'active_deal', 'travel_cities',
+      'strategy_focus', 'business_stage', 'revenue_range', 'facilitator_clients',
+      'deal_type', 'deal_size', 'ideal_ceo_profile', 'ideal_intro',
+      'linkedin_url', 'opm_travel_plans', 'upcoming_industry_events'
+    ];
+
+    const profileRow = profileFields.map((field, index) => {
+      // Special handling for opm_travel_plans and upcoming_industry_events - use LLM result
+      if (field === 'opm_travel_plans') {
+        return opmTravelPlans.length > 0 ? JSON.stringify(opmTravelPlans) : '';
+      }
+      if (field === 'upcoming_industry_events') {
+        return upcomingIndustryEvents.length > 0 ? JSON.stringify(upcomingIndustryEvents) : '';
+      }
+
+      // For all other fields, get from request body (profile object)
+      // Try multiple case variations
+      const value = profile[field] || profile[field.toLowerCase()] || profile[field.toUpperCase()] ||
+        profile[field.charAt(0).toUpperCase() + field.slice(1)] || '';
+      return value || '';
+    });
+
+    // Set the ID field (first column)
+    profileRow[0] = profileId;
+
+    try {
+      await appendToSheet(SHEETS.PROFILES, profileRow);
+      console.log(`✅ Profile ${profileId} saved to Google Sheets`);
+    } catch (error) {
+      console.error('❌ Error saving profile to Google Sheets:', error);
     }
+
+    // Now save signals
 
     // Save signals
     if (signals.length > 0) {
