@@ -186,17 +186,40 @@ Rules:
 
     const content = response.choices[0]?.message?.content?.trim();
     if (!content) {
+      console.error('❌ LLM returned empty content');
       return { companyName: null, role: null };
     }
 
+    console.log('📝 LLM raw response:', content.substring(0, 500));
+
     // Remove markdown code blocks if present
-    const jsonContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    const parsed = JSON.parse(jsonContent);
+    let jsonContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
+    // Try to extract JSON if there's extra text
+    const firstBrace = jsonContent.indexOf('{');
+    const lastBrace = jsonContent.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      jsonContent = jsonContent.substring(firstBrace, lastBrace + 1);
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonContent);
+    } catch (parseError) {
+      console.error('❌ Failed to parse LLM JSON response:', parseError.message);
+      console.error('📝 JSON content that failed to parse:', jsonContent);
+      return { companyName: null, role: null };
+    }
 
     console.log('✅ LLM extraction result:', {
       companyName: parsed.companyName || 'null',
       role: parsed.role || 'null',
     });
+
+    // Validate that we got at least one useful value
+    if (!parsed.companyName && !parsed.role) {
+      console.warn('⚠️ LLM extraction returned both null values - extraction may have failed');
+    }
 
     return {
       companyName: parsed.companyName || null,
@@ -423,6 +446,8 @@ export async function enrichSignalWithApollo(signal) {
   console.log('📝 LLM extraction result:', {
     companyName: llmResult.companyName || 'null',
     role: llmResult.role || 'null',
+    hasCompanyName: !!llmResult.companyName,
+    hasRole: !!llmResult.role,
   });
 
   // Use LLM results, fall back to pattern matching if needed (skipLLM=true to avoid duplicate calls)
@@ -430,6 +455,9 @@ export async function enrichSignalWithApollo(signal) {
   if (!companyName) {
     console.log('⚠️ LLM did not extract company name, trying pattern matching only...');
     companyName = await extractCompanyNameFromSignal(signal, true); // skipLLM=true since we already called it
+    console.log(`📝 Pattern matching result: ${companyName || 'null'}`);
+  } else {
+    console.log(`✅ Using company name from LLM: ${companyName}`);
   }
   console.log(`✅ Final extracted company name: ${companyName || 'null'}`);
 
