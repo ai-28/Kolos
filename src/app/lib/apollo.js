@@ -321,16 +321,46 @@ async function searchPersonInApollo({ name, companyName, jobTitle }) {
     const searchParams = {
       api_key: APOLLO_API_KEY,
       page: 1,
-      per_page: 1,
+      per_page: 5, // Get more results to find better matches
     };
 
     if (name) {
-      // Split name into first and last if possible
-      const nameParts = name.trim().split(/\s+/);
+      // Better name parsing: handle "Thomas B. Pickens III", "John Smith Jr.", etc.
+      const nameParts = name.trim().split(/\s+/).filter(part => part.length > 0);
+
+      // Common suffixes to remove (Jr., Sr., II, III, IV, etc.)
+      const suffixes = ['jr', 'sr', 'ii', 'iii', 'iv', 'v', 'esq', 'phd', 'md', 'jr.', 'sr.'];
+      const lastPart = nameParts.length > 0 ? nameParts[nameParts.length - 1].toLowerCase().replace('.', '') : '';
+      const hasSuffix = suffixes.includes(lastPart);
+
       if (nameParts.length >= 2) {
         searchParams.first_name = nameParts[0];
-        searchParams.last_name = nameParts.slice(1).join(' ');
+
+        if (hasSuffix && nameParts.length >= 3) {
+          // "Thomas B. Pickens III" -> first_name: "Thomas", last_name: "Pickens"
+          // Skip middle initial(s) and suffix
+          // Find the last name part before the suffix
+          let lastNameIndex = nameParts.length - 2;
+          // Skip middle initials (single letters with or without period)
+          while (lastNameIndex > 0 && /^[a-z]\.?$/i.test(nameParts[lastNameIndex])) {
+            lastNameIndex--;
+          }
+          searchParams.last_name = nameParts[lastNameIndex];
+        } else if (nameParts.length === 2) {
+          // Simple case: "John Smith"
+          searchParams.last_name = nameParts[1];
+        } else {
+          // Multiple parts: "John Michael Smith" -> first: "John", last: "Smith"
+          // Or "John B. Smith" -> first: "John", last: "Smith" (skip middle initial)
+          let lastNameIndex = nameParts.length - 1;
+          // Skip middle initials
+          while (lastNameIndex > 0 && /^[a-z]\.?$/i.test(nameParts[lastNameIndex])) {
+            lastNameIndex--;
+          }
+          searchParams.last_name = nameParts[lastNameIndex];
+        }
       } else {
+        // Single word name - use keyword search
         searchParams.q_keywords = name;
       }
     }
@@ -367,7 +397,17 @@ async function searchPersonInApollo({ name, companyName, jobTitle }) {
     // /v1/contacts/search returns contacts in 'contacts' array (or 'people' array depending on version)
     const contacts = data.contacts || data.people || [];
     if (contacts.length > 0) {
-      const person = contacts[0];
+      // Find the best match: prefer contacts with LinkedIn URL and matching company
+      let person = contacts[0];
+      for (const contact of contacts) {
+        // Prefer contacts with LinkedIn URL
+        if (contact.linkedin_url && (!person.linkedin_url ||
+          (contact.organization?.name && contact.organization.name.toLowerCase() === companyName?.toLowerCase()))) {
+          person = contact;
+          break;
+        }
+      }
+
       const result = {
         name: person.first_name && person.last_name
           ? `${person.first_name} ${person.last_name}`
@@ -526,26 +566,38 @@ export async function enrichSignalWithApollo(signal) {
     console.log(`📝 Using provided name: ${decisionMakerName}`);
   }
 
-  // Simplify role for Apollo search (remove complex descriptions)
+  // Simplify role for Apollo search and create variations to try
   let apolloSearchRole = decisionMakerRole;
+  let apolloSearchRoleVariations = [];
+
   if (apolloSearchRole) {
-    // Simplify complex roles for better Apollo matching
-    // e.g., "Independent Directors / Strategic Committee Members" -> "Board Member" or "Director"
     const roleLower = apolloSearchRole.toLowerCase();
-    if (roleLower.includes('director') || roleLower.includes('committee')) {
+
+    // Create role variations for better matching
+    if (roleLower.includes('chair') && roleLower.includes('ceo')) {
+      // "Chairman and CEO" -> try both variations
+      apolloSearchRole = 'CEO';
+      apolloSearchRoleVariations = ['CEO', 'Chief Executive Officer', 'Chair', 'Chairman'];
+    } else if (roleLower.includes('director') || roleLower.includes('committee')) {
       apolloSearchRole = 'Board Member';
+      apolloSearchRoleVariations = ['Board Member', 'Director'];
     } else if (roleLower.includes('chair')) {
-      // Handle "Chair", "Chairman", "Chair of the Board", "Independent Chair", etc.
       apolloSearchRole = 'Chair';
+      apolloSearchRoleVariations = ['Chair', 'Chairman', 'Chair of the Board'];
     } else if (roleLower.includes('ceo')) {
       apolloSearchRole = 'CEO';
+      apolloSearchRoleVariations = ['CEO', 'Chief Executive Officer'];
     } else if (roleLower.includes('cfo')) {
       apolloSearchRole = 'CFO';
+      apolloSearchRoleVariations = ['CFO', 'Chief Financial Officer'];
     } else if (roleLower.includes('cto')) {
       apolloSearchRole = 'CTO';
+      apolloSearchRoleVariations = ['CTO', 'Chief Technology Officer'];
     } else if (roleLower.includes('executive')) {
       apolloSearchRole = 'Executive';
+      apolloSearchRoleVariations = ['Executive'];
     }
+
     // Keep first 50 chars if still too long
     if (apolloSearchRole.length > 50) {
       apolloSearchRole = apolloSearchRole.substring(0, 50);
@@ -565,21 +617,62 @@ export async function enrichSignalWithApollo(signal) {
     for (const name of names) {
       console.log(`🔍 Searching Apollo for: ${name} at ${companyName}${apolloSearchRole ? ` (${apolloSearchRole})` : ''}`);
 
-      // First try: with role filter
-      let apolloData = await searchPersonInApollo({
-        name: name,
-        companyName: companyName,
-        jobTitle: apolloSearchRole || null,
-      });
+      let apolloData = null;
 
-      // Fallback: if not found with role, try without role filter
+      // Strategy 1: Try with role variations (if we have variations)
+      if (apolloSearchRole && apolloSearchRoleVariations.length > 0) {
+        for (const roleVar of apolloSearchRoleVariations) {
+          console.log(`  🔍 Trying with role: "${roleVar}"`);
+          apolloData = await searchPersonInApollo({
+            name: name,
+            companyName: companyName,
+            jobTitle: roleVar,
+          });
+          if (apolloData) {
+            console.log(`  ✅ Found with role: "${roleVar}"`);
+            break;
+          }
+        }
+      } else if (apolloSearchRole) {
+        // Single role to try
+        apolloData = await searchPersonInApollo({
+          name: name,
+          companyName: companyName,
+          jobTitle: apolloSearchRole,
+        });
+      }
+
+      // Strategy 2: If not found with role, try without role filter
       if (!apolloData && apolloSearchRole) {
-        console.log(`⚠️ Not found with role filter "${apolloSearchRole}", trying without role...`);
+        console.log(`  ⚠️ Not found with role filter, trying without role...`);
         apolloData = await searchPersonInApollo({
           name: name,
           companyName: companyName,
           jobTitle: null,
         });
+      }
+
+      // Strategy 3: Try company name variations (remove "Corporation", "Inc.", etc.)
+      if (!apolloData) {
+        const companyVariations = [];
+        // Remove common suffixes
+        const baseCompany = companyName.replace(/\s+(Corporation|Corp|Inc|Inc\.|LLC|Ltd|Limited)$/i, '').trim();
+        if (baseCompany && baseCompany !== companyName) {
+          companyVariations.push(baseCompany);
+        }
+
+        for (const companyVar of companyVariations) {
+          console.log(`  ⚠️ Trying company variation: "${companyVar}"`);
+          apolloData = await searchPersonInApollo({
+            name: name,
+            companyName: companyVar,
+            jobTitle: null,
+          });
+          if (apolloData) {
+            console.log(`  ✅ Found with company variation: "${companyVar}"`);
+            break;
+          }
+        }
       }
 
       if (apolloData) {
