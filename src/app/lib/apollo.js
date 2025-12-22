@@ -1,21 +1,3 @@
-/**
- * Apollo.io API integration for contact enrichment
- * Documentation: https://apolloio.github.io/apollo-api-docs/
- * 
- * Required Environment Variable:
- * - APOLLO_API_KEY: Your Apollo.io API key (get from https://app.apollo.io/#/settings/integrations)
- * 
- * API Endpoint Used:
- * - /v1/contacts/search (requires api/v1/contacts/search permission)
- * 
- * Best practices:
- * - Rate limiting to avoid API limits (500ms delay between requests)
- * - Graceful error handling with fallbacks
- * - Intelligent company name extraction from URLs and headlines
- * - LLM-based extraction when pattern matching fails
- * - Caching to reduce API calls (24 hour TTL)
- * - Non-blocking: if Apollo fails, original signal data is preserved
- */
 
 import OpenAI from "openai";
 
@@ -23,8 +5,6 @@ const APOLLO_API_KEY = process.env.APOLLO_API_KEY;
 const APOLLO_BASE_URL = 'https://api.apollo.io/v1';
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 
-// Rate limiting: Apollo typically allows 120 requests per minute
-// We'll be conservative and add delays between requests
 const RATE_LIMIT_DELAY_MS = 500; // 500ms between requests = ~120 requests/minute
 let lastRequestTime = 0;
 
@@ -133,7 +113,7 @@ async function extractWithLLM(signal) {
     return { companyName: null, role: null };
   }
 
-  console.log('🤖 Using LLM to extract company name and role...');
+  console.log('🤖 Using LLM with web search to extract company name and role...');
   try {
     // Extract domain from URL if available
     let urlDomain = null;
@@ -147,7 +127,8 @@ async function extractWithLLM(signal) {
       }
     }
 
-    const prompt = `Analyze the following business signal information and extract the company name and decision maker role.
+    const prompt = `Analyze the following business signal information and extract the company name, decision maker role, and decision maker name (if mentioned).
+Use web search if needed to verify or find information from the URL or headline.
 
 Headline: ${signal.headline_source || 'N/A'}
 URL: ${signal.url || 'N/A'}
@@ -157,34 +138,48 @@ Next Step: ${signal.next_step || 'N/A'}
 Return ONLY a valid JSON object with this exact structure:
 {
   "companyName": "Company Name or null",
-  "role": "Decision Maker Role (e.g., CEO, CFO, HR Director) or null"
+  "role": "Decision Maker Role (e.g., CEO, CFO, HR Director) or null",
+  "name": "Decision Maker Full Name (e.g., John Smith) or null"
 }
 
-Rules:
-- Extract the ACTUAL COMPANY NAME that is the subject of this business opportunity
-- If the URL is a news site (like reuters.com, bloomberg.com, techcrunch.com, etc.), extract the company name mentioned in the headline/content, NOT the news site name
-- If the URL is the company's own website, extract the company name from the domain
-- Extract the most relevant decision maker role for this opportunity based on the context
-- Return null if you cannot determine with confidence
-- Do not include any explanation, only the JSON object`;
+CRITICAL EXTRACTION RULES:
+1. COMPANY NAME EXTRACTION:
+   - Look for company names at the START of the headline (e.g., "NN, Inc. (NNBR) forms..." → extract "NN, Inc.")
+   - If headline contains "Company Name (TICKER)", extract the company name BEFORE the ticker (e.g., "NN, Inc. (NNBR)" → "NN, Inc.")
+   - If the URL is a news site (reuters.com, bloomberg.com, techcrunch.com, thefilingfool.com, etc.), use web search to find the company name mentioned in the article, NOT the news site name
+   - If the URL is the company's own website, extract the company name from the domain
+   - Use web search to verify company names when the headline or URL is unclear
+   - Common patterns: "Company Name announces...", "Company Name (TICKER) forms...", "Company Name hires..."
+   - ALWAYS extract the actual company name, even if it includes "Inc.", "Corp.", "LLC", etc.
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-5.2",
-      messages: [
-        {
-          role: "system",
-          content: "You are a data extraction assistant. Analyze business signals to extract company names and decision maker roles. Return only valid JSON, no markdown, no explanations."
-        },
-        {
-          role: "user",
-          content: prompt
-        }
+2. DECISION MAKER ROLE EXTRACTION:
+   - Look for roles in the headline or next_step (CEO, CFO, CTO, HR Director, Board, Committee, etc.)
+   - If no specific role mentioned, infer from context (e.g., "strategic committee" → "Board Member" or "Executive")
+   - Return null only if absolutely no role can be inferred
+
+3. DECISION MAKER NAME EXTRACTION:
+   - Look for person names in the headline or next_step (e.g., "John Smith", "CEO John Smith", "Smith announced...")
+   - Use web search to find executive names mentioned in the article if the headline references a person
+   - Extract full names when available (first name + last name)
+   - Return null if no name is mentioned or cannot be determined
+
+4. OUTPUT REQUIREMENTS:
+   - Return null ONLY if you cannot determine with confidence even after web search
+   - Be confident in extracting company names from headlines - they are usually clear
+   - Use web search to verify ambiguous cases
+   - Do not include any explanation, only the JSON object`;
+
+    // Use Responses API with web search tool (like recommendations API)
+    const response = await openai.responses.create({
+      model: "gpt-5.1",
+      input: prompt,
+      tools: [
+        { type: "web_search" }
       ],
       temperature: 0.3,
-      max_tokens: 200,
     });
 
-    const content = response.choices[0]?.message?.content?.trim();
+    const content = response.output_text?.trim();
     if (!content) {
       console.error('❌ LLM returned empty content');
       return { companyName: null, role: null };
@@ -211,19 +206,21 @@ Rules:
       return { companyName: null, role: null };
     }
 
-    console.log('✅ LLM extraction result:', {
+    console.log('✅ LLM extraction result (with web search):', {
       companyName: parsed.companyName || 'null',
       role: parsed.role || 'null',
+      name: parsed.name || 'null',
     });
 
     // Validate that we got at least one useful value
-    if (!parsed.companyName && !parsed.role) {
-      console.warn('⚠️ LLM extraction returned both null values - extraction may have failed');
+    if (!parsed.companyName && !parsed.role && !parsed.name) {
+      console.warn('⚠️ LLM extraction returned all null values - extraction may have failed');
     }
 
     return {
       companyName: parsed.companyName || null,
       role: parsed.role || null,
+      name: parsed.name || null,
     };
   } catch (error) {
     console.error('❌ Error in LLM extraction:', error.message);
@@ -253,8 +250,8 @@ export async function extractCompanyNameFromSignal(signal, skipLLM = false) {
   if (signal.headline_source) {
     const headline = signal.headline_source;
 
-    // Pattern 1: "Company Name (TICKER) ..." - very clear pattern like "Astrotech Corporation (ASTC)"
-    const tickerPattern = /^([A-Z][a-zA-Z0-9\s&]+?)\s*\([A-Z]{1,5}\)/i;
+    // Pattern 1: "Company Name (TICKER) ..." - handles "NN, Inc. (NNBR)", "Astrotech Corporation (ASTC)", etc.
+    const tickerPattern = /^([A-Z][a-zA-Z0-9\s&,\.]+?)\s*\([A-Z]{1,5}\)/i;
     let match = headline.match(tickerPattern);
     if (match && match[1]) {
       const company = match[1].trim();
@@ -446,8 +443,10 @@ export async function enrichSignalWithApollo(signal) {
   const llmDebugInfo = {
     companyName: llmResult.companyName || 'null',
     role: llmResult.role || 'null',
+    name: llmResult.name || 'null',
     hasCompanyName: !!llmResult.companyName,
     hasRole: !!llmResult.role,
+    hasName: !!llmResult.name,
   };
   console.log('📝 LLM extraction result:', llmDebugInfo);
 
@@ -467,7 +466,7 @@ export async function enrichSignalWithApollo(signal) {
   // Store debug info for frontend (defined here so it's available in all return paths)
   const extractionDebug = {
     llm_result: llmDebugInfo,
-    pattern_match_result: patternMatchResult || 'not_attempted',
+    pattern_match_result: patternMatchResult !== null ? (patternMatchResult || 'null') : 'not_attempted',
     final_company_name: companyName || 'null',
     input_data: {
       headline_source: signal.headline_source?.substring(0, 100) || 'N/A',
@@ -506,83 +505,88 @@ export async function enrichSignalWithApollo(signal) {
 
   console.log('✅ Step 2: Company name extracted successfully, proceeding to Apollo search...');
 
-  // If we have a name, search with it
-  // If not, search by role and company
-  if (!signal.decision_maker_name || signal.decision_maker_name === 'TBD' || signal.decision_maker_name.trim() === '' || signal.decision_maker_name === 'N/A') {
-    // Try to find decision maker by role and company
-    if (companyName && decisionMakerRole) {
-      console.log(`🔍 Searching Apollo for: ${decisionMakerRole} at ${companyName}`);
-      const apolloData = await searchPersonInApollo({
-        name: null,
-        companyName: companyName,
-        jobTitle: decisionMakerRole,
-      });
-
-      if (apolloData) {
-        console.log(`✅ Found decision maker in Apollo:`, {
-          name: apolloData.name,
-          email: apolloData.email ? 'found' : 'not found',
-          linkedin: apolloData.linkedin_url ? 'found' : 'not found',
-        });
-        return {
-          ...signal,
-          decision_maker_name: apolloData.name || signal.decision_maker_name || '',
-          decision_maker_linkedin_url: apolloData.linkedin_url || signal.decision_maker_linkedin_url || '',
-          decision_maker_email: apolloData.email || '',
-          decision_maker_phone: apolloData.phone_number || '',
-          decision_maker_role: apolloData.title || decisionMakerRole,
-          apollo_enriched: true,
-          apollo_company: companyName,
-          apollo_debug: extractionDebug, // Include debug info for frontend
-        };
-      } else {
-        console.log(`⚠️ No decision maker found in Apollo for ${decisionMakerRole} at ${companyName}`);
-      }
+  // Extract decision maker name from LLM if available
+  let decisionMakerName = signal.decision_maker_name;
+  if (!decisionMakerName || decisionMakerName === 'TBD' || decisionMakerName.trim() === '' || decisionMakerName === 'N/A') {
+    // Use LLM extracted name if available
+    if (llmResult.name) {
+      decisionMakerName = llmResult.name;
+      console.log(`📝 Extracted name from LLM: ${decisionMakerName}`);
     }
-
-    return {
-      ...signal,
-      apollo_enriched: false,
-      apollo_error: 'No decision maker found in Apollo',
-      apollo_debug: extractionDebug, // Include debug info for frontend
-    };
+  } else {
+    console.log(`📝 Using provided name: ${decisionMakerName}`);
   }
 
-  // Search Apollo with available information
-  console.log(`🔍 Searching Apollo for: ${signal.decision_maker_name} at ${companyName}`);
-  const apolloData = await searchPersonInApollo({
-    name: signal.decision_maker_name,
-    companyName: companyName,
-    jobTitle: decisionMakerRole,
-  });
-
-  if (apolloData && apolloData.linkedin_url) {
-    // Successfully found valid LinkedIn URL
-    console.log(`✅ Found decision maker in Apollo:`, {
-      name: apolloData.name,
-      email: apolloData.email ? 'found' : 'not found',
-      linkedin: apolloData.linkedin_url,
+  // Search Apollo with available information (name, company, role)
+  // Priority: name + company > name + role > role + company > company only
+  if (decisionMakerName && companyName) {
+    // Best case: we have both name and company
+    console.log(`🔍 Searching Apollo for: ${decisionMakerName} at ${companyName}${decisionMakerRole ? ` (${decisionMakerRole})` : ''}`);
+    const apolloData = await searchPersonInApollo({
+      name: decisionMakerName,
+      companyName: companyName,
+      jobTitle: decisionMakerRole || null,
     });
-    return {
-      ...signal,
-      decision_maker_name: apolloData.name || signal.decision_maker_name,
-      decision_maker_linkedin_url: apolloData.linkedin_url,
-      decision_maker_email: apolloData.email || '',
-      decision_maker_phone: apolloData.phone_number || '',
-      decision_maker_role: apolloData.title || decisionMakerRole,
-      apollo_enriched: true,
-      apollo_company: apolloData.company || companyName,
-      apollo_debug: extractionDebug, // Include debug info for frontend
-    };
+
+    if (apolloData) {
+      console.log(`✅ Found decision maker in Apollo:`, {
+        name: apolloData.name,
+        email: apolloData.email ? 'found' : 'not found',
+        linkedin: apolloData.linkedin_url ? 'found' : 'not found',
+      });
+      return {
+        ...signal,
+        decision_maker_name: apolloData.name || decisionMakerName,
+        decision_maker_linkedin_url: apolloData.linkedin_url || signal.decision_maker_linkedin_url || '',
+        decision_maker_email: apolloData.email || '',
+        decision_maker_phone: apolloData.phone_number || '',
+        decision_maker_role: apolloData.title || decisionMakerRole,
+        apollo_enriched: true,
+        apollo_company: companyName,
+        apollo_debug: extractionDebug,
+      };
+    } else {
+      console.log(`⚠️ No decision maker found in Apollo for ${decisionMakerName} at ${companyName}`);
+    }
   }
 
-  // Apollo search didn't find a match, return original signal
-  // but keep the original LinkedIn URL if it exists (might be valid)
-  console.log(`⚠️ Apollo search completed but no LinkedIn URL found`);
+  // Fallback: If we don't have a name, or name search failed, try by role and company
+  if ((!decisionMakerName || decisionMakerName === 'TBD' || decisionMakerName.trim() === '' || decisionMakerName === 'N/A') && companyName && decisionMakerRole) {
+    console.log(`🔍 Searching Apollo for: ${decisionMakerRole} at ${companyName} (no name available)`);
+    const apolloData = await searchPersonInApollo({
+      name: null,
+      companyName: companyName,
+      jobTitle: decisionMakerRole,
+    });
+
+    if (apolloData) {
+      console.log(`✅ Found decision maker in Apollo:`, {
+        name: apolloData.name,
+        email: apolloData.email ? 'found' : 'not found',
+        linkedin: apolloData.linkedin_url ? 'found' : 'not found',
+      });
+      return {
+        ...signal,
+        decision_maker_name: apolloData.name || signal.decision_maker_name || '',
+        decision_maker_linkedin_url: apolloData.linkedin_url || signal.decision_maker_linkedin_url || '',
+        decision_maker_email: apolloData.email || '',
+        decision_maker_phone: apolloData.phone_number || '',
+        decision_maker_role: apolloData.title || decisionMakerRole,
+        apollo_enriched: true,
+        apollo_company: companyName,
+        apollo_debug: extractionDebug, // Include debug info for frontend
+      };
+    } else {
+      console.log(`⚠️ No decision maker found in Apollo for ${decisionMakerRole} at ${companyName}`);
+    }
+  }
+
+  // If we still don't have a match, return error
   return {
     ...signal,
     apollo_enriched: false,
-    apollo_error: apolloData === null ? 'No match found in Apollo' : 'No LinkedIn URL in Apollo result',
+    apollo_error: 'No decision maker found in Apollo',
+    apollo_debug: extractionDebug,
   };
 }
 
