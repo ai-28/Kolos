@@ -57,8 +57,10 @@ function getCacheKey(name, companyName, jobTitle) {
  * Extract decision maker role from signal context (next_step, headline)
  * Tries to infer the role from the action described
  * Falls back to LLM extraction if pattern matching fails
+ * @param {Object} signal - Signal data
+ * @param {boolean} skipLLM - If true, skip LLM extraction and only use pattern matching
  */
-export async function extractDecisionMakerRoleFromSignal(signal) {
+export async function extractDecisionMakerRoleFromSignal(signal, skipLLM = false) {
   // Strategy 1: Extract from next_step
   if (signal.next_step) {
     const nextStep = signal.next_step.toLowerCase();
@@ -110,7 +112,10 @@ export async function extractDecisionMakerRoleFromSignal(signal) {
     }
   }
 
-  // Strategy 3: Use LLM if pattern matching failed
+  // Strategy 3: Use LLM if pattern matching failed (unless skipLLM is true)
+  if (skipLLM) {
+    return null;
+  }
   const llmResult = await extractWithLLM(signal);
   return llmResult.role || null;
 }
@@ -209,61 +214,56 @@ Rules:
 
 /**
  * Extract company name from signal context
- * Uses intelligent LLM-based extraction that analyzes all available context
- * Falls back to pattern matching for fast extraction when possible
+ * Uses GPT-5.2 as primary method for intelligent extraction
+ * Pattern matching is only used for very obvious cases to save on LLM costs
+ * @param {Object} signal - Signal data
+ * @param {boolean} skipLLM - If true, skip LLM extraction and only use pattern matching
  */
-export async function extractCompanyNameFromSignal(signal) {
-  // Strategy 1: Quick pattern matching from headline (fast, free)
-  // Only use if we have a clear pattern match
+export async function extractCompanyNameFromSignal(signal, skipLLM = false) {
+  console.log(`📝 Extracting company name from signal...`);
+  console.log(`📝 Headline: "${signal.headline_source?.substring(0, 100)}..."`);
+  console.log(`📝 URL: ${signal.url?.substring(0, 80)}...`);
+  console.log(`📝 Next Step: "${signal.next_step?.substring(0, 80)}..."`);
+
+  // Strategy 1: Quick pattern matching for very obvious cases only (fast, free)
+  // Only use for simple, clear patterns to save on LLM costs
   if (signal.headline_source) {
     const headline = signal.headline_source;
 
-    // Pattern 1: "Company Name announces..." or "Company Name raises..."
-    const announcePattern = /^([A-Z][a-zA-Z0-9\s&]+?)\s+(announces|raises|launches|expands|hires|acquires|opens|closes|plans|reports)/i;
-    let match = headline.match(announcePattern);
+    // Pattern 1: "Company Name (TICKER) ..." - very clear pattern like "Astrotech Corporation (ASTC)"
+    const tickerPattern = /^([A-Z][a-zA-Z0-9\s&]+?)\s*\([A-Z]{1,5}\)/i;
+    let match = headline.match(tickerPattern);
     if (match && match[1]) {
       const company = match[1].trim();
-      // Filter out common false positives
+      // Validate it's a reasonable company name
       if (company.length > 2 && company.length < 50 &&
+        company.split(' ').length <= 5 &&
         !company.toLowerCase().includes('mass') &&
-        !company.toLowerCase().includes('wave') &&
-        !company.toLowerCase().includes('layoff')) {
-        // Quick validation: if it looks like a valid company name, return it
-        // Otherwise, let LLM handle it for better accuracy
-        if (company.split(' ').length <= 5) { // Reasonable company name length
-          return company;
-        }
-      }
-    }
-
-    // Pattern 2: "at Company Name" or "from Company Name"
-    const atPattern = /(?:at|from|by)\s+([A-Z][a-zA-Z0-9\s&]+?)(?:\s|$|,|\.)/i;
-    match = headline.match(atPattern);
-    if (match && match[1]) {
-      const company = match[1].trim();
-      if (company.length > 2 && company.length < 50 && company.split(' ').length <= 5) {
-        return company;
-      }
-    }
-
-    // Pattern 3: Company name in quotes or parentheses
-    const quotedPattern = /["']([A-Z][a-zA-Z0-9\s&]+?)(?:["']|$)/;
-    match = headline.match(quotedPattern);
-    if (match && match[1]) {
-      const company = match[1].trim();
-      if (company.length > 2 && company.length < 50 && company.split(' ').length <= 5) {
+        !company.toLowerCase().includes('wave')) {
+        console.log(`✅ Quick pattern match (ticker): "${company}"`);
         return company;
       }
     }
   }
 
-  // Strategy 2: Use LLM for intelligent extraction
-  // LLM can analyze URL, headline, and next_step together to determine:
-  // - If URL is a news site, extract company from headline
-  // - If URL is company's own site, extract from domain
-  // - Handle edge cases and ambiguous situations
+  // Strategy 2: Use GPT-5.2 for intelligent extraction (PRIMARY METHOD)
+  // This handles all complex cases, news sites, ambiguous situations, etc.
+  // Skip if skipLLM is true (we already called LLM once)
+  if (skipLLM) {
+    console.log('⚠️ Pattern matching failed, skipping LLM (already called)');
+    return null;
+  }
+
+  console.log('🤖 Using GPT-5.2 to extract company name (primary method)...');
   const llmResult = await extractWithLLM(signal);
-  return llmResult.companyName || null;
+
+  if (llmResult.companyName) {
+    console.log(`✅ GPT-5.2 extracted company: "${llmResult.companyName}"`);
+    return llmResult.companyName;
+  } else {
+    console.log(`⚠️ GPT-5.2 could not extract company name`);
+    return null;
+  }
 }
 
 /**
@@ -410,17 +410,30 @@ export async function enrichSignalWithApollo(signal) {
     next_step: signal.next_step?.substring(0, 50) + '...',
   });
 
-  // Extract company name from signal
-  console.log('📝 Extracting company name...');
-  const companyName = await extractCompanyNameFromSignal(signal);
+  // Extract both company name and role in ONE LLM call (best practice)
+  console.log('🤖 Extracting company name and role with single GPT-5.2 call...');
+  const llmResult = await extractWithLLM(signal);
+
+  // Use LLM results, fall back to pattern matching if needed (skipLLM=true to avoid duplicate calls)
+  let companyName = llmResult.companyName;
+  if (!companyName) {
+    console.log('📝 LLM did not extract company name, trying pattern matching only...');
+    companyName = await extractCompanyNameFromSignal(signal, true); // skipLLM=true since we already called it
+  }
   console.log(`📝 Extracted company name: ${companyName || 'null'}`);
 
   // Extract decision maker role from signal if not provided
   let decisionMakerRole = signal.decision_maker_role;
   if (!decisionMakerRole || decisionMakerRole === 'TBD' || decisionMakerRole.trim() === '' || decisionMakerRole === 'N/A') {
-    console.log('📝 Extracting decision maker role...');
-    decisionMakerRole = await extractDecisionMakerRoleFromSignal(signal) || 'Executive Leadership';
-    console.log(`📝 Extracted role: ${decisionMakerRole}`);
+    // Use LLM result if available, otherwise try pattern matching (skipLLM=true to avoid duplicate calls)
+    if (llmResult.role) {
+      decisionMakerRole = llmResult.role;
+      console.log(`📝 Extracted role from LLM: ${decisionMakerRole}`);
+    } else {
+      console.log('📝 LLM did not extract role, trying pattern matching only...');
+      decisionMakerRole = await extractDecisionMakerRoleFromSignal(signal, true) || 'Executive Leadership'; // skipLLM=true since we already called it
+      console.log(`📝 Extracted role: ${decisionMakerRole}`);
+    }
   } else {
     console.log(`📝 Using provided role: ${decisionMakerRole}`);
   }
