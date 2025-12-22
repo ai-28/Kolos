@@ -192,6 +192,7 @@ export async function POST(req) {
             profile_id: profileId,
             apollo_enrichment: enrichedDeal.apollo_enriched ? "completed" : (process.env.APOLLO_API_KEY ? "failed" : "not_configured"),
             apollo_error: enrichedDeal.apollo_error || null,
+            apollo_debug: enrichedDeal.apollo_debug || null, // Add debug info for frontend
             decision_maker: enrichedDeal.apollo_enriched ? {
                 name: enrichedDeal.decision_maker_name,
                 role: enrichedDeal.decision_maker_role,

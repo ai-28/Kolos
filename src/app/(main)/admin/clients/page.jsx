@@ -290,10 +290,23 @@ function ClientDashboardContent() {
       // Check Apollo enrichment status
       if (data.apollo_enrichment) {
         console.log('🔍 Apollo enrichment status:', data.apollo_enrichment)
+        if (data.apollo_error) {
+          console.error('❌ Apollo error:', data.apollo_error)
+        }
+        if (data.apollo_debug) {
+          console.log('🔍 Apollo debug info:', data.apollo_debug)
+          console.log('📝 LLM extraction:', data.apollo_debug.llm_result)
+          console.log('📝 Pattern matching:', data.apollo_debug.pattern_match_result)
+          console.log('📝 Final company name:', data.apollo_debug.final_company_name)
+          console.log('📝 Input data:', data.apollo_debug.input_data)
+        }
         if (data.decision_maker) {
           console.log('✅ Decision maker found:', data.decision_maker)
         } else {
           console.log('⚠️ No decision maker data returned')
+          if (data.apollo_debug) {
+            console.warn('⚠️ Debug info available - check LLM extraction results above')
+          }
         }
       }
 

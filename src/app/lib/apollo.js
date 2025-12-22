@@ -443,23 +443,38 @@ export async function enrichSignalWithApollo(signal) {
   });
 
   const llmResult = await extractWithLLM(signal);
-  console.log('📝 LLM extraction result:', {
+  const llmDebugInfo = {
     companyName: llmResult.companyName || 'null',
     role: llmResult.role || 'null',
     hasCompanyName: !!llmResult.companyName,
     hasRole: !!llmResult.role,
-  });
+  };
+  console.log('📝 LLM extraction result:', llmDebugInfo);
 
   // Use LLM results, fall back to pattern matching if needed (skipLLM=true to avoid duplicate calls)
   let companyName = llmResult.companyName;
+  let patternMatchResult = null;
   if (!companyName) {
     console.log('⚠️ LLM did not extract company name, trying pattern matching only...');
-    companyName = await extractCompanyNameFromSignal(signal, true); // skipLLM=true since we already called it
+    patternMatchResult = await extractCompanyNameFromSignal(signal, true); // skipLLM=true since we already called it
+    companyName = patternMatchResult;
     console.log(`📝 Pattern matching result: ${companyName || 'null'}`);
   } else {
     console.log(`✅ Using company name from LLM: ${companyName}`);
   }
   console.log(`✅ Final extracted company name: ${companyName || 'null'}`);
+
+  // Store debug info for frontend (defined here so it's available in all return paths)
+  const extractionDebug = {
+    llm_result: llmDebugInfo,
+    pattern_match_result: patternMatchResult || 'not_attempted',
+    final_company_name: companyName || 'null',
+    input_data: {
+      headline_source: signal.headline_source?.substring(0, 100) || 'N/A',
+      url: signal.url?.substring(0, 100) || 'N/A',
+      next_step: signal.next_step?.substring(0, 100) || 'N/A',
+    }
+  };
 
   // Extract decision maker role from signal if not provided
   let decisionMakerRole = signal.decision_maker_role;
@@ -480,17 +495,12 @@ export async function enrichSignalWithApollo(signal) {
   // Need at least company name to search Apollo
   if (!companyName) {
     console.log('❌ Cannot search Apollo: company name extraction failed');
-    console.log('📝 Extraction attempt summary:', {
-      llm_extracted: llmResult.companyName || 'null',
-      pattern_matched: companyName || 'null',
-      headline_source: signal.headline_source?.substring(0, 100) || 'N/A',
-      url: signal.url?.substring(0, 100) || 'N/A',
-      next_step: signal.next_step?.substring(0, 100) || 'N/A',
-    });
+    console.log('📝 Extraction attempt summary:', extractionDebug);
     return {
       ...signal,
       apollo_enriched: false,
       apollo_error: 'Insufficient data for search - need company name. LLM extraction failed to identify company from provided data.',
+      apollo_debug: extractionDebug, // Include debug info for frontend
     };
   }
 
@@ -523,6 +533,7 @@ export async function enrichSignalWithApollo(signal) {
           decision_maker_role: apolloData.title || decisionMakerRole,
           apollo_enriched: true,
           apollo_company: companyName,
+          apollo_debug: extractionDebug, // Include debug info for frontend
         };
       } else {
         console.log(`⚠️ No decision maker found in Apollo for ${decisionMakerRole} at ${companyName}`);
@@ -533,6 +544,7 @@ export async function enrichSignalWithApollo(signal) {
       ...signal,
       apollo_enriched: false,
       apollo_error: 'No decision maker found in Apollo',
+      apollo_debug: extractionDebug, // Include debug info for frontend
     };
   }
 
@@ -560,6 +572,7 @@ export async function enrichSignalWithApollo(signal) {
       decision_maker_role: apolloData.title || decisionMakerRole,
       apollo_enriched: true,
       apollo_company: apolloData.company || companyName,
+      apollo_debug: extractionDebug, // Include debug info for frontend
     };
   }
 
@@ -616,6 +629,7 @@ export async function enrichDealWithApollo(dealData) {
     decision_maker_phone: enriched.decision_maker_phone || dealData.decision_maker_phone || '',
     apollo_enriched: enriched.apollo_enriched || false,
     apollo_error: enriched.apollo_error || null,
+    apollo_debug: enriched.apollo_debug || null, // Pass debug info through
   };
 }
 
