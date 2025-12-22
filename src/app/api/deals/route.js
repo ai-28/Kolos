@@ -183,24 +183,46 @@ export async function POST(req) {
             success: true,
             message: "Deal created successfully",
             deal_id: dealId,
+            profile_id: profileId,
             apollo_enrichment: enrichedDeal.apollo_enriched ? "completed" : (process.env.APOLLO_API_KEY ? "failed" : "not_configured"),
+            apollo_error: enrichedDeal.apollo_error || null,
             decision_maker: enrichedDeal.apollo_enriched ? {
                 name: enrichedDeal.decision_maker_name,
                 role: enrichedDeal.decision_maker_role,
                 linkedin_url: enrichedDeal.decision_maker_linkedin_url,
                 email: enrichedDeal.decision_maker_email,
+                phone: enrichedDeal.decision_maker_phone,
             } : null,
+            deal_data: {
+                deal_name: deal.deal_name,
+                source: deal.source,
+                next_step: deal.next_step,
+            }
         });
     } catch (error) {
         if (error.message === 'Unauthorized') {
             return NextResponse.json(
-                { error: "Unauthorized" },
+                { error: "Unauthorized", details: "Please make sure you are logged in" },
                 { status: 401 }
             );
         }
         console.error("Error creating deal:", error);
+
+        // Provide more detailed error information
+        let errorDetails = error.message;
+        if (error.message.includes('GOOGLE_SHEET_ID')) {
+            errorDetails = "Google Sheets configuration error. GOOGLE_SHEET_ID not set.";
+        } else if (error.message.includes('append') || error.message.includes('spreadsheet')) {
+            errorDetails = `Google Sheets error: ${error.message}. Please check:\n1. Sheet 'Deals' exists\n2. Google Sheets API permissions\n3. Column headers are correct`;
+        }
+
         return NextResponse.json(
-            { error: "Failed to create deal", details: error.message },
+            {
+                error: "Failed to create deal",
+                details: errorDetails,
+                error_type: error.name || "Error",
+                stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+            },
             { status: 500 }
         );
     }

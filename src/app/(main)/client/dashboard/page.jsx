@@ -255,6 +255,8 @@ function ClientDashboardContent() {
   const handleCreateDeal = async () => {
     setCreatingDeal(true)
     try {
+      console.log('📝 Creating deal with data:', dealFormData)
+      
       const response = await fetch('/api/deals', {
         method: 'POST',
         headers: {
@@ -271,17 +273,44 @@ function ClientDashboardContent() {
       })
 
       const data = await response.json()
+      console.log('📥 API Response:', data)
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to create deal")
+        const errorMessage = data.error || data.details || "Failed to create deal"
+        console.error('❌ Deal creation failed:', {
+          status: response.status,
+          error: errorMessage,
+          fullResponse: data
+        })
+        throw new Error(errorMessage)
+      }
+
+      // Check Apollo enrichment status
+      if (data.apollo_enrichment) {
+        console.log('🔍 Apollo enrichment status:', data.apollo_enrichment)
+        if (data.decision_maker) {
+          console.log('✅ Decision maker found:', data.decision_maker)
+        } else {
+          console.log('⚠️ No decision maker data returned')
+        }
       }
 
       // Refresh deals list
+      console.log('🔄 Refreshing deals list...')
       const dealsResponse = await fetch('/api/deals')
       const dealsData = await dealsResponse.json()
       
+      console.log('📊 Deals response:', {
+        ok: dealsResponse.ok,
+        count: dealsData.deals?.length || 0,
+        deals: dealsData.deals
+      })
+      
       if (dealsResponse.ok && dealsData.deals && Array.isArray(dealsData.deals)) {
         setDeals(dealsData.deals)
+        console.log(`✅ Loaded ${dealsData.deals.length} deals`)
+      } else {
+        console.warn('⚠️ Failed to refresh deals or no deals returned')
       }
 
       // Close modal and reset form
@@ -296,10 +325,36 @@ function ClientDashboardContent() {
       })
       setSelectedSignal(null)
 
-      alert("Deal created successfully!")
+      // Show success message with Apollo status
+      let successMessage = "Deal created successfully!"
+      if (data.apollo_enrichment === "completed" && data.decision_maker) {
+        successMessage += `\n\n✅ Decision Maker Found:\n- Name: ${data.decision_maker.name || 'N/A'}\n- Role: ${data.decision_maker.role || 'N/A'}\n- Email: ${data.decision_maker.email || 'N/A'}`
+      } else if (data.apollo_enrichment === "failed") {
+        successMessage += "\n\n⚠️ Deal created but Apollo enrichment failed. Check server logs for details."
+      } else if (data.apollo_enrichment === "not_configured") {
+        successMessage += "\n\nℹ️ Apollo API key not configured. Deal created without enrichment."
+      }
+      
+      alert(successMessage)
     } catch (error) {
-      console.error("Error creating deal:", error)
-      alert(`Failed to create deal: ${error.message}`)
+      console.error("❌ Error creating deal:", error)
+      console.error("📝 Error details:", {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      })
+      
+      // Show detailed error message
+      let errorMessage = `Failed to create deal: ${error.message}`
+      if (error.message.includes('Unauthorized')) {
+        errorMessage += '\n\nPlease make sure you are logged in.'
+      } else if (error.message.includes('GOOGLE_SHEET_ID')) {
+        errorMessage += '\n\nServer configuration error. Please contact support.'
+      } else if (error.message.includes('append')) {
+        errorMessage += '\n\nFailed to save to Google Sheets. Please check:\n1. Google Sheets permissions\n2. Sheet name "Deals" exists\n3. Column headers are correct'
+      }
+      
+      alert(errorMessage)
     } finally {
       setCreatingDeal(false)
     }
