@@ -318,8 +318,10 @@ async function searchPersonInApollo({ name, companyName, jobTitle }) {
 
   try {
     // Build search query
+    // Note: Apollo API accepts api_key in body OR X-Api-Key header (or both)
+    // Master keys work the same way as regular API keys
     const searchParams = {
-      api_key: APOLLO_API_KEY,
+      api_key: APOLLO_API_KEY, // In request body
       page: 1,
       per_page: 5, // Get more results to find better matches
     };
@@ -373,8 +375,10 @@ async function searchPersonInApollo({ name, companyName, jobTitle }) {
       searchParams.person_titles = [jobTitle];
     }
 
-    // Use /v1/contacts/search endpoint (available in user's Apollo plan)
-    const response = await fetch(`${APOLLO_BASE_URL}/contacts/search`, {
+    // Use /v1/people/search endpoint to search Apollo's entire database
+    // This endpoint searches all prospects in Apollo's database, not just saved contacts
+    // This is different from /v1/contacts/search which only searches your saved contacts
+    let response = await fetch(`${APOLLO_BASE_URL}/people/search`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -384,9 +388,29 @@ async function searchPersonInApollo({ name, companyName, jobTitle }) {
       body: JSON.stringify(searchParams),
     });
 
+    // Fallback: try /v1/mixed_people/api_search if people/search endpoint fails
+    if (!response.ok) {
+      console.log(`⚠️ /v1/people/search failed (${response.status}), trying /v1/mixed_people/api_search...`);
+      response = await fetch(`${APOLLO_BASE_URL}/mixed_people/api_search`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+          'X-Api-Key': APOLLO_API_KEY,
+        },
+        body: JSON.stringify(searchParams),
+      });
+    }
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`Apollo API error (${response.status}):`, errorText);
+      console.error(`📝 Search params were:`, {
+        first_name: searchParams.first_name || searchParams.q_keywords || 'null',
+        last_name: searchParams.last_name || 'null',
+        organization_name: searchParams.organization_name || 'null',
+        person_titles: searchParams.person_titles || 'null',
+      });
 
       // Don't throw - return null to allow fallback to original data
       return null;
@@ -394,8 +418,9 @@ async function searchPersonInApollo({ name, companyName, jobTitle }) {
 
     const data = await response.json();
 
-    // /v1/contacts/search returns contacts in 'contacts' array (or 'people' array depending on version)
-    const contacts = data.contacts || data.people || [];
+    // /v1/people/search returns people in 'people' array
+    // This searches Apollo's entire database, not just saved contacts
+    const contacts = data.people || data.contacts || [];
     if (contacts.length > 0) {
       // Find the best match: prefer contacts with LinkedIn URL and matching company
       let person = contacts[0];
