@@ -94,9 +94,17 @@ export async function POST(req) {
         // Generate deal_id if not provided
         const dealId = deal.deal_id || `deal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
+        console.log(`📝 Creating deal ${dealId} with data:`, {
+            deal_name: deal.deal_name,
+            source: deal.source,
+            next_step: deal.next_step,
+            profileId: profileId,
+        });
+
         // Enrich deal with Apollo (await to get enriched data before saving)
         let enrichedDeal = deal;
         if (process.env.APOLLO_API_KEY && (deal.deal_name || deal.source || deal.next_step)) {
+            console.log(`🔍 Starting Apollo enrichment for deal ${dealId}...`);
             try {
                 enrichedDeal = await enrichDealWithApollo({
                     deal_name: deal.deal_name || '',
@@ -113,13 +121,26 @@ export async function POST(req) {
                         decision_maker_role: enrichedDeal.decision_maker_role,
                         decision_maker_linkedin_url: enrichedDeal.decision_maker_linkedin_url,
                         decision_maker_email: enrichedDeal.decision_maker_email,
+                        decision_maker_phone: enrichedDeal.decision_maker_phone,
                     });
                 } else if (enrichedDeal.apollo_error) {
                     console.log(`⚠️ Apollo enrichment failed for deal ${dealId}:`, enrichedDeal.apollo_error);
+                    console.log(`📝 Continuing with deal creation without enrichment...`);
                 }
             } catch (error) {
                 console.error(`❌ Apollo enrichment error for deal ${dealId}:`, error);
+                console.error(`📝 Error details:`, {
+                    message: error.message,
+                    stack: error.stack,
+                });
                 // Continue with original deal data if enrichment fails
+                enrichedDeal = deal;
+            }
+        } else {
+            if (!process.env.APOLLO_API_KEY) {
+                console.log(`ℹ️ APOLLO_API_KEY not configured, skipping enrichment for deal ${dealId}`);
+            } else {
+                console.log(`ℹ️ Insufficient data for Apollo enrichment (need deal_name, source, or next_step)`);
             }
         }
 
@@ -142,7 +163,21 @@ export async function POST(req) {
             enrichedDeal.decision_maker_phone || '',
         ];
 
-        await appendToSheet(SHEETS.DEALS, dealRow);
+        console.log(`💾 Saving deal ${dealId} to Google Sheets with ${dealRow.length} columns...`);
+        console.log(`📊 Deal row data:`, dealRow);
+
+        try {
+            await appendToSheet(SHEETS.DEALS, dealRow);
+            console.log(`✅ Deal ${dealId} successfully saved to Google Sheets`);
+        } catch (sheetError) {
+            console.error(`❌ Failed to save deal ${dealId} to Google Sheets:`, sheetError);
+            console.error(`📝 Sheet error details:`, {
+                message: sheetError.message,
+                code: sheetError.code,
+                response: sheetError.response?.data,
+            });
+            throw sheetError; // Re-throw to be caught by outer try-catch
+        }
 
         return NextResponse.json({
             success: true,

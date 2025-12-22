@@ -124,9 +124,11 @@ export async function extractDecisionMakerRoleFromSignal(signal) {
  */
 async function extractWithLLM(signal) {
   if (!openai) {
+    console.log('⚠️ OpenAI client not available, skipping LLM extraction');
     return { companyName: null, role: null };
   }
 
+  console.log('🤖 Using LLM to extract company name and role...');
   try {
     // Extract domain from URL if available
     let urlDomain = null;
@@ -186,12 +188,21 @@ Rules:
     const jsonContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     const parsed = JSON.parse(jsonContent);
 
+    console.log('✅ LLM extraction result:', {
+      companyName: parsed.companyName || 'null',
+      role: parsed.role || 'null',
+    });
+
     return {
       companyName: parsed.companyName || null,
       role: parsed.role || null,
     };
   } catch (error) {
-    console.error('Error in LLM extraction:', error.message);
+    console.error('❌ Error in LLM extraction:', error.message);
+    console.error('📝 LLM extraction error details:', {
+      message: error.message,
+      stack: error.stack,
+    });
     return { companyName: null, role: null };
   }
 }
@@ -385,6 +396,7 @@ async function searchPersonInApollo({ name, companyName, jobTitle }) {
 export async function enrichSignalWithApollo(signal) {
   // Skip if Apollo API key is not configured
   if (!APOLLO_API_KEY) {
+    console.log('⚠️ APOLLO_API_KEY not configured, skipping enrichment');
     return {
       ...signal,
       apollo_enriched: false,
@@ -392,17 +404,30 @@ export async function enrichSignalWithApollo(signal) {
     };
   }
 
+  console.log('🔍 Starting Apollo enrichment with signal data:', {
+    headline_source: signal.headline_source?.substring(0, 50) + '...',
+    url: signal.url?.substring(0, 50) + '...',
+    next_step: signal.next_step?.substring(0, 50) + '...',
+  });
+
   // Extract company name from signal
+  console.log('📝 Extracting company name...');
   const companyName = await extractCompanyNameFromSignal(signal);
+  console.log(`📝 Extracted company name: ${companyName || 'null'}`);
 
   // Extract decision maker role from signal if not provided
   let decisionMakerRole = signal.decision_maker_role;
   if (!decisionMakerRole || decisionMakerRole === 'TBD' || decisionMakerRole.trim() === '' || decisionMakerRole === 'N/A') {
+    console.log('📝 Extracting decision maker role...');
     decisionMakerRole = await extractDecisionMakerRoleFromSignal(signal) || 'Executive Leadership';
+    console.log(`📝 Extracted role: ${decisionMakerRole}`);
+  } else {
+    console.log(`📝 Using provided role: ${decisionMakerRole}`);
   }
 
   // Need at least company name to search
   if (!companyName) {
+    console.log('⚠️ Cannot search Apollo: company name extraction failed');
     return {
       ...signal,
       apollo_enriched: false,
@@ -415,6 +440,7 @@ export async function enrichSignalWithApollo(signal) {
   if (!signal.decision_maker_name || signal.decision_maker_name === 'TBD' || signal.decision_maker_name.trim() === '' || signal.decision_maker_name === 'N/A') {
     // Try to find decision maker by role and company
     if (companyName && decisionMakerRole) {
+      console.log(`🔍 Searching Apollo for: ${decisionMakerRole} at ${companyName}`);
       const apolloData = await searchPersonInApollo({
         name: null,
         companyName: companyName,
@@ -422,6 +448,11 @@ export async function enrichSignalWithApollo(signal) {
       });
 
       if (apolloData) {
+        console.log(`✅ Found decision maker in Apollo:`, {
+          name: apolloData.name,
+          email: apolloData.email ? 'found' : 'not found',
+          linkedin: apolloData.linkedin_url ? 'found' : 'not found',
+        });
         return {
           ...signal,
           decision_maker_name: apolloData.name || signal.decision_maker_name || '',
@@ -432,6 +463,8 @@ export async function enrichSignalWithApollo(signal) {
           apollo_enriched: true,
           apollo_company: companyName,
         };
+      } else {
+        console.log(`⚠️ No decision maker found in Apollo for ${decisionMakerRole} at ${companyName}`);
       }
     }
 
@@ -443,6 +476,7 @@ export async function enrichSignalWithApollo(signal) {
   }
 
   // Search Apollo with available information
+  console.log(`🔍 Searching Apollo for: ${signal.decision_maker_name} at ${companyName}`);
   const apolloData = await searchPersonInApollo({
     name: signal.decision_maker_name,
     companyName: companyName,
@@ -451,6 +485,11 @@ export async function enrichSignalWithApollo(signal) {
 
   if (apolloData && apolloData.linkedin_url) {
     // Successfully found valid LinkedIn URL
+    console.log(`✅ Found decision maker in Apollo:`, {
+      name: apolloData.name,
+      email: apolloData.email ? 'found' : 'not found',
+      linkedin: apolloData.linkedin_url,
+    });
     return {
       ...signal,
       decision_maker_name: apolloData.name || signal.decision_maker_name,
@@ -465,6 +504,7 @@ export async function enrichSignalWithApollo(signal) {
 
   // Apollo search didn't find a match, return original signal
   // but keep the original LinkedIn URL if it exists (might be valid)
+  console.log(`⚠️ Apollo search completed but no LinkedIn URL found`);
   return {
     ...signal,
     apollo_enriched: false,
