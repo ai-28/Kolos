@@ -317,6 +317,20 @@ REMEMBER: Your response must be ONLY valid JSON starting with { and ending with 
       console.error('❌ Error saving profile to Google Sheets:', error);
     }
 
+    // Create or update user entry for magic link login
+    if (profile.email) {
+      try {
+        const { updateOrCreateUserWithProfileId } = await import("@/app/lib/googleSheets");
+        // Get role from profile (try multiple case variations)
+        const userRole = profile.role || profile.Role || profile['role'] || '';
+        await updateOrCreateUserWithProfileId(profile.email, profileId, userRole);
+        console.log(`✅ User entry created/updated for email: ${profile.email}`);
+      } catch (error) {
+        console.error('❌ Error creating/updating user entry:', error);
+        // Don't fail the request if user creation fails
+      }
+    }
+
     // Now save signals
 
     // Save signals

@@ -274,9 +274,9 @@ function getColumnLetter(columnIndex) {
 }
 
 /**
- * Update or create user entry with profile_id
+ * Update or create user entry with profile_id and role
  */
-export async function updateOrCreateUserWithProfileId(email, profileId) {
+export async function updateOrCreateUserWithProfileId(email, profileId, role = '') {
     try {
         if (!SPREADSHEET_ID) {
             throw new Error('GOOGLE_SHEET_ID environment variable is not set');
@@ -348,21 +348,56 @@ export async function updateOrCreateUserWithProfileId(email, profileId) {
             });
         }
 
-        if (userIndex !== -1 && userRow) {
-            // User exists, update client_id with profile_id value
-            const rowNumber = userIndex + 2; // +2 because: +1 for header row, +1 for 0-based index
-            const columnLetter = getColumnLetter(clientIdColumnIndex);
+        // Find or create role column
+        let roleColumnIndex = headers.findIndex(
+            h => h && h.toLowerCase() === 'role'
+        );
 
+        if (roleColumnIndex === -1) {
+            // Column doesn't exist, add it
+            roleColumnIndex = headers.length;
+            const columnLetter = getColumnLetter(roleColumnIndex);
+
+            // Add header
             await sheets.spreadsheets.values.update({
                 spreadsheetId: SPREADSHEET_ID,
-                range: `${SHEETS.USERS}!${columnLetter}${rowNumber}`,
+                range: `${SHEETS.USERS}!${columnLetter}1`,
+                valueInputOption: 'USER_ENTERED',
+                resource: {
+                    values: [['role']],
+                },
+            });
+        }
+
+        if (userIndex !== -1 && userRow) {
+            // User exists, update client_id and role
+            const rowNumber = userIndex + 2; // +2 because: +1 for header row, +1 for 0-based index
+
+            // Update client_id
+            const clientIdColumnLetter = getColumnLetter(clientIdColumnIndex);
+            await sheets.spreadsheets.values.update({
+                spreadsheetId: SPREADSHEET_ID,
+                range: `${SHEETS.USERS}!${clientIdColumnLetter}${rowNumber}`,
                 valueInputOption: 'USER_ENTERED',
                 resource: {
                     values: [[profileId]], // Save profile_id value to client_id column
                 },
             });
 
-            console.log(`✅ Updated user client_id (with profile_id: ${profileId}) for email: ${email}`);
+            // Update role if provided
+            if (role) {
+                const roleColumnLetter = getColumnLetter(roleColumnIndex);
+                await sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: `${SHEETS.USERS}!${roleColumnLetter}${rowNumber}`,
+                    valueInputOption: 'USER_ENTERED',
+                    resource: {
+                        values: [[role]],
+                    },
+                });
+            }
+
+            console.log(`✅ Updated user client_id (with profile_id: ${profileId}) and role for email: ${email}`);
         } else {
             // User doesn't exist, create new user entry
             // Find email column index
@@ -378,7 +413,8 @@ export async function updateOrCreateUserWithProfileId(email, profileId) {
             }
 
             // Create new user row
-            const newUserRow = new Array(Math.max(headers.length, clientIdColumnIndex + 1)).fill('');
+            const maxColumnIndex = Math.max(headers.length, clientIdColumnIndex + 1, roleColumnIndex + 1);
+            const newUserRow = new Array(maxColumnIndex).fill('');
 
             // Set email
             if (emailColumnIndex >= 0) {
@@ -390,8 +426,13 @@ export async function updateOrCreateUserWithProfileId(email, profileId) {
             // Set client_id with profile_id value
             newUserRow[clientIdColumnIndex] = profileId;
 
+            // Set role if provided
+            if (role) {
+                newUserRow[roleColumnIndex] = role;
+            }
+
             await appendToSheet(SHEETS.USERS, newUserRow);
-            console.log(`✅ Created new user entry with client_id (profile_id: ${profileId}) for email: ${email}`);
+            console.log(`✅ Created new user entry with email: ${email}, client_id (profile_id: ${profileId}), role: ${role || 'N/A'}`);
         }
 
         return { success: true };
