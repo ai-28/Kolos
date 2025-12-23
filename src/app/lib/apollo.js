@@ -38,36 +38,63 @@ Return ONLY valid JSON. Start with {, end with }. No markdown, no code blocks, n
 - Return null for fields that cannot be found
 - JSON must be parseable without preprocessing
 
-TASK: Extract the following information from the signal data below:
-1. Company name (the organization or business mentioned in the signal)
-2. Decision makers (ALL people who are decision makers, executives, or key contacts mentioned in the signal)
-   - Each decision maker should have: name (full name) and role (job title, e.g., CEO, CTO, VP of Sales, Director, etc.)
-   - If multiple people are mentioned, extract ALL of them
-   - If only one person is mentioned, return an array with one item
-   - If no specific person is named but a role is mentioned, use web search to find the person in that role at the company
+TASK: Extract the following information from the signal data below. These 3 fields are CRITICAL for Apollo API search:
+1. Company name (organization_name) - The exact, official company/organization name mentioned in the signal
+2. Person name (q_keywords) - Full name of decision makers/executives (first name + last name)
+3. Role/Job title (person_titles) - Exact job title or role (e.g., "CEO", "CTO", "VP of Sales", "Director", "Chairman and Chief Executive Officer")
+
+CRITICAL: Extract ALL THREE fields whenever possible. Use web search to find missing information.
 
 SIGNAL DATA TO ANALYZE:
 ${combinedText}
 
-INSTRUCTIONS:
-- Use web search to verify company names, find decision maker information, or clarify ambiguous references
+INSTRUCTIONS FOR EXTRACTION:
+- Use web search extensively to verify and find company names, person names, and job titles
 - The source URL may contain additional information - use web search to fetch and analyze the page content if needed
 - Look for specific company names, executive names, and their titles in the signal headline and next_step text
 - The signal headline (headline_source) and next_step fields are the primary sources for finding decision maker information
-- If multiple decision makers are mentioned (e.g., "Contact John Smith (CEO) or Jane Doe (CTO)"), extract ALL of them
-- If a company is mentioned but no specific person is named, use web search to find the appropriate decision maker(s) (e.g., CEO, CTO, VP) for that company
-- Extract the actual company name and all person names with their roles from the signal data - do not make assumptions
+
+FIELD REQUIREMENTS (must match Apollo API format):
+1. company_name: 
+   - Extract the EXACT, official company name (e.g., "Microsoft Corporation", "Apple Inc.")
+   - Remove common suffixes like "Inc.", "LLC", "Corp" only if they're not part of the official name
+   - Use web search to verify the official company name if ambiguous
+   - Return null ONLY if absolutely no company is mentioned
+
+2. decision_makers[].name:
+   - Extract FULL names (first name + last name, e.g., "Thomas B. Pickens III", "John Smith")
+   - Include middle names/initials if mentioned (e.g., "Thomas B. Pickens III" not "Thomas Pickens")
+   - Use web search to find full names if only partial names are mentioned
+   - If only a role is mentioned without a name, use web search to find the person in that role at the company
+
+3. decision_makers[].role:
+   - Extract EXACT job titles as mentioned (e.g., "Chairman and Chief Executive Officer", "VP of Sales", "CTO")
+   - Preserve the exact wording - do not abbreviate or modify
+   - Use web search to find the exact title if only a generic role is mentioned
+   - If no specific role is mentioned but a person is named, use web search to find their current role
+
+EXTRACTION PRIORITY:
+1. If company is mentioned but no person: Use web search to find key executives (CEO, CTO, VP, etc.) at that company
+2. If person is mentioned but no company: Use web search to find which company they work for
+3. If role is mentioned but no person: Use web search to find the person in that role at the mentioned company
+4. Extract ALL decision makers mentioned - if multiple people are mentioned, extract ALL of them
 
 Return ONLY valid JSON in this exact format:
 {
-  "company_name": "Company Name or null",
+  "company_name": "Exact Company Name or null",
   "decision_makers": [
     {
-      "name": "Full Name",
-      "role": "Job Title"
+      "name": "Full Name (First Last)",
+      "role": "Exact Job Title"
     }
   ]
 }
+
+CRITICAL: 
+- If company_name is null, still try to extract decision_makers (they may be searchable by name and role alone)
+- If decision_makers is empty, still try to extract company_name (may be searchable by company alone)
+- Always extract as many fields as possible - never return all null/empty unless absolutely no information exists
+- Use web search to fill in missing information whenever possible
 
 If no decision makers are found, return an empty array: "decision_makers": []
 If company name cannot be found, use null: "company_name": null
@@ -143,6 +170,15 @@ async function enrichPersonInApollo(personId, firstName, lastName, organizationN
     try {
         // Apollo API: People Match/Enrichment
         // This endpoint returns email and LinkedIn URL
+        const enrichBody = {
+            person_id: personId,
+        };
+
+        // Only include fields if they're provided (all optional except person_id)
+        if (firstName) enrichBody.first_name = firstName;
+        if (lastName) enrichBody.last_name = lastName;
+        if (organizationName) enrichBody.organization_name = organizationName;
+
         const enrichResponse = await fetch('https://api.apollo.io/v1/people/match', {
             method: 'POST',
             headers: {
@@ -150,12 +186,7 @@ async function enrichPersonInApollo(personId, firstName, lastName, organizationN
                 'Cache-Control': 'no-cache',
                 'X-Api-Key': process.env.APOLLO_API_KEY,
             },
-            body: JSON.stringify({
-                person_id: personId,
-                first_name: firstName,
-                last_name: lastName,
-                organization_name: organizationName,
-            }),
+            body: JSON.stringify(enrichBody),
         });
 
         if (!enrichResponse.ok) {
@@ -179,7 +210,7 @@ async function enrichPersonInApollo(personId, firstName, lastName, organizationN
 }
 
 /**
- * Search for a person in Apollo using company name, person name, and role
+ * Search for a person in Apollo using company name, person name, and role (all optional)
  * Uses mixed_people/api_search to get person ID, then enriches with people/match to get email and LinkedIn
  * Returns email and LinkedIn URL if found
  */
@@ -188,14 +219,31 @@ async function searchPersonInApollo(companyName, personName, personRole) {
         throw new Error('APOLLO_API_KEY is not configured');
     }
 
-    if (!companyName || !personName) {
-        throw new Error('Company name and person name are required for Apollo search');
+    // At least one field should be provided for a meaningful search
+    if (!companyName && !personName && !personRole) {
+        throw new Error('At least one of company name, person name, or role is required for Apollo search');
     }
 
     try {
         // Step 1: Search for people using mixed_people/api_search to get person ID
         // Apollo API: Mixed People Search
         // Documentation: https://api.apollo.io/api/v1/mixed_people/api_search
+        const searchBody = {
+            page: 1,
+            per_page: 1,
+        };
+
+        // Only include fields if they're provided (Apollo API allows all fields to be optional)
+        if (personName) {
+            searchBody.q_keywords = personName;
+        }
+        if (personRole) {
+            searchBody.person_titles = [personRole];
+        }
+        if (companyName) {
+            searchBody.organization_name = companyName;
+        }
+
         const searchResponse = await fetch('https://api.apollo.io/api/v1/mixed_people/api_search', {
             method: 'POST',
             headers: {
@@ -203,13 +251,7 @@ async function searchPersonInApollo(companyName, personName, personRole) {
                 'Cache-Control': 'no-cache',
                 'X-Api-Key': process.env.APOLLO_API_KEY,
             },
-            body: JSON.stringify({
-                q_keywords: personName,
-                person_titles: personRole ? [personRole] : [],
-                organization_name: companyName,
-                page: 1,
-                per_page: 1,
-            }),
+            body: JSON.stringify(searchBody),
         });
 
         if (!searchResponse.ok) {
@@ -233,8 +275,8 @@ async function searchPersonInApollo(companyName, personName, personRole) {
 
         // Extract person ID and name parts for enrichment
         const personId = person.id || person.person_id || null;
-        const firstName = person.first_name || personName.split(' ')[0] || '';
-        const lastName = person.last_name || personName.split(' ').slice(1).join(' ') || '';
+        const firstName = person.first_name || (personName ? personName.split(' ')[0] : '') || '';
+        const lastName = person.last_name || (personName ? personName.split(' ').slice(1).join(' ') : '') || '';
 
         // Step 2: Enrich person using people/match API to get email and LinkedIn
         let email = null;
@@ -339,8 +381,8 @@ export async function enrichDealWithApollo(signalData) {
         debug.final_decision_maker_name = decisionMakers.length > 0 ? decisionMakers[0].name : null;
         debug.final_decision_maker_role = decisionMakers.length > 0 ? decisionMakers[0].role : null;
 
-        // If we don't have company name or any decision makers, we can't search Apollo
-        if (!companyName || decisionMakers.length === 0) {
+        // Only require decision makers (company name is optional)
+        if (decisionMakers.length === 0) {
             console.log('⚠️ Missing required data for Apollo search:', {
                 companyName: !!companyName,
                 decisionMakersCount: decisionMakers.length,
@@ -348,10 +390,10 @@ export async function enrichDealWithApollo(signalData) {
             return {
                 ...signalData,
                 apollo_enriched: false,
-                apollo_error: 'Missing company name or decision makers',
+                apollo_error: 'Missing decision makers',
                 apollo_debug: debug,
-                decision_maker_name: decisionMakers.length > 0 ? decisionMakers[0].name : (signalData.decision_maker_name || ''),
-                decision_maker_role: decisionMakers.length > 0 ? decisionMakers[0].role : (signalData.decision_maker_role || ''),
+                decision_maker_name: signalData.decision_maker_name || '',
+                decision_maker_role: signalData.decision_maker_role || '',
                 decision_maker_email: '',
                 decision_maker_linkedin_url: signalData.decision_maker_linkedin_url || '',
                 decision_maker_phone: '',
@@ -359,9 +401,9 @@ export async function enrichDealWithApollo(signalData) {
             };
         }
 
-        // Step 2: Search Apollo for all decision makers
+        // Step 2: Search Apollo for all decision makers (even without company name)
         console.log('🔍 Step 2: Searching Apollo for decision makers...', {
-            companyName,
+            companyName: companyName || 'Not provided',
             decisionMakersCount: decisionMakers.length,
             decisionMakers: decisionMakers.map(dm => ({ name: dm.name, role: dm.role })),
         });
