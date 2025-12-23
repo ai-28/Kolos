@@ -44,6 +44,13 @@ function formatDate(dateStr) {
 export function buildSignalsEmailHTML({ clientName, magicLink, signals }) {
     const signalsCount = signals?.length || 0;
 
+    console.log('📧 Building email HTML:', {
+        clientName,
+        hasMagicLink: !!magicLink,
+        magicLinkPreview: magicLink?.substring(0, 50) + '...',
+        signalsCount,
+    });
+
     let signalsHTML = '';
 
     if (signals && signals.length > 0) {
@@ -69,7 +76,21 @@ export function buildSignalsEmailHTML({ clientName, magicLink, signals }) {
                 next_step: signal.next_step || '',
                 estimated_target_value_USD: signal.estimated_target_value_USD || '',
             }));
-            const activateLink = magicLink ? `${magicLink}&activate_signal=${signalData}` : '';
+            // Build activate link - append signal data to magic link
+            // Use ? if magicLink doesn't have query params, & if it does
+            const activateLink = magicLink ? (
+                magicLink.includes('?')
+                    ? `${magicLink}&activate_signal=${signalData}`
+                    : `${magicLink}?activate_signal=${signalData}`
+            ) : '';
+
+            console.log('📧 Signal email HTML:', {
+                index,
+                hasUrl: !!url,
+                url: url?.substring(0, 50),
+                hasMagicLink: !!magicLink,
+                hasActivateLink: !!activateLink,
+            });
 
             signalsHTML += `
         <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 24px; background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
@@ -145,12 +166,34 @@ export function buildSignalsEmailHTML({ clientName, magicLink, signals }) {
                   </td>
                 </tr>
                 ` : ''}
-
-              </table>
-            </td>
-          </tr>
-        </table>
-      `;
+                ${url ? `
+                <tr>
+                  <td style="padding: 8px 0 0 0;">
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td style="font-family: Arial, sans-serif; font-size: 13px; color: #666666; font-weight: 600; padding-bottom: 4px;">Source:</td>
+                      </tr>
+                      <tr>
+                        <td style="font-family: Arial, sans-serif; font-size: 13px;">
+                          <a href="${url}" style="color: #0a3d3d; text-decoration: underline; word-break: break-all;">${url}</a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                ` : ''}
+                ${activateLink ? `
+                <tr>
+                  <td style="padding: 16px 0 0 0;">
+                    <a href="${activateLink}" style="display: inline-block; padding: 12px 24px; background-color: #0a3d3d; color: #ffffff; text-decoration: none; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px; font-weight: 600;">Activate Kolos →</a>
+                  </td>
+                </tr>
+                ` : ''}
+                </table>
+              </td>
+            </tr>
+          </table>
+        `;
         });
     }
 
