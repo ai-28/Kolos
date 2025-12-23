@@ -155,124 +155,28 @@ export async function POST(request) {
             return true;
         });
 
-        console.log(`📋 Found ${profiles.length} total profiles, processing ${profilesToProcess.length} profiles`);
+        console.log(`📋 Found ${profiles.length} total profiles, will process ${profilesToProcess.length} profiles in background`);
 
-        // Batch processing: Process 5 profiles at a time to avoid timeout
-        const BATCH_SIZE = 5;
-        const profilesToProcessNow = profilesToProcess.slice(0, BATCH_SIZE);
-        const remainingProfiles = profilesToProcess.slice(BATCH_SIZE);
-
-        if (profilesToProcess.length > BATCH_SIZE) {
-            console.log(`⚠️  Processing first ${BATCH_SIZE} profiles. ${remainingProfiles.length} remaining profiles will need to be processed in separate requests.`);
-        } else {
-            console.log(`📦 Processing all ${profilesToProcess.length} profiles in this batch.`);
-        }
-
-        const results = {
-            total: profilesToProcess.length,
-            processed_in_this_batch: profilesToProcessNow.length,
-            remaining: remainingProfiles.length,
-            succeeded: 0,
-            failed: 0,
-            errors: [],
-            profile_results: []
-        };
-
-        // Process each profile in the current batch
-        for (let i = 0; i < profilesToProcessNow.length; i++) {
-            const profile = profilesToProcessNow[i];
-            const profileId = profile.id || profile.ID || profile["id"] || profile["ID"];
-
-            console.log(`\n📝 [${i + 1}/${profilesToProcessNow.length}] Processing profile: ${profileId} (${profile.name || 'Unknown'})`);
-
-            try {
-                // Get updated_content if it exists
-                const updatedContent = profile.updated_content || profile["updated_content"] || '';
-
-                // Call the signal generation logic
-                const signalsGenerated = await updateSignalsForProfile(
-                    profileId,
-                    profile,
-                    updatedContent,
-                    sheets,
-                    SPREADSHEET_ID
-                );
-
-                results.succeeded++;
-                results.profile_results.push({
-                    profile_id: profileId,
-                    name: profile.name || 'Unknown',
-                    status: 'success',
-                    signals_generated: signalsGenerated
-                });
-
-                console.log(`✅ [${i + 1}/${profilesToProcessNow.length}] Successfully updated ${signalsGenerated} signals for profile ${profileId}`);
-
-            } catch (error) {
-                results.failed++;
-                const errorMessage = error.message || 'Unknown error';
-                results.errors.push({
-                    profile_id: profileId,
-                    name: profile.name || 'Unknown',
-                    error: errorMessage
-                });
-                results.profile_results.push({
-                    profile_id: profileId,
-                    name: profile.name || 'Unknown',
-                    status: 'failed',
-                    error: errorMessage
-                });
-
-                console.error(`❌ [${i + 1}/${profilesToProcessNow.length}] Failed to update signals for profile ${profileId}:`, errorMessage);
-            }
-
-            // Add a small delay between profiles to avoid rate limits
-            if (i < profilesToProcessNow.length - 1) {
-                await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
-            }
-        }
-
-        const duration = (Date.now() - startTime) / 1000;
-        console.log(`\n✅ Batch signal update completed in ${duration.toFixed(2)} seconds`);
-        console.log(`📊 Results: ${results.succeeded} succeeded, ${results.failed} failed out of ${results.processed_in_this_batch} processed in this batch`);
-
-        const response = {
+        // Return immediately - processing will happen in background
+        const response = NextResponse.json({
             success: true,
-            message: results.remaining > 0
-                ? `Processed ${results.processed_in_this_batch} of ${results.total} profiles: ${results.succeeded} succeeded, ${results.failed} failed. ${results.remaining} remaining.`
-                : `Processed all ${results.total} profiles: ${results.succeeded} succeeded, ${results.failed} failed`,
-            profiles_total: results.total,
-            profiles_processed: results.processed_in_this_batch,
-            profiles_remaining: results.remaining,
-            profiles_succeeded: results.succeeded,
-            profiles_failed: results.failed,
-            duration_seconds: duration,
-            errors: results.errors,
-            profile_results: results.profile_results
-        };
+            message: `Signal update started. Processing ${profilesToProcess.length} profiles in background.`,
+            status: "processing",
+            profiles_total: profilesToProcess.length,
+            note: "Processing started. Check server logs for progress. All profiles will be processed automatically."
+        }, { status: 202 }); // 202 Accepted - processing started
 
-        // Add helpful information about remaining profiles
-        if (results.remaining > 0) {
-            const remainingProfileIds = remainingProfiles
-                .map(p => p.id || p.ID || p["id"] || p["ID"])
-                .filter(id => id)
-                .slice(0, 10); // Show first 10 remaining IDs
+        // Process all profiles in background (don't await - fire and forget)
+        processAllProfilesInBackground(
+            profilesToProcess,
+            sheets,
+            SPREADSHEET_ID
+        ).catch(error => {
+            console.error("❌ Background processing error:", error);
+            console.error("Error stack:", error.stack);
+        });
 
-            response.warning = `There are ${results.remaining} remaining profiles. Process them by:`;
-            response.next_steps = {
-                option_1: "Run the workflow again with the remaining profile_ids",
-                option_2: "Use the profile_ids input in GitHub Actions workflow",
-                remaining_profile_ids_sample: remainingProfileIds.length > 0
-                    ? remainingProfileIds
-                    : "Use skip_profile_ids to exclude already processed profiles"
-            };
-
-            if (remainingProfileIds.length < results.remaining) {
-                response.next_steps.note = `Showing first ${remainingProfileIds.length} of ${results.remaining} remaining profile IDs`;
-            }
-        }
-
-        return NextResponse.json(response);
+        return response;
 
     } catch (error) {
         console.error("❌ Error in bulk signal update:", error);
@@ -287,6 +191,90 @@ export async function POST(request) {
             { status: 500 }
         );
     }
+}
+
+/**
+ * Process all profiles in background (non-blocking)
+ */
+async function processAllProfilesInBackground(profilesToProcess, sheets, SPREADSHEET_ID) {
+    const startTime = Date.now();
+    const results = {
+        total: profilesToProcess.length,
+        succeeded: 0,
+        failed: 0,
+        errors: [],
+        profile_results: []
+    };
+
+    console.log(`\n🔄 Starting background processing of ${profilesToProcess.length} profiles...`);
+
+    // Process each profile
+    for (let i = 0; i < profilesToProcess.length; i++) {
+        const profile = profilesToProcess[i];
+        const profileId = profile.id || profile.ID || profile["id"] || profile["ID"];
+
+        console.log(`\n📝 [${i + 1}/${profilesToProcess.length}] Processing profile: ${profileId} (${profile.name || 'Unknown'})`);
+
+        try {
+            // Get updated_content if it exists
+            const updatedContent = profile.updated_content || profile["updated_content"] || '';
+
+            // Call the signal generation logic
+            const signalsGenerated = await updateSignalsForProfile(
+                profileId,
+                profile,
+                updatedContent,
+                sheets,
+                SPREADSHEET_ID
+            );
+
+            results.succeeded++;
+            results.profile_results.push({
+                profile_id: profileId,
+                name: profile.name || 'Unknown',
+                status: 'success',
+                signals_generated: signalsGenerated
+            });
+
+            console.log(`✅ [${i + 1}/${profilesToProcess.length}] Successfully updated ${signalsGenerated} signals for profile ${profileId}`);
+
+        } catch (error) {
+            results.failed++;
+            const errorMessage = error.message || 'Unknown error';
+            results.errors.push({
+                profile_id: profileId,
+                name: profile.name || 'Unknown',
+                error: errorMessage
+            });
+            results.profile_results.push({
+                profile_id: profileId,
+                name: profile.name || 'Unknown',
+                status: 'failed',
+                error: errorMessage
+            });
+
+            console.error(`❌ [${i + 1}/${profilesToProcess.length}] Failed to update signals for profile ${profileId}:`, errorMessage);
+        }
+
+        // Add a small delay between profiles to avoid rate limits
+        if (i < profilesToProcess.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+        }
+    }
+
+    const duration = (Date.now() - startTime) / 1000;
+    console.log(`\n✅ Background processing completed in ${duration.toFixed(2)} seconds`);
+    console.log(`📊 Final Results: ${results.succeeded} succeeded, ${results.failed} failed out of ${results.total} total profiles`);
+
+    // Log summary
+    if (results.errors.length > 0) {
+        console.log(`\n⚠️  Errors encountered:`);
+        results.errors.forEach(err => {
+            console.log(`   - ${err.name || err.profile_id}: ${err.error}`);
+        });
+    }
+
+    return results;
 }
 
 /**
