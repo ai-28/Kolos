@@ -157,20 +157,33 @@ export async function POST(request) {
 
         console.log(`📋 Found ${profiles.length} total profiles, processing ${profilesToProcess.length} profiles`);
 
+        // Batch processing: Process 5 profiles at a time to avoid timeout
+        const BATCH_SIZE = 5;
+        const profilesToProcessNow = profilesToProcess.slice(0, BATCH_SIZE);
+        const remainingProfiles = profilesToProcess.slice(BATCH_SIZE);
+
+        if (profilesToProcess.length > BATCH_SIZE) {
+            console.log(`⚠️  Processing first ${BATCH_SIZE} profiles. ${remainingProfiles.length} remaining profiles will need to be processed in separate requests.`);
+        } else {
+            console.log(`📦 Processing all ${profilesToProcess.length} profiles in this batch.`);
+        }
+
         const results = {
             total: profilesToProcess.length,
+            processed_in_this_batch: profilesToProcessNow.length,
+            remaining: remainingProfiles.length,
             succeeded: 0,
             failed: 0,
             errors: [],
             profile_results: []
         };
 
-        // Process each profile
-        for (let i = 0; i < profilesToProcess.length; i++) {
-            const profile = profilesToProcess[i];
+        // Process each profile in the current batch
+        for (let i = 0; i < profilesToProcessNow.length; i++) {
+            const profile = profilesToProcessNow[i];
             const profileId = profile.id || profile.ID || profile["id"] || profile["ID"];
 
-            console.log(`\n📝 [${i + 1}/${profilesToProcess.length}] Processing profile: ${profileId} (${profile.name || 'Unknown'})`);
+            console.log(`\n📝 [${i + 1}/${profilesToProcessNow.length}] Processing profile: ${profileId} (${profile.name || 'Unknown'})`);
 
             try {
                 // Get updated_content if it exists
@@ -193,7 +206,7 @@ export async function POST(request) {
                     signals_generated: signalsGenerated
                 });
 
-                console.log(`✅ [${i + 1}/${profilesToProcess.length}] Successfully updated ${signalsGenerated} signals for profile ${profileId}`);
+                console.log(`✅ [${i + 1}/${profilesToProcessNow.length}] Successfully updated ${signalsGenerated} signals for profile ${profileId}`);
 
             } catch (error) {
                 results.failed++;
@@ -210,29 +223,56 @@ export async function POST(request) {
                     error: errorMessage
                 });
 
-                console.error(`❌ [${i + 1}/${profilesToProcess.length}] Failed to update signals for profile ${profileId}:`, errorMessage);
+                console.error(`❌ [${i + 1}/${profilesToProcessNow.length}] Failed to update signals for profile ${profileId}:`, errorMessage);
             }
 
             // Add a small delay between profiles to avoid rate limits
-            if (i < profilesToProcess.length - 1) {
+            if (i < profilesToProcessNow.length - 1) {
                 await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
             }
         }
 
         const duration = (Date.now() - startTime) / 1000;
-        console.log(`\n✅ Bulk signal update completed in ${duration.toFixed(2)} seconds`);
-        console.log(`📊 Results: ${results.succeeded} succeeded, ${results.failed} failed out of ${results.total} total`);
+        console.log(`\n✅ Batch signal update completed in ${duration.toFixed(2)} seconds`);
+        console.log(`📊 Results: ${results.succeeded} succeeded, ${results.failed} failed out of ${results.processed_in_this_batch} processed in this batch`);
 
-        return NextResponse.json({
+        const response = {
             success: true,
-            message: `Processed ${results.total} profiles: ${results.succeeded} succeeded, ${results.failed} failed`,
+            message: results.remaining > 0
+                ? `Processed ${results.processed_in_this_batch} of ${results.total} profiles: ${results.succeeded} succeeded, ${results.failed} failed. ${results.remaining} remaining.`
+                : `Processed all ${results.total} profiles: ${results.succeeded} succeeded, ${results.failed} failed`,
             profiles_total: results.total,
+            profiles_processed: results.processed_in_this_batch,
+            profiles_remaining: results.remaining,
             profiles_succeeded: results.succeeded,
             profiles_failed: results.failed,
             duration_seconds: duration,
             errors: results.errors,
             profile_results: results.profile_results
-        });
+        };
+
+        // Add helpful information about remaining profiles
+        if (results.remaining > 0) {
+            const remainingProfileIds = remainingProfiles
+                .map(p => p.id || p.ID || p["id"] || p["ID"])
+                .filter(id => id)
+                .slice(0, 10); // Show first 10 remaining IDs
+
+            response.warning = `There are ${results.remaining} remaining profiles. Process them by:`;
+            response.next_steps = {
+                option_1: "Run the workflow again with the remaining profile_ids",
+                option_2: "Use the profile_ids input in GitHub Actions workflow",
+                remaining_profile_ids_sample: remainingProfileIds.length > 0
+                    ? remainingProfileIds
+                    : "Use skip_profile_ids to exclude already processed profiles"
+            };
+
+            if (remainingProfileIds.length < results.remaining) {
+                response.next_steps.note = `Showing first ${remainingProfileIds.length} of ${results.remaining} remaining profile IDs`;
+            }
+        }
+
+        return NextResponse.json(response);
 
     } catch (error) {
         console.error("❌ Error in bulk signal update:", error);
@@ -326,10 +366,58 @@ Each signal includes: date, headline_source, url, signal_type, scores_R_O_A, ove
 ------------------------------------------------
 STEP 1 - BUILD CLIENT PROFILE
 ------------------------------------------------
-Client Profile Data:
-${JSON.stringify(profileForLLM, null, 2)}
+These following variables are in the profile object.
+- name
+- email
+- role
+- company
+- industries
+The top one to three industries or themes the user is currently focused on.
+- project_size
+The approximate total size or value of the user's main project or deal (e.g., 50–150 million).
+- raise_amount
+The amount of capital the user aims to raise for their project in the next 6–12 months (range in millions).
+- check_size
+The typical investment amount the user commits per deal (e.g., 5–15 million).
+- active_raise_amount
+Details of any active fundraising the user is doing now, including amount and timeline.
+- goals
+The user's top one or two business goals for the next 12 months.
+- regions
+The regions or locations the user focuses on for deals (e.g., US, Europe, MENA, specific cities).
+- partner_types
+The types of partners the user wants to meet through Kolos (e.g., co-GPs, LPs, operators, clients, suppliers).
+- constraints_notes
+Any restrictions or requirements to consider when matching partners (e.g., minimum LP ticket size, preferred structure, risk preferences).
+- active_deal
+A brief description (1–2 sentences) of any active deal where an intro this month would help.
+- travel_cities
+Cities the user expects to visit in the next 6–12 months for business, for event or in-person intro planning.
+- strategy_focus
+The investment strategy focus of the user (e.g., VC, growth, buyout, credit).
+- business_stage
+The current business stage of the user's company or target companies (e.g., idea, early revenue, growth, scaling).
+- revenue_range
+The current annual revenue range of the user's business or target businesses.
+- facilitator_clients
+The primary types of clients the user serves or works with (e.g., CEOs, family offices, funds, corporates).
+- deal_type
+The types of deals the user supports or focuses on (e.g., M&A, capital raise, buy side, sell side, equity, debt).
+- deal_size
+The typical deal size range the user works with or targets.
+- ideal_ceo_profile
+The characteristics of the ideal CEO or business owner match for the user (size, situation, industry, etc.).
+- ideal_intro
+The single most valuable introduction the user needs right now.
+- updated_content
+ADDITIONAL CONTEXT: This field contains updated information, new requirements, or additional context that should be considered when generating signals. Use this information to refine and update the signals accordingly.
 
-${updatedContent ? `\nIMPORTANT: The updated_content field contains additional context that should be prioritized when generating signals.\n` : ''}
+And this is the client profile.
+${JSON.stringify(profileForLLM, null, 2)}
+For the investor or asset manager, strategy_focus, check_size, active_raise_amount are distinctly used than other roles.
+For the entrepreneur or founder, business_stage, revenue_range, project_size, raise_amount,active_raise amount are distinctly used than other roles.
+For the facilitator, facilitator_clients, deal_type, deal_size, ideal_ceo_profile, ideal_intro are distinctly used than other roles.
+${updated_content ? `\nIMPORTANT: The updated_content field contains additional context that should be prioritized when generating signals. Consider this information carefully when searching for and scoring signals.\n` : ''}
 
 ---------------------------------
 STEP 2 - FIND AND SELECT SIGNALS
@@ -337,18 +425,38 @@ STEP 2 - FIND AND SELECT SIGNALS
 
 CRITICAL: You MUST use web search to find REAL, VERIFIABLE signals. Do NOT make up or hallucinate any information.
 
+Using the CLIENT_PROFILE${updated_content ? ' and the UPDATED_CONTENT' : ''}:
+
+${updated_content ? `\nIMPORTANT: The updated_content field contains additional context that should be prioritized when generating signals. Consider this information carefully when searching for and scoring signals.\n` : ''}
+
 1) Use web search to find recent news and events that match the client's regions, sectors, and triggers.
-   ${updatedContent ? `   - Pay special attention to the updated_content field\n` : ''}
+   ${updated_content ? `   - Pay special attention to the updated_content field - it may contain new priorities, recent developments, or specific requirements\n` : ''}
    - Search for specific companies, projects, announcements, layoffs, funding rounds, regulatory changes, etc.
+   - Search across various domains and sources to find diverse signals (news sites, press releases, official announcements, industry publications, etc.)
    - Only use information from sources you can verify through web search.
-   - Every signal MUST have a real, verifiable URL.
-
-2) Only keep items that are directly useful to create conversations or deals for this client.
-
+   - Every signal MUST have a real, verifiable URL that you found through web search and can access.
+   - Perform multiple targeted searches to find diverse, high-quality signals from various sources.
+   - Cross-verify critical information (dates, company names, numbers) by checking multiple search results when possible.
+   - Prefer reputable sources but include signals from any domain if the information is verifiable and relevant.
+   
+2) Only keep items that are directly useful to create conversations or deals for this client.  
+   - For ${profile.company || 'the client'}: things like mass layoffs, new data center build, grid expansion, utility digitalization, veteran hiring programs, workforce boards initiatives.  
+   ${updated_content ? `   - Consider the updated_content when determining relevance\n` : ''}
+   
 3) Ignore:
    - Macro opinion pieces with no named company or project.
    - Very small local stories with no enterprise angle.
+   - Items older than the recency window unless they are still clearly actionable.
    - ANY information you cannot verify through web search
+   - Fake link URL or content
+
+4) For each signal you find:
+   - Verify the URL is real and accessible through web search - click through or verify the link works
+   - Confirm the date is accurate and matches the actual publication date from the source
+   - Ensure the headline matches actual news content from the source page
+   - Double-check company names, numbers, and facts against search results
+   - If information seems questionable, perform additional searches to verify before including it
+   - Only include signals where you can confirm the URL, date, and headline are all accurate from your web search
 
 Aim for 8~10 strong actual valid signals that you found through web search.
 
@@ -360,39 +468,164 @@ Format: scores_R_O_A as "R,O,A" string, overall = rounded average
 
 SIGNAL FIELDS:
 - date: YYYY-MM-DD format (publication date from source)
-- headline_source: One line combining headline + context
-- url: Real, accessible URL verified through web search
+- headline_source: One line combining headline + context (Colaberry style)
+- url: Real, accessible URL verified through web search (when available)
 - signal_type: funding, event, regulation, partner, trend, or opportunity
 - scores_R_O_A: "R,O,A" string (e.g., "5,5,4")
 - overall: Number 1-5 (rounded average)
-- next_step: Concrete action (who, what, timeframe)
+- next_step: Concrete action (who, what, timeframe) - avoid "monitor" or "stay in touch"
 - estimated_target_value_USD: Currency string (e.g., "$25,000,000") or "N/A"
+
+OPM TRAVEL PLANS:
+
+CRITICAL: All travel plan dates MUST be in the FUTURE and VALID (after run_date).
+
+Generate up to 3 OPM Travel Plans based on client profile. These represent other clients in Kolos network with upcoming travel relevant for networking. Return as many as you can create (minimum 0).
+
+For each travel plan, include:
+- customer: 
+  - Customer name or initials (e.g., "Vit Goncharuk/AI", "Zoe Zhao/Re", "Hans Hammer")
+  - Use realistic names that fit the client's industry and regions
+- opm_number:
+  - OPM cohort number (e.g., "OPM62", "OPM55", "OPM53")
+  - Format: "OPM" followed by 2-digit number (50-99 range)
+- travel_plans:
+  - Travel route description (e.g., "Washington → Miami", "New York City → Barcelona/YPO Edge", "Germany → New York City")
+  - Can include multiple routes per customer (separate with newline character \n)
+  - Should align with client's regions, industries, or partner_types when possible
+- date:
+  - Travel date range (e.g., "February 21 - 23, 2025", "February 18 - 25, 2025")
+  - MUST be future dates - all dates must be AFTER the run_date
+  - Use dates within the next 6-12 months from run_date
+  - Format: "Month DD - DD, YYYY" or "Month DD - Month DD, YYYY" for multi-month spans
+  - If multiple date ranges, separate with newline character (\n)
+  - Verify dates are valid (e.g., February has 28/29 days, months have correct number of days)
+
+Focus on travel that could enable:
+- In-person networking opportunities
+- Regional alignment with client's focus areas
+- Industry event attendance
+- Strategic partnership meetings
+
+INDUSTRY EVENTS:
+
+CRITICAL: All event dates MUST be in the FUTURE and VALID (after run_date).
+
+Use web search when available to find REAL, VERIFIABLE upcoming industry events. If web search returns limited results, return as many verified events as possible (minimum 0).
+
+Generate up to 3 Upcoming Industry Events matching client's industries, regions, and business goals. Return fewer if you cannot verify 3 real events - do not fabricate.
+
+For each event, include:
+- event_name:
+  - Full event name from actual event listings found through web search
+  - Should be a real, verifiable event that you found through web search
+  - Must match the client's industry focus
+- industry:
+  - Industry category with emoji badge. Use one of:
+    - "💼 Finance & Private Equity" (for finance, PE, investment events)
+    - "🏗 Real Estate & Infrastructure" (for real estate, construction, infrastructure events)
+    - "⚡ Renewable Energy" (for energy, renewables, sustainability events)
+    - Or other relevant industry categories based on client profile
+- location:
+  - Event location (e.g., "Virtual", "Dallas, TX", "Houston, TX", "New York, NY")
+  - Use "Virtual" for online events
+  - Use city and state format for in-person events
+  - Should align with client's regions when possible
+  - Must match the actual event location from web search
+- event_date:
+  - Event date or date range from the actual event listing
+  - MUST be future dates - all dates must be AFTER the run_date
+  - Include time if available (especially for virtual events)
+  - Use dates within the next 6-12 months from run_date
+  - Format: "Month DD, YYYY" or "Month DD - DD, YYYY" with optional time (e.g., "March 8, 2025 (11 AM ET)")
+  - Verify dates are valid (e.g., February has 28/29 days, months have correct number of days)
+  - Only use dates from verified event listings found through web search
+
+Focus on events that:
+- Are REAL events found through web search - verify the event exists and has the stated date
+- Match the client's primary industries
+- Are in regions the client focuses on (or virtual)
+- Could provide networking, learning, or business development opportunities
+- Are actual industry events (conferences, summits, meetups, webinars) with verifiable information
+
+Return as many verified events as possible (minimum 0). Quality over quantity.
 
 OUTPUT FORMAT:
 
-Return ONLY valid JSON. Start with {, end with }.
+Return ONLY valid JSON. Start with {, end with }. No markdown, no code blocks, no text before/after.
+
+REQUIREMENTS:
+- Valid JSON only (parseable without preprocessing)
+- Return as many verified items as possible (arrays can be empty if no items verified)
+- All dates must be valid and in correct format
+- All strings properly escaped
+
+If no items can be verified, return this structure with empty arrays:
+{
+  "client_name": "<CLIENT_NAME>",
+  "run_date": "<YYYY-MM-DD>",
+  "time_window_days": 7,
+  "signals": [],
+  "opm_travel_plans": [],
+  "upcoming_industry_events": []
+}
 
 Required structure:
 
 {
-  "client_name": "${profile.name || 'Unknown'}",
-  "run_date": "${new Date().toISOString().split('T')[0]}",
+  "client_name": "<CLIENT_NAME>",
+  "run_date": "<YYYY-MM-DD>",
   "time_window_days": 7,
   "signals": [
     {
-      "date": "2025-01-15",
-      "headline_source": "Example headline",
-      "url": "https://example.com",
+      "date": "2025-11-07",
+      "headline_source": "Mass layoff wave hits ~1,300 Texans across metros (incl. DFW) - fresh WARN flow for reskilling",
+      "url": "https://example.com/article",
       "signal_type": "event",
       "scores_R_O_A": "5,5,4",
       "overall": 5,
-      "next_step": "Action step",
-      "estimated_target_value_USD": "$25,000,000"
+      "next_step": "Pull latest TWC WARN list; offer 2–4 week AI/Data reskill cohorts to affected employers + boards; align WIOA funding paths.",
+      "estimated_target_value_USD":"$25,000,000"
     }
   ],
-  "opm_travel_plans": [],
-  "upcoming_industry_events": []
+  "opm_travel_plans": [
+    {
+      "customer": "Vit Goncharuk/AI",
+      "opm_number": "OPM62",
+      "travel_plans": "Washington → Miami\nWashington → Finland",
+      "date": "February 21 - 23, 2025\nFebruary 27 - March 5, 2025"
+    }
+  ],
+  "upcoming_industry_events": [
+    {
+      "event_name": "Ken Hersh Private Equity & Sports",
+      "industry": "💼 Finance & Private Equity",
+      "location": "Virtual",
+      "event_date": "March 8, 2025 (11 AM ET)"
+    }
+  ]
 }
+
+FINAL REQUIREMENTS:
+- Return up to 8 signals (overall score > 4) - return as many as verified (minimum 0)
+- Return up to 3 OPM Travel Plans - return as many as created (minimum 0)
+- Return up to 3 Industry Events - return as many as verified (minimum 0)
+- All signal dates: YYYY-MM-DD format matching publication dates
+- All numeric values as numbers (not strings)
+- scores_R_O_A as string like "5,5,4"
+- Prioritize verified signals from web search when available
+- Use web search to find real, current information when possible
+- If web search unavailable or returns limited results, use verified knowledge but indicate limitations
+- Only include signals you can reasonably verify - prefer fewer verified signals over more unverified ones
+- CRITICAL: All travel plan and event dates MUST be in the FUTURE (after run_date) and valid
+- For Industry Events: Use web search when available to find verified events - return fewer if unable to verify
+- For OPM Travel Plans: Create realistic entries aligned with client profile - ensure dates are valid future dates
+- Travel plan dates: "Month DD - DD, YYYY" format, valid calendar dates
+- Event dates: Include time for virtual events when available
+- For travel_plans with multiple routes, separate with newline character (\\n)
+- For date fields with multiple dates, separate with newline character (\\n)
+- Verify all dates are valid (correct number of days in month, valid month names, etc.)
+${updated_content ? `- IMPORTANT: Consider updated_content when generating signals - it contains additional context that should influence signal selection and scoring\n` : ''}
 
 REMEMBER: Your response must be ONLY valid JSON starting with { and ending with }. No other text whatsoever.
 `;
