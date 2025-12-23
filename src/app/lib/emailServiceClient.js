@@ -168,7 +168,7 @@ export function buildSignalsEmailHTML({ clientName, magicLink, signals }) {
               <tr>
                 <td style="padding: 30px;">
                   <p style="margin: 0 0 20px 0; font-family: Arial, sans-serif; font-size: 16px; color: #333333; line-height: 1.6;">
-                    We've identified <strong>${signalsCount} new signal${signalsCount !== 1 ? 's' : ''}</strong> that match your profile and could create valuable opportunities for your business.
+                    We've identified <strong>8-10 signals</strong> that match your profile and could create valuable opportunities for your business. Here are the <strong>top ${signalsCount} signal${signalsCount !== 1 ? 's' : ''}</strong>:
                   </p>
                   <p style="margin: 0 0 30px 0; font-family: Arial, sans-serif; font-size: 16px; color: #333333; line-height: 1.6;">
                     Review the signals below and click the magic link to access your full dashboard.
