@@ -151,7 +151,7 @@ async function enrichPersonInApollo(personId, firstName, lastName, organizationN
                 'X-Api-Key': process.env.APOLLO_API_KEY,
             },
             body: JSON.stringify({
-                person_id: ,
+                person_id: personId,
                 first_name: firstName,
                 last_name: lastName,
                 organization_name: organizationName,
