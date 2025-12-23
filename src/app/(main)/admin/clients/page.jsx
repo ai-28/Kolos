@@ -626,6 +626,100 @@ function ClientDashboardContent() {
     }
   }
 
+  // Toggle signal selection
+  const toggleSignalSelection = (index) => {
+    setSelectedSignals(prev => {
+      if (prev.includes(index)) {
+        return prev.filter(i => i !== index)
+      } else {
+        return [...prev, index]
+      }
+    })
+  }
+
+  // Select all / Deselect all
+  const toggleSelectAll = () => {
+    if (selectedSignals.length === signals.length) {
+      setSelectedSignals([])
+    } else {
+      setSelectedSignals(signals.map((_, index) => index))
+    }
+  }
+
+  // Generate magic link
+  const generateMagicLink = async (email) => {
+    if (!supabase) {
+      return `${window.location.origin}/auth/callback?email=${encodeURIComponent(email)}`
+    }
+
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          flowType: 'pkce',
+        },
+      })
+
+      if (error) {
+        console.error('Error generating magic link:', error)
+      }
+    } catch (error) {
+      console.error('Supabase error:', error)
+    }
+
+    return `${window.location.origin}/auth/callback?email=${encodeURIComponent(email)}`
+  }
+
+  // Send email to client
+  const handleSendSignalsToClient = async () => {
+    if (selectedSignals.length === 0) {
+      toast.error("Please select at least one signal to send")
+      return
+    }
+
+    if (!client) {
+      toast.error("Client not found")
+      return
+    }
+
+    const clientEmail = client.email || client["email"] || client["Email"]
+    if (!clientEmail) {
+      toast.error("Client email not found")
+      return
+    }
+
+    setSendingEmail(true)
+    const loadingToast = toast.loading("Sending email to client...")
+
+    try {
+      // Get selected signals
+      const signalsToSend = selectedSignals.map(index => signals[index]).filter(Boolean)
+      
+      // Get client name
+      const clientNameForEmail = client.name || client["name"] || client["Full Name"] || client["Name"] || "Valued Client"
+      
+      // Generate magic link
+      const magicLink = await generateMagicLink(clientEmail)
+      
+      // Send email
+      await sendSignalsEmail({
+        toEmail: clientEmail,
+        clientName: clientNameForEmail,
+        magicLink: magicLink,
+        signals: signalsToSend,
+      })
+
+      toast.success(`Email sent successfully to ${clientEmail}!`, { id: loadingToast })
+      setSelectedSignals([]) // Clear selection
+    } catch (error) {
+      console.error("Error sending email:", error)
+      toast.error(`Failed to send email: ${error.message}`, { id: loadingToast })
+    } finally {
+      setSendingEmail(false)
+    }
+  }
+
 console.log("signal",signals)
   // Get client name (check lowercase first, then uppercase)
   const clientName = client 
