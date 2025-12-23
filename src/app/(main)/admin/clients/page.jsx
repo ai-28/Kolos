@@ -696,25 +696,40 @@ function ClientDashboardContent() {
       // Get selected signals
       const signalsToSend = selectedSignals.map(index => signals[index]).filter(Boolean)
       
+      console.log('📧 Preparing to send email:', {
+        clientEmail,
+        signalsCount: signalsToSend.length,
+        selectedIndices: selectedSignals,
+      });
+      
       // Get client name
       const clientNameForEmail = client.name || client["name"] || client["Full Name"] || client["Name"] || "Valued Client"
       
       // Generate magic link
       const magicLink = await generateMagicLink(clientEmail)
       
+      console.log('📧 Magic link generated:', magicLink);
+      
       // Send email
-      await sendSignalsEmail({
+      const result = await sendSignalsEmail({
         toEmail: clientEmail,
         clientName: clientNameForEmail,
         magicLink: magicLink,
         signals: signalsToSend,
       })
 
-      toast.success(`Email sent successfully to ${clientEmail}!`, { id: loadingToast })
+      console.log('✅ Email send result:', result);
+      
+      toast.success(`Email sent successfully to ${clientEmail}! Check your inbox (and spam folder).`, { id: loadingToast, duration: 5000 })
       setSelectedSignals([]) // Clear selection
     } catch (error) {
-      console.error("Error sending email:", error)
-      toast.error(`Failed to send email: ${error.message}`, { id: loadingToast })
+      console.error("❌ Error sending email:", error)
+      console.error("Error details:", {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+      })
+      toast.error(`Failed to send email: ${error.message}`, { id: loadingToast, duration: 10000 })
     } finally {
       setSendingEmail(false)
     }

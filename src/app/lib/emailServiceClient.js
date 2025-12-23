@@ -222,8 +222,20 @@ export async function sendSignalsEmail({ toEmail, clientName, magicLink, signals
     const EMAILJS_TEMPLATE_ID = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID;
     const EMAILJS_PUBLIC_KEY = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY;
 
+    console.log('📧 EmailJS Config Check:', {
+        hasServiceId: !!EMAILJS_SERVICE_ID,
+        hasTemplateId: !!EMAILJS_TEMPLATE_ID,
+        hasPublicKey: !!EMAILJS_PUBLIC_KEY,
+        serviceIdPrefix: EMAILJS_SERVICE_ID?.substring(0, 10),
+    });
+
     if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
-        throw new Error('EmailJS environment variables not set. Please configure NEXT_PUBLIC_EMAILJS_SERVICE_ID, NEXT_PUBLIC_EMAILJS_TEMPLATE_ID, and NEXT_PUBLIC_EMAILJS_PUBLIC_KEY');
+        const missing = [];
+        if (!EMAILJS_SERVICE_ID) missing.push('NEXT_PUBLIC_EMAILJS_SERVICE_ID');
+        if (!EMAILJS_TEMPLATE_ID) missing.push('NEXT_PUBLIC_EMAILJS_TEMPLATE_ID');
+        if (!EMAILJS_PUBLIC_KEY) missing.push('NEXT_PUBLIC_EMAILJS_PUBLIC_KEY');
+
+        throw new Error(`EmailJS environment variables not set: ${missing.join(', ')}. Please add them to .env.local`);
     }
 
     // Initialize EmailJS
@@ -232,26 +244,83 @@ export async function sendSignalsEmail({ toEmail, clientName, magicLink, signals
     // Build HTML email
     const emailHTML = buildSignalsEmailHTML({ clientName, magicLink, signals });
 
+    console.log('📧 Email Details:', {
+        to: toEmail,
+        clientName: clientName,
+        signalsCount: signals?.length || 0,
+        htmlLength: emailHTML.length,
+        magicLink: magicLink,
+    });
+
     // Prepare template parameters
+    // Try both approaches: HTML variable (for paid plans) and individual fields (for free tier)
     const templateParams = {
         to_email: toEmail,
         client_name: clientName || 'Valued Client',
         magic_link: magicLink,
         signals_count: signals?.length || 0,
-        email_html: emailHTML,
+        email_html: emailHTML, // For plans that support HTML variables
+
+        // Individual signal fields (for free tier that doesn't support HTML variables)
+        signal1_headline: signals?.[0]?.headline_source || '',
+        signal1_date: formatDate(signals?.[0]?.date),
+        signal1_type: signals?.[0]?.signal_type || '',
+        signal1_scores: signals?.[0]?.scores_R_O_A || '',
+        signal1_overall: signals?.[0]?.overall ? `${signals[0].overall}/5` : '',
+        signal1_next_step: signals?.[0]?.next_step || '',
+        signal1_url: signals?.[0]?.url || '',
+        signal1_value: signals?.[0]?.estimated_target_value_USD || '',
+
+        signal2_headline: signals?.[1]?.headline_source || '',
+        signal2_date: formatDate(signals?.[1]?.date),
+        signal2_type: signals?.[1]?.signal_type || '',
+        signal2_scores: signals?.[1]?.scores_R_O_A || '',
+        signal2_overall: signals?.[1]?.overall ? `${signals[1].overall}/5` : '',
+        signal2_next_step: signals?.[1]?.next_step || '',
+        signal2_url: signals?.[1]?.url || '',
+        signal2_value: signals?.[1]?.estimated_target_value_USD || '',
+
+        signal3_headline: signals?.[2]?.headline_source || '',
+        signal3_date: formatDate(signals?.[2]?.date),
+        signal3_type: signals?.[2]?.signal_type || '',
+        signal3_scores: signals?.[2]?.scores_R_O_A || '',
+        signal3_overall: signals?.[2]?.overall ? `${signals[2].overall}/5` : '',
+        signal3_next_step: signals?.[2]?.next_step || '',
+        signal3_url: signals?.[2]?.url || '',
+        signal3_value: signals?.[2]?.estimated_target_value_USD || '',
     };
 
+    console.log('📧 Template Params:', {
+        to_email: templateParams.to_email,
+        client_name: templateParams.client_name,
+        signals_count: templateParams.signals_count,
+        email_html_length: templateParams.email_html.length,
+        has_email_html: !!templateParams.email_html,
+    });
+
     try {
+        console.log('📧 Sending via EmailJS...');
         const response = await emailjs.send(
             EMAILJS_SERVICE_ID,
             EMAILJS_TEMPLATE_ID,
             templateParams
         );
 
+        console.log('✅ EmailJS Response:', {
+            status: response.status,
+            text: response.text,
+            response: response,
+        });
+
         return { success: true, response };
     } catch (error) {
-        console.error('EmailJS error:', error);
-        throw error;
+        console.error('❌ EmailJS Error Details:', {
+            message: error.message,
+            text: error.text,
+            status: error.status,
+            fullError: error,
+        });
+        throw new Error(`EmailJS failed: ${error.text || error.message || 'Unknown error'}`);
     }
 }
 
