@@ -7,11 +7,13 @@ import { Button } from "@/app/components/ui/button"
 import { Card, CardContent } from "@/app/components/ui/card"
 import {KolosLogo} from "@/app/components/svg"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, Loader2, Edit2, Save, X, Trash2, Menu, Linkedin, Mail } from "lucide-react"
+import { ArrowLeft, Loader2, Edit2, Save, X, Trash2, Menu, Linkedin, Mail, Check } from "lucide-react"
 import { toast } from "sonner"
 import { DashboardIcon, BusinessGoalsIcon,SignalsIcon, IndustryFocusIcon, BusinessMatchIcon, BusinessRequestsIcon,TravelPlanIcon, UpcomingEventIcon } from "@/app/components/svg"
 import Image from "next/image"
 import { normalizeRole } from "@/app/lib/roleUtils"
+import { sendSignalsEmail } from "@/app/lib/emailServiceClient"
+import { supabase } from "@/app/lib/supabase"
 
 function ClientDashboardContent() {
   const router = useRouter()
@@ -45,6 +47,8 @@ function ClientDashboardContent() {
   const [showLinkedInModal, setShowLinkedInModal] = useState(false)
   const [showEmailModal, setShowEmailModal] = useState(false)
   const [selectedDealForModal, setSelectedDealForModal] = useState(null)
+  const [selectedSignals, setSelectedSignals] = useState([])
+  const [sendingEmail, setSendingEmail] = useState(false)
   useEffect(() => {
     // Get client ID from URL params and fetch client data
     const clientId = searchParams.get("id")
@@ -1730,18 +1734,63 @@ console.log("client",client)
           {/* Live Private Deal Flow */}
           {!isEditing && (
           <section className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="signals">
-            <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
-              <span className="text-[#c9a961]">⊟</span>
-              <span>Signals</span>
-            </h2>
+            <div className="flex items-center justify-between mb-2 sm:mb-3 md:mb-4">
+              <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] flex items-center gap-2">
+                <span className="text-[#c9a961]">⊟</span>
+                <span>Signals</span>
+                {signals.length > 0 && (
+                  <span className="text-sm text-gray-500">({signals.length})</span>
+                )}
+              </h2>
+              {signals.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={toggleSelectAll}
+                    className="text-xs"
+                  >
+                    {selectedSignals.length === signals.length ? 'Deselect All' : 'Select All'}
+                  </Button>
+                  <Button
+                    onClick={handleSendSignalsToClient}
+                    disabled={selectedSignals.length === 0 || sendingEmail}
+                    className="bg-[#0a3d3d] text-white hover:bg-[#0a3d3d]/90 text-xs"
+                    size="sm"
+                  >
+                    {sendingEmail ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="w-4 h-4 mr-2" />
+                        Send to Client ({selectedSignals.length})
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </div>
             <Card className="bg-[#fffff4] border-none !shadow-none">
               <CardContent className="p-3 sm:p-4 md:p-6">
                 {signals.length > 0 ? (
                   <div className="space-y-3 sm:space-y-4 lg:space-y-6 max-h-[600px] overflow-y-auto pr-1 sm:pr-2">
                     {signals.map((signal, index) => {
                       const badge = getIndustryBadge(signal.signal_type, signal.category)
+                      const isSelected = selectedSignals.includes(index)
                       return (
-                        <div key={index} className="border border-gray-200 rounded-lg p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4 hover:shadow-md transition-shadow">
+                        <div key={index} className={`border rounded-lg p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4 hover:shadow-md transition-shadow ${isSelected ? 'border-[#0a3d3d] border-2 bg-blue-50' : 'border-gray-200'}`}>
+                          {/* Checkbox for selection */}
+                          <div className="flex items-start gap-3">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleSignalSelection(index)}
+                              className="mt-1 w-4 h-4 text-[#0a3d3d] border-gray-300 rounded focus:ring-[#0a3d3d] cursor-pointer"
+                            />
+                            <div className="flex-1">
                           {/* Header Row */}
                           <div className="flex flex-col sm:flex-row items-start justify-between gap-2 sm:gap-3 md:gap-4">
                             <div className="flex-1 min-w-0 w-full sm:w-auto">
@@ -1850,6 +1899,8 @@ console.log("client",client)
                             >
                               Activate Kolos
                             </Button>
+                          </div>
+                            </div>
                           </div>
                         </div>
                       )
