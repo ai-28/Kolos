@@ -169,17 +169,21 @@ async function enrichPersonInApollo(personId, firstName, lastName, organizationN
 
     try {
         // Apollo API: People Match/Enrichment
-        // This endpoint returns email and LinkedIn URL
+        // Documentation: https://docs.apollo.io/reference/people-enrichment
+        // This endpoint returns email and LinkedIn URL (consumes credits)
+        // Need reveal_personal_emails and reveal_phone_number to get emails/phones
         const enrichBody = {
             person_id: personId,
+            reveal_personal_emails: true,  // Required to get personal emails
+            reveal_phone_number: true,     // Required to get phone numbers
         };
 
-        // Only include fields if they're provided (all optional except person_id)
+        // Include additional fields for better matching (all optional except person_id)
         if (firstName) enrichBody.first_name = firstName;
         if (lastName) enrichBody.last_name = lastName;
         if (organizationName) enrichBody.organization_name = organizationName;
 
-        const enrichResponse = await fetch('https://api.apollo.io/v1/people/match', {
+        const enrichResponse = await fetch('https://api.apollo.io/api/v1/people/match', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -226,14 +230,17 @@ async function searchPersonInApollo(companyName, personName, personRole) {
 
     try {
         // Step 1: Search for people using mixed_people/api_search to get person ID
-        // Apollo API: Mixed People Search
-        // Documentation: https://api.apollo.io/api/v1/mixed_people/api_search
+        // Apollo API: People API Search
+        // Documentation: https://docs.apollo.io/reference/people-api-search
+        // This endpoint does NOT consume credits and does NOT return emails/phones
+        // Requires master API key
         const searchBody = {
             page: 1,
             per_page: 1,
         };
 
         // Only include fields if they're provided (Apollo API allows all fields to be optional)
+        // More fields = better search results
         if (personName) {
             searchBody.q_keywords = personName;
         }

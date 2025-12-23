@@ -1,0 +1,58 @@
+name: Weekly Signal Update (Tuesday)
+
+# Run every Tuesday at 9:00 AM UTC (adjust timezone as needed)
+on:
+  schedule:
+    - cron: '0 9 * * 2'  # Every Tuesday at 9:00 AM UTC
+  
+  # Allow manual trigger from GitHub Actions UI
+  workflow_dispatch:
+    inputs:
+      profile_ids:
+        description: 'Comma-separated profile IDs to update (leave empty for all)'
+        required: false
+        type: string
+      skip_profile_ids:
+        description: 'Comma-separated profile IDs to skip'
+        required: false
+        type: string
+
+jobs:
+  update-signals:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60  # Maximum 1 hour for the entire job
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Update all member signals
+        env:
+          KOLOS_API_URL: ${{ secrets.KOLOS_API_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          PROFILE_IDS: ${{ github.event.inputs.profile_ids }}
+          SKIP_PROFILE_IDS: ${{ github.event.inputs.skip_profile_ids }}
+        run: |
+          echo "🚀 Starting weekly signal update..."
+          echo "📅 Current time: $(date)"
+          echo "🌍 Timezone: $(date +%Z)"
+          node scripts/update-all-signals.js
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Signal update failed!"
+          echo "Please check the logs above for details."
+          # You can add additional notification logic here (e.g., send email, Slack message, etc.)
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "✅ Workflow completed"
+          echo "Check the logs above for detailed results"
+
