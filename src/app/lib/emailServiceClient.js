@@ -57,6 +57,20 @@ export function buildSignalsEmailHTML({ clientName, magicLink, signals }) {
             const url = signal.url || '';
             const value = signal.estimated_target_value_USD || 'N/A';
 
+            // Create activate link with signal data encoded
+            // After login, this will open the deal modal with this signal
+            const signalData = encodeURIComponent(JSON.stringify({
+                headline_source: signal.headline_source || '',
+                date: signal.date || '',
+                signal_type: signal.signal_type || '',
+                url: signal.url || '',
+                scores_R_O_A: signal.scores_R_O_A || '',
+                overall: signal.overall || '',
+                next_step: signal.next_step || '',
+                estimated_target_value_USD: signal.estimated_target_value_USD || '',
+            }));
+            const activateLink = magicLink ? `${magicLink}&activate_signal=${signalData}` : '';
+
             signalsHTML += `
         <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 24px; background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
           <tr>
@@ -131,13 +145,7 @@ export function buildSignalsEmailHTML({ clientName, magicLink, signals }) {
                   </td>
                 </tr>
                 ` : ''}
-                ${url ? `
-                <tr>
-                  <td style="padding: 12px 0 0 0;">
-                    <a href="${url}" style="display: inline-block; padding: 10px 20px; background-color: #c9a961; color: #ffffff; text-decoration: none; border-radius: 4px; font-family: Arial, sans-serif; font-size: 13px; font-weight: 600;">View Source Article →</a>
-                  </td>
-                </tr>
-                ` : ''}
+
               </table>
             </td>
           </tr>

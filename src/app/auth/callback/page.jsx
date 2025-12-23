@@ -93,10 +93,25 @@ function AuthCallbackContent() {
 
         // Normalize role and redirect based on role
         const normalizedRole = normalizeRole(data.role || '')
+        
+        // Check if we need to activate a signal (from email "Activate Kolos" button)
+        const urlParams = new URLSearchParams(window.location.search)
+        const activateSignal = urlParams.get('activate_signal')
+        
         if (normalizedRole === 'Admin') {
-          router.push('/admin/dashboard')
+          if (activateSignal) {
+            // Admin: redirect to admin dashboard with signal data
+            router.push(`/admin/dashboard?activate_signal=${encodeURIComponent(activateSignal)}`)
+          } else {
+            router.push('/admin/dashboard')
+          }
         } else {
-          router.push('/client/dashboard')
+          if (activateSignal) {
+            // Client: redirect to client dashboard with signal data to open deal modal
+            router.push(`/client/dashboard?activate_signal=${encodeURIComponent(activateSignal)}`)
+          } else {
+            router.push('/client/dashboard')
+          }
         }
       } catch (error) {
         console.error('Error completing login:', error)

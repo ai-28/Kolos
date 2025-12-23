@@ -6,7 +6,7 @@ import { Badge } from "@/app/components/ui/badge"
 import { Button } from "@/app/components/ui/button"
 import { Card, CardContent } from "@/app/components/ui/card"
 import {KolosLogo} from "@/app/components/svg"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, Loader2, Edit2, Save, X, Trash2, Menu, Linkedin, Mail } from "lucide-react"
 import { toast } from "sonner"
 import { DashboardIcon, BusinessGoalsIcon,SignalsIcon, IndustryFocusIcon, BusinessMatchIcon, BusinessRequestsIcon,TravelPlanIcon, UpcomingEventIcon } from "@/app/components/svg"
@@ -15,6 +15,7 @@ import { normalizeRole } from "@/app/lib/roleUtils"
 
 function ClientDashboardContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [client, setClient] = useState(null)
   const [loading, setLoading] = useState(true)
   const [selectedRole, setSelectedRole] = useState("Investor")
@@ -47,6 +48,40 @@ function ClientDashboardContent() {
     // Get client ID from session and fetch client data
     fetchClientData()
   }, [])
+
+  // Check for activate_signal parameter from email "Activate Kolos" button
+  useEffect(() => {
+    const activateSignalParam = searchParams.get('activate_signal')
+    if (activateSignalParam && signals.length > 0) {
+      try {
+        const signalData = JSON.parse(decodeURIComponent(activateSignalParam))
+        // Find matching signal in the signals array or use the provided data
+        const matchingSignal = signals.find(s => 
+          s.headline_source === signalData.headline_source && 
+          s.date === signalData.date
+        ) || signalData
+        
+        // Set the signal and open the deal modal
+        setSelectedSignal(matchingSignal)
+        setShowCreateDealModal(true)
+        
+        // Pre-fill deal form with signal data
+        setDealFormData({
+          deal_name: signalData.headline_source || '',
+          target: '',
+          source: signalData.url || '',
+          stage: 'list',
+          target_deal_size: signalData.estimated_target_value_USD || '',
+          next_step: signalData.next_step || ''
+        })
+        
+        // Remove the parameter from URL
+        router.replace('/client/dashboard', { scroll: false })
+      } catch (error) {
+        console.error('Error parsing activate_signal:', error)
+      }
+    }
+  }, [searchParams, signals, router])
 
   const fetchClientData = async () => {
     try {
