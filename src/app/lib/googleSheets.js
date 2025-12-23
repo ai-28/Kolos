@@ -118,6 +118,7 @@ export async function getSheetData(sheetName) {
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
             range: `${sheetName}!A:AZ`,
+            valueRenderOption: 'FORMATTED_VALUE', // Get formatted values (removes apostrophe prefix if present)
         });
 
         const rows = response.data.values || [];

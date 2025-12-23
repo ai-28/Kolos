@@ -338,9 +338,11 @@ REMEMBER: Your response must be ONLY valid JSON starting with { and ending with 
       let signalsSaved = 0;
 
       for (const signal of signals) {
+        // Prefix date with apostrophe to force Google Sheets to store as text (prevents serial number conversion)
+        const dateValue = signal.date ? `'${signal.date}` : '';
         const signalRow = [
           profileId,
-          signal.date || '',
+          dateValue,
           signal.headline_source || '',
           signal.url || '',
           signal.signal_type || '',
