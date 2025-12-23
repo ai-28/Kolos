@@ -185,12 +185,33 @@ export function buildSignalsEmailHTML({ clientName, magicLink, signals }) {
                   <table width="100%" cellpadding="0" cellspacing="0" border="0">
                     <tr>
                       <td style="padding: 20px; background-color: #f9f9f9; border-radius: 8px;">
-                        <p style="margin: 0 0 16px 0; font-family: Arial, sans-serif; font-size: 14px; color: #666666;">
-                          Access your full dashboard to see all signals, deals, and opportunities:
+                        <p style="margin: 0 0 12px 0; font-family: Arial, sans-serif; font-size: 16px; color: #0a3d3d; font-weight: 600;">
+                          🔐 To Access Your Dashboard:
                         </p>
-                        <a href="${magicLink}" style="display: inline-block; padding: 14px 32px; background-color: #0a3d3d; color: #ffffff; text-decoration: none; border-radius: 6px; font-family: Arial, sans-serif; font-size: 16px; font-weight: 600;">
-                          Access Dashboard →
-                        </a>
+                        <p style="margin: 0 0 16px 0; font-family: Arial, sans-serif; font-size: 14px; color: #333333; line-height: 1.6;">
+                          You will receive a <strong>separate email from Supabase</strong> with the subject "Confirm your signup" or "Magic Link". 
+                        </p>
+                        <p style="margin: 0 0 16px 0; font-family: Arial, sans-serif; font-size: 14px; color: #333333; line-height: 1.6;">
+                          <strong>Click the authentication link in that Supabase email</strong> to securely access your dashboard.
+                        </p>
+                        <div style="background-color: #e7f3ff; border: 2px solid #0a3d3d; border-radius: 6px; padding: 16px; margin: 16px 0;">
+                          <p style="margin: 0 0 8px 0; font-family: Arial, sans-serif; font-size: 13px; color: #0a3d3d; font-weight: 600; line-height: 1.5;">
+                            📧 Check Your Inbox:
+                          </p>
+                          <p style="margin: 0; font-family: Arial, sans-serif; font-size: 12px; color: #0a3d3d; line-height: 1.5;">
+                            Look for an email from <strong>Supabase</strong> (subject: "Confirm your signup" or "Magic Link"). The secure authentication link in that email will log you into your dashboard. Please also check your spam/junk folder.
+                          </p>
+                        </div>
+                        ${magicLink ? `
+                        <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e0e0e0;">
+                          <p style="margin: 0 0 8px 0; font-family: Arial, sans-serif; font-size: 12px; color: #666666;">
+                            If you don't receive the Supabase email, you can request a new magic link:
+                          </p>
+                          <p style="margin: 0; font-family: Arial, sans-serif; font-size: 11px; color: #999999; word-break: break-all;">
+                            <a href="${magicLink}" style="color: #0a3d3d; text-decoration: underline;">${magicLink}</a>
+                          </p>
+                        </div>
+                        ` : ''}
                       </td>
                     </tr>
                   </table>
