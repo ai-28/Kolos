@@ -2,11 +2,7 @@ import OpenAI from "openai";
 
 const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-/**
- * Extract company name, decision maker role, and name from signal data
- * Uses GPT 5.2 with web search to extract structured information from signal
- * Extracts ONLY from signal fields: headline_source, next_step, and source (URL)
- */
+
 async function extractCompanyAndDecisionMaker(signalData) {
     const {
         headline_source,  // Signal headline - most important
@@ -155,8 +151,60 @@ Return only the JSON object.
 }
 
 /**
+ * Search for organization in Apollo to get organization_id or domain
+ * Uses Organization Search API: POST /api/v1/mixed_companies/search
+ */
+async function searchOrganizationInApollo(companyName) {
+    if (!companyName || !process.env.APOLLO_API_KEY) {
+        return null;
+    }
+
+    try {
+        const searchBody = {
+            page: 1,
+            per_page: 1,
+            q_organization_name: companyName,  // Search by company name
+        };
+
+        const searchResponse = await fetch('https://api.apollo.io/api/v1/mixed_companies/search', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache',
+                'X-Api-Key': process.env.APOLLO_API_KEY,
+            },
+            body: JSON.stringify(searchBody),
+        });
+
+        if (!searchResponse.ok) {
+            const errorText = await searchResponse.text();
+            console.warn(`⚠️ Organization search error: ${searchResponse.status} - ${errorText}`);
+            return null;
+        }
+
+        const searchData = await searchResponse.json();
+        const organizations = searchData.organizations || [];
+
+        if (organizations.length > 0) {
+            const org = organizations[0];
+            return {
+                organization_id: org.id || org.organization_id || null,
+                domain: org.primary_domain || org.domain || null,
+                name: org.name || companyName,
+            };
+        }
+
+        return null;
+    } catch (error) {
+        console.warn('⚠️ Error searching organization:', error);
+        return null;
+    }
+}
+
+/**
  * Enrich a person using Apollo People Match API
- * This endpoint returns email and LinkedIn URL using person_id
+ * Uses People Enrichment API: POST /api/v1/people/match
+ * API docs: id (not person_id), name (full name), first_name, last_name, organization_name, domain
  */
 async function enrichPersonInApollo(personId, firstName, lastName, organizationName) {
     if (!process.env.APOLLO_API_KEY) {
@@ -168,20 +216,24 @@ async function enrichPersonInApollo(personId, firstName, lastName, organizationN
     }
 
     try {
-        // Apollo API: People Match/Enrichment
-        // Documentation: https://docs.apollo.io/reference/people-enrichment
-        // This endpoint returns email and LinkedIn URL (consumes credits)
-        // Need reveal_personal_emails and reveal_phone_number to get emails/phones
         const enrichBody = {
-            person_id: personId,
+            id: personId,  // ✅ API expects 'id', not 'person_id'
             reveal_personal_emails: true,  // Required to get personal emails
-            reveal_phone_number: true,     // Required to get phone numbers
         };
 
-        // Include additional fields for better matching (all optional except person_id)
-        if (firstName) enrichBody.first_name = firstName;
-        if (lastName) enrichBody.last_name = lastName;
-        if (organizationName) enrichBody.organization_name = organizationName;
+        // Use 'name' parameter if we have both first and last name (simpler and recommended)
+        if (firstName && lastName) {
+            enrichBody.name = `${firstName} ${lastName}`;
+        } else {
+            // Otherwise use separate first_name and last_name
+            if (firstName) enrichBody.first_name = firstName;
+            if (lastName) enrichBody.last_name = lastName;
+        }
+
+        // Include organization_name for better matching
+        if (organizationName) {
+            enrichBody.organization_name = organizationName;
+        }
 
         const enrichResponse = await fetch('https://api.apollo.io/api/v1/people/match', {
             method: 'POST',
@@ -196,16 +248,31 @@ async function enrichPersonInApollo(personId, firstName, lastName, organizationN
         if (!enrichResponse.ok) {
             const errorText = await enrichResponse.text();
             console.warn(`⚠️ Apollo enrichment error: ${enrichResponse.status} - ${errorText}`);
+
+            // Log error details for debugging
+            try {
+                const errorData = JSON.parse(errorText);
+                if (errorData.error) {
+                    console.warn(`📋 Error: ${errorData.error}`);
+                }
+            } catch (e) {
+                // Error text is not JSON, that's okay
+            }
+
             return null;
         }
 
         const enrichData = await enrichResponse.json();
         const person = enrichData.person || enrichData;
 
+        // Log what we got back
+        if (!person.email && !person.linkedin_url) {
+            console.log(`⚠️ Enrichment API returned person but no contact info available`);
+        }
+
         return {
             email: person.email || null,
             linkedin_url: person.linkedin_url || null,
-            phone: person.phone_numbers?.[0]?.raw_number || person.phone_numbers?.[0]?.sanitized_number || null,
         };
     } catch (error) {
         console.warn('⚠️ Error enriching person in Apollo:', error);
@@ -213,101 +280,467 @@ async function enrichPersonInApollo(personId, firstName, lastName, organizationN
     }
 }
 
+
 /**
- * Search for a person in Apollo using company name, person name, and role (all optional)
- * Uses mixed_people/api_search to get person ID, then enriches with people/match to get email and LinkedIn
- * Returns email and LinkedIn URL if found
+ * Helper function to perform Apollo API search with given parameters
+ */
+async function performApolloSearch(searchBody) {
+    const searchResponse = await fetch('https://api.apollo.io/api/v1/mixed_people/api_search', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
+            'X-Api-Key': process.env.APOLLO_API_KEY,
+        },
+        body: JSON.stringify(searchBody),
+    });
+
+    if (!searchResponse.ok) {
+        const errorText = await searchResponse.text();
+        throw new Error(`Apollo API error: ${searchResponse.status} - ${errorText}`);
+    }
+
+    const searchData = await searchResponse.json();
+    return searchData.people || [];
+}
+
+/**
+ * Enrich a person from search results and return contact info
+ */
+async function enrichPersonFromSearch(person, personName, companyName) {
+    const personId = person.id || person.person_id || null;
+    const firstName = person.first_name || (personName ? personName.split(' ')[0] : '') || '';
+    const lastName = person.last_name || (personName ? personName.split(' ').slice(1).join(' ') : '') || '';
+
+    let email = null;
+    let linkedinUrl = null;
+
+    if (personId) {
+        const enrichedData = await enrichPersonInApollo(personId, firstName, lastName, companyName);
+        if (enrichedData) {
+            email = enrichedData.email;
+            linkedinUrl = enrichedData.linkedin_url;
+        }
+    }
+
+    // Fallback to search result data if enrichment didn't return values
+    if (!email) email = person.email || null;
+    if (!linkedinUrl) linkedinUrl = person.linkedin_url || null;
+
+    return { email, linkedin_url: linkedinUrl };
+}
+
+/**
+ * Sequential step-by-step search strategy using correct Apollo API parameters
+ * Step 1: Company + Name + Role (all 3 fields) - using organization_ids or q_organization_domains_list
+ * Step 2: Company + Role (using organization_ids or q_organization_domains_list)
+ * Step 3: Name + Role
+ * Step 4: Name only
+ * Step 5: Simplified name variations
  */
 async function searchPersonInApollo(companyName, personName, personRole) {
     if (!process.env.APOLLO_API_KEY) {
         throw new Error('APOLLO_API_KEY is not configured');
     }
 
-    // At least one field should be provided for a meaningful search
+    // At least one field should be provided
     if (!companyName && !personName && !personRole) {
         throw new Error('At least one of company name, person name, or role is required for Apollo search');
     }
 
     try {
-        // Step 1: Search for people using mixed_people/api_search to get person ID
-        // Apollo API: People API Search
-        // Documentation: https://docs.apollo.io/reference/people-api-search
-        // This endpoint does NOT consume credits and does NOT return emails/phones
-        // Requires master API key
-        const searchBody = {
-            page: 1,
-            per_page: 1,
-        };
-
-        // Only include fields if they're provided (Apollo API allows all fields to be optional)
-        // More fields = better search results
-        if (personName) {
-            searchBody.q_keywords = personName;
-        }
-        if (personRole) {
-            searchBody.person_titles = [personRole];
-        }
+        // First, search for organization if we have company name
+        // This gives us organization_id or domain to use in people search
+        let organizationData = null;
         if (companyName) {
-            searchBody.organization_name = companyName;
-        }
-
-        const searchResponse = await fetch('https://api.apollo.io/api/v1/mixed_people/api_search', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Cache-Control': 'no-cache',
-                'X-Api-Key': process.env.APOLLO_API_KEY,
-            },
-            body: JSON.stringify(searchBody),
-        });
-
-        if (!searchResponse.ok) {
-            const errorText = await searchResponse.text();
-            throw new Error(`Apollo API error: ${searchResponse.status} - ${errorText}`);
-        }
-
-        const searchData = await searchResponse.json();
-        const people = searchData.people || [];
-
-        if (people.length === 0) {
-            return {
-                email: null,
-                linkedin_url: null,
-                phone: null,
-            };
-        }
-
-        // Get the first matching person
-        const person = people[0];
-
-        // Extract person ID and name parts for enrichment
-        const personId = person.id || person.person_id || null;
-        const firstName = person.first_name || (personName ? personName.split(' ')[0] : '') || '';
-        const lastName = person.last_name || (personName ? personName.split(' ').slice(1).join(' ') : '') || '';
-
-        // Step 2: Enrich person using people/match API to get email and LinkedIn
-        let email = null;
-        let linkedinUrl = null;
-        let phone = null;
-
-        if (personId) {
-            const enrichedData = await enrichPersonInApollo(personId, firstName, lastName, companyName);
-            if (enrichedData) {
-                email = enrichedData.email;
-                linkedinUrl = enrichedData.linkedin_url;
-                phone = enrichedData.phone;
+            console.log(`🔍 Searching for organization: ${companyName}`);
+            organizationData = await searchOrganizationInApollo(companyName);
+            if (organizationData) {
+                console.log(`✅ Found organization: ${organizationData.name} (ID: ${organizationData.organization_id || 'N/A'}, Domain: ${organizationData.domain || 'N/A'})`);
+            } else {
+                console.log(`⚠️ Organization not found: ${companyName}`);
             }
         }
 
-        // Fallback to search result data if enrichment didn't return values
-        if (!email) email = person.email || null;
-        if (!linkedinUrl) linkedinUrl = person.linkedin_url || null;
-        if (!phone) phone = person.phone_numbers?.[0]?.raw_number || person.phone_numbers?.[0]?.sanitized_number || null;
+        // STEP 1: Try all 3 fields (Company + Name + Role) - Best accuracy
+        // If successful, returns immediately and skips all remaining steps
+        if (companyName && personName && personRole) {
+            console.log(`🔍 Step 1: Searching ${personName} (${personRole}) at ${companyName}`);
+            const searchBody = {
+                page: 1,
+                per_page: 1,
+                q_keywords: personName,
+                person_titles: [personRole],
+                include_similar_titles: true,  // Enable similar title matching
+            };
 
+            // Use organization_ids or q_organization_domains_list (correct API parameters)
+            if (organizationData?.organization_id) {
+                searchBody.organization_ids = [organizationData.organization_id];
+                console.log(`📋 Step 1: Using organization_id: ${organizationData.organization_id}`);
+            } else if (organizationData?.domain) {
+                searchBody.q_organization_domains_list = [organizationData.domain];
+                console.log(`📋 Step 1: Using domain: ${organizationData.domain}`);
+            } else {
+                // Fallback: try to extract domain from company name or use in q_keywords
+                const domainMatch = companyName.match(/([a-zA-Z0-9-]+\.[a-zA-Z]{2,})/i);
+                if (domainMatch) {
+                    searchBody.q_organization_domains_list = [domainMatch[1].toLowerCase()];
+                    console.log(`📋 Step 1: Using extracted domain: ${domainMatch[1]}`);
+                } else {
+                    // Last resort: include company name in q_keywords (less accurate)
+                    searchBody.q_keywords = `${personName} ${companyName}`;
+                    console.log(`📋 Step 1: Using company name in q_keywords`);
+                }
+            }
+
+            const people = await performApolloSearch(searchBody);
+            if (people.length > 0) {
+                // Verify company match
+                const orgName = people[0].organization?.name || '';
+                if (!companyName || orgName.toLowerCase().includes(companyName.toLowerCase()) ||
+                    companyName.toLowerCase().includes(orgName.toLowerCase())) {
+                    console.log(`✅ Step 1 SUCCESS: Found ${people[0].first_name} ${people[0].last_name}`);
+                    return await enrichPersonFromSearch(people[0], personName, companyName);
+                } else {
+                    console.log(`⚠️ Step 1: Found person but company doesn't match`);
+                }
+            }
+            console.log(`⚠️ Step 1 FAILED: No results with all 3 fields`);
+        }
+
+        // STEP 1.5: Try simplified name with all 3 fields (if Step 1 failed)
+        // Apollo often stores names without middle initials/suffixes
+        // "Thomas B. Pickens III" -> "Thomas Pickens"
+        // If successful, returns immediately and skips all remaining steps
+        if (companyName && personName && personRole) {
+            const nameParts = personName.trim().split(/\s+/);
+            if (nameParts.length > 2) { // Only simplify if name has more than 2 parts
+                const firstName = nameParts[0];
+                // Get last name correctly (skip suffixes like III, Jr, Sr, etc.)
+                let lastName = nameParts[nameParts.length - 1];
+                const suffixPattern = /^(III?|IV|VI?|VII?|VIII?|IX|X|Jr\.?|Sr\.?|II|2nd|3rd)$/i;
+                if (suffixPattern.test(lastName)) {
+                    lastName = nameParts[nameParts.length - 2];
+                }
+                const simplifiedName = `${firstName} ${lastName}`;
+
+                if (simplifiedName !== personName && simplifiedName.split(' ').length === 2) {
+                    console.log(`🔍 Step 1.5: Searching simplified name "${simplifiedName}" (${personRole}) at ${companyName}`);
+                    const searchBody = {
+                        page: 1,
+                        per_page: 1,
+                        q_keywords: simplifiedName,
+                        person_titles: [personRole],
+                        include_similar_titles: true,
+                    };
+
+                    // Use organization_ids or q_organization_domains_list
+                    if (organizationData?.organization_id) {
+                        searchBody.organization_ids = [organizationData.organization_id];
+                        console.log(`📋 Step 1.5: Using organization_id: ${organizationData.organization_id}`);
+                    } else if (organizationData?.domain) {
+                        searchBody.q_organization_domains_list = [organizationData.domain];
+                        console.log(`📋 Step 1.5: Using domain: ${organizationData.domain}`);
+                    } else {
+                        const domainMatch = companyName.match(/([a-zA-Z0-9-]+\.[a-zA-Z]{2,})/i);
+                        if (domainMatch) {
+                            searchBody.q_organization_domains_list = [domainMatch[1].toLowerCase()];
+                            console.log(`📋 Step 1.5: Using extracted domain: ${domainMatch[1]}`);
+                        } else {
+                            searchBody.q_keywords = `${simplifiedName} ${companyName}`;
+                            console.log(`📋 Step 1.5: Using company name in q_keywords`);
+                        }
+                    }
+
+                    const people = await performApolloSearch(searchBody);
+                    if (people.length > 0) {
+                        const orgName = people[0].organization?.name || '';
+                        if (!companyName || orgName.toLowerCase().includes(companyName.toLowerCase()) ||
+                            companyName.toLowerCase().includes(orgName.toLowerCase())) {
+                            console.log(`✅ Step 1.5 SUCCESS: Found ${people[0].first_name} ${people[0].last_name} with simplified name`);
+                            return await enrichPersonFromSearch(people[0], personName, companyName);
+                        } else {
+                            console.log(`⚠️ Step 1.5: Found person but company doesn't match`);
+                        }
+                    }
+                    console.log(`⚠️ Step 1.5 FAILED: No results with simplified name`);
+                }
+            }
+        }
+
+        // STEP 1.6: Try simplified name + Company using people/match API (direct enrichment)
+        // Uses people/match API to match and enrich in one call (no search needed)
+        // If successful, returns immediately and skips all remaining steps
+        if (companyName && personName) {
+            const nameParts = personName.trim().split(/\s+/);
+            if (nameParts.length > 2) { // Only simplify if name has more than 2 parts
+                const firstName = nameParts[0];
+                // Get last name correctly (skip suffixes like III, Jr, Sr, etc.)
+                let lastName = nameParts[nameParts.length - 1];
+                const suffixPattern = /^(III?|IV|VI?|VII?|VIII?|IX|X|Jr\.?|Sr\.?|II|2nd|3rd)$/i;
+                if (suffixPattern.test(lastName)) {
+                    lastName = nameParts[nameParts.length - 2];
+                }
+                const simplifiedName = `${firstName} ${lastName}`;
+
+                if (simplifiedName !== personName && simplifiedName.split(' ').length === 2) {
+                    console.log(`🔍 Step 1.6: Trying direct enrichment with simplified name "${simplifiedName}" at ${companyName} using people/match API`);
+
+                    try {
+                        const [first, last] = simplifiedName.split(' ');
+                        const enrichBody = {
+                            first_name: first,
+                            last_name: last,
+                            organization_name: companyName,
+                            reveal_personal_emails: true,
+                        };
+
+                        // Use domain if available (more accurate than organization_name)
+                        if (organizationData?.domain) {
+                            enrichBody.domain = organizationData.domain;
+                            delete enrichBody.organization_name;
+                            console.log(`📋 Step 1.6: Using domain: ${organizationData.domain}`);
+                        } else {
+                            console.log(`📋 Step 1.6: Using organization_name: ${companyName}`);
+                        }
+
+                        const enrichResponse = await fetch('https://api.apollo.io/api/v1/people/match', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Cache-Control': 'no-cache',
+                                'X-Api-Key': process.env.APOLLO_API_KEY,
+                            },
+                            body: JSON.stringify(enrichBody),
+                        });
+
+                        if (enrichResponse.ok) {
+                            const enrichData = await enrichResponse.json();
+                            const person = enrichData.person || enrichData;
+
+                            if (person && (person.email || person.linkedin_url)) {
+                                // Verify company match
+                                const orgName = person.organization?.name || '';
+                                if (!companyName || orgName.toLowerCase().includes(companyName.toLowerCase()) ||
+                                    companyName.toLowerCase().includes(orgName.toLowerCase())) {
+                                    console.log(`✅ Step 1.6 SUCCESS: Found and enriched ${person.first_name || first} ${person.last_name || last} with simplified name`);
+                                    return {
+                                        email: person.email || null,
+                                        linkedin_url: person.linkedin_url || null,
+                                    };
+                                } else {
+                                    console.log(`⚠️ Step 1.6: Found person but company doesn't match`);
+                                }
+                            } else {
+                                console.log(`⚠️ Step 1.6: Match found but no contact info available`);
+                            }
+                        } else {
+                            const errorText = await enrichResponse.text();
+                            console.log(`⚠️ Step 1.6 FAILED: ${enrichResponse.status} - ${errorText}`);
+                        }
+                    } catch (error) {
+                        console.warn(`⚠️ Step 1.6 error:`, error);
+                    }
+                }
+            }
+        }
+
+        // STEP 2: Try Company + Role (find whoever holds that position)
+        // If successful, returns immediately and skips all remaining steps
+        if (companyName && personRole) {
+            console.log(`🔍 Step 2: Searching for ${personRole} at ${companyName} (company + role)`);
+            const searchBody = {
+                page: 1,
+                per_page: 5, // Get multiple results to find best match
+                person_titles: [personRole],
+                include_similar_titles: true,  // Enable similar title matching (e.g., "CEO" matches "Chief Executive Officer")
+            };
+
+            // Use organization_ids or q_organization_domains_list (correct API parameters)
+            if (organizationData?.organization_id) {
+                searchBody.organization_ids = [organizationData.organization_id];
+                console.log(`📋 Step 2: Using organization_id: ${organizationData.organization_id}`);
+            } else if (organizationData?.domain) {
+                searchBody.q_organization_domains_list = [organizationData.domain];
+                console.log(`📋 Step 2: Using domain: ${organizationData.domain}`);
+            } else {
+                // Fallback: try to extract domain from company name
+                const domainMatch = companyName.match(/([a-zA-Z0-9-]+\.[a-zA-Z]{2,})/i);
+                if (domainMatch) {
+                    searchBody.q_organization_domains_list = [domainMatch[1].toLowerCase()];
+                    console.log(`📋 Step 2: Using extracted domain: ${domainMatch[1]}`);
+                } else {
+                    // Last resort: use company name in q_keywords (less accurate)
+                    searchBody.q_keywords = companyName;
+                    console.log(`📋 Step 2: Using company name in q_keywords: ${companyName}`);
+                }
+            }
+
+            const people = await performApolloSearch(searchBody);
+            console.log(`📊 Step 2: Apollo returned ${people.length} result(s) for ${personRole} at ${companyName}`);
+
+            if (people.length > 0) {
+                // Log what we found
+                people.forEach((p, idx) => {
+                    console.log(`   ${idx + 1}. ${p.first_name || ''} ${p.last_name || ''} - ${p.title || 'No title'} at ${p.organization?.name || 'Unknown'}`);
+                });
+
+                // Filter results to match company name if we don't have organization_id
+                let matchingPeople = people;
+                if (!organizationData?.organization_id) {
+                    matchingPeople = people.filter(p => {
+                        const orgName = p.organization?.name || '';
+                        return orgName.toLowerCase().includes(companyName.toLowerCase()) ||
+                            companyName.toLowerCase().includes(orgName.toLowerCase());
+                    });
+                    console.log(`📊 Step 2: After company filter: ${matchingPeople.length} matching results`);
+                }
+
+                if (matchingPeople.length > 0) {
+                    // Select best match
+                    let person = matchingPeople[0];
+                    if (matchingPeople.length > 1 && personName) {
+                        // If we have a name, try to match it
+                        const nameMatch = matchingPeople.find(p => {
+                            const fullName = `${p.first_name || ''} ${p.last_name || ''}`.toLowerCase();
+                            return fullName.includes(personName.toLowerCase()) ||
+                                personName.toLowerCase().includes(fullName);
+                        });
+                        if (nameMatch) person = nameMatch;
+                    } else if (matchingPeople.length > 1) {
+                        // Find exact role match
+                        const exactMatch = matchingPeople.find(p =>
+                            p.title && p.title.toLowerCase().includes(personRole.toLowerCase())
+                        );
+                        if (exactMatch) person = exactMatch;
+                    }
+
+                    console.log(`✅ Step 2 SUCCESS: Found ${person.first_name} ${person.last_name} (${person.title || personRole})`);
+                    return await enrichPersonFromSearch(person, personName, companyName);
+                }
+            }
+            console.log(`⚠️ Step 2 FAILED: No ${personRole} found at ${companyName}`);
+        }
+
+        // STEP 3: Try Name + Role (if company is missing or doesn't match)
+        // If successful, returns immediately and skips Step 4, 4.5, and 5
+        if (personName && personRole) {
+            console.log(`🔍 Step 3: Searching ${personName} with role ${personRole} (name + role)`);
+            const searchBody = {
+                page: 1,
+                per_page: 1,
+                q_keywords: personName,
+                person_titles: [personRole],
+                include_similar_titles: true,  // Enable similar title matching
+            };
+
+            const people = await performApolloSearch(searchBody);
+            if (people.length > 0) {
+                // Verify company match if we have company name
+                if (companyName) {
+                    const orgName = people[0].organization?.name || '';
+                    const orgMatch = orgName.toLowerCase().includes(companyName.toLowerCase()) ||
+                        companyName.toLowerCase().includes(orgName.toLowerCase());
+                    if (orgMatch) {
+                        console.log(`✅ Step 3 SUCCESS: Found ${people[0].first_name} ${people[0].last_name} (company matches)`);
+                        return await enrichPersonFromSearch(people[0], personName, companyName);
+                    } else {
+                        console.log(`⚠️ Step 3: Found person but company doesn't match, continuing to next step`);
+                    }
+                } else {
+                    console.log(`✅ Step 3 SUCCESS: Found ${people[0].first_name} ${people[0].last_name}`);
+                    return await enrichPersonFromSearch(people[0], personName, companyName);
+                }
+            }
+            console.log(`⚠️ Step 3 FAILED: No results for ${personName} with role ${personRole}`);
+        }
+
+        // STEP 4: Try Name only
+        // If successful, returns immediately and skips Step 4.5 and 5
+        if (personName) {
+            console.log(`🔍 Step 4: Searching ${personName} (name only)`);
+            const searchBody = {
+                page: 1,
+                per_page: 1,
+                q_keywords: personName,
+            };
+
+            const people = await performApolloSearch(searchBody);
+            if (people.length > 0) {
+                // Verify company match if we have company name
+                if (companyName) {
+                    const orgName = people[0].organization?.name || '';
+                    const orgMatch = orgName.toLowerCase().includes(companyName.toLowerCase()) ||
+                        companyName.toLowerCase().includes(orgName.toLowerCase());
+                    if (orgMatch) {
+                        console.log(`✅ Step 4 SUCCESS: Found ${people[0].first_name} ${people[0].last_name} (company matches)`);
+                        return await enrichPersonFromSearch(people[0], personName, companyName);
+                    } else {
+                        console.log(`⚠️ Step 4: Found person but company doesn't match`);
+                    }
+                } else {
+                    console.log(`✅ Step 4 SUCCESS: Found ${people[0].first_name} ${people[0].last_name}`);
+                    return await enrichPersonFromSearch(people[0], personName, companyName);
+                }
+            }
+            console.log(`⚠️ Step 4 FAILED: No results for ${personName}`);
+
+            // Step 4.5: Try simplified name (if Step 4 failed and name has multiple parts)
+            const nameParts = personName.trim().split(/\s+/);
+            if (nameParts.length > 2) {
+                const firstName = nameParts[0];
+                let lastName = nameParts[nameParts.length - 1];
+                const suffixPattern = /^(III?|IV|VI?|VII?|VIII?|IX|X|Jr\.?|Sr\.?|II|2nd|3rd)$/i;
+                if (suffixPattern.test(lastName)) {
+                    lastName = nameParts[nameParts.length - 2];
+                }
+                const simplifiedName = `${firstName} ${lastName}`;
+
+                if (simplifiedName !== personName && simplifiedName.split(' ').length === 2) {
+                    console.log(`🔍 Step 4.5: Searching simplified name "${simplifiedName}" (name only)`);
+                    const searchBody = {
+                        page: 1,
+                        per_page: 1,
+                        q_keywords: simplifiedName,
+                    };
+
+                    // Use organization_ids or q_organization_domains_list if available
+                    if (companyName) {
+                        if (organizationData?.organization_id) {
+                            searchBody.organization_ids = [organizationData.organization_id];
+                        } else if (organizationData?.domain) {
+                            searchBody.q_organization_domains_list = [organizationData.domain];
+                        }
+                    }
+
+                    const people = await performApolloSearch(searchBody);
+                    if (people.length > 0) {
+                        // Verify company match if we have company name
+                        if (companyName) {
+                            const orgName = people[0].organization?.name || '';
+                            const orgMatch = orgName.toLowerCase().includes(companyName.toLowerCase()) ||
+                                companyName.toLowerCase().includes(orgName.toLowerCase());
+                            if (orgMatch) {
+                                console.log(`✅ Step 4.5 SUCCESS: Found ${people[0].first_name} ${people[0].last_name} with simplified name (company matches)`);
+                                return await enrichPersonFromSearch(people[0], personName, companyName);
+                            } else {
+                                console.log(`⚠️ Step 4.5: Found person but company doesn't match`);
+                            }
+                        } else {
+                            console.log(`✅ Step 4.5 SUCCESS: Found ${people[0].first_name} ${people[0].last_name} with simplified name`);
+                            return await enrichPersonFromSearch(people[0], personName, companyName);
+                        }
+                    }
+                    console.log(`⚠️ Step 4.5 FAILED: No results for simplified name`);
+                }
+            }
+        }
+
+        console.log(`❌ All search steps exhausted - no contact info found`);
         return {
-            email: email,
-            linkedin_url: linkedinUrl,
-            phone: phone,
+            email: null,
+            linkedin_url: null,
         };
     } catch (error) {
         console.error('❌ Error searching Apollo:', error);
@@ -315,10 +748,7 @@ async function searchPersonInApollo(companyName, personName, personRole) {
     }
 }
 
-/**
- * Search for multiple people in Apollo
- * Returns an array of enriched decision makers with their contact information
- */
+
 async function searchMultiplePeopleInApollo(companyName, decisionMakers) {
     if (!decisionMakers || decisionMakers.length === 0) {
         return [];
@@ -342,7 +772,6 @@ async function searchMultiplePeopleInApollo(companyName, decisionMakers) {
                 role: decisionMaker.role || null,
                 email: apolloResult.email || null,
                 linkedin_url: apolloResult.linkedin_url || null,
-                phone: apolloResult.phone || null,
             });
         } catch (error) {
             console.error(`❌ Error searching Apollo for ${decisionMaker.name}:`, error);
@@ -352,7 +781,6 @@ async function searchMultiplePeopleInApollo(companyName, decisionMakers) {
                 role: decisionMaker.role || null,
                 email: null,
                 linkedin_url: null,
-                phone: null,
                 error: error.message,
             });
         }
@@ -361,10 +789,7 @@ async function searchMultiplePeopleInApollo(companyName, decisionMakers) {
     return enrichedDecisionMakers;
 }
 
-/**
- * Enrich deal with Apollo data
- * Extracts company name, decision maker info from signal, then searches Apollo for email/LinkedIn
- */
+
 export async function enrichDealWithApollo(signalData) {
     const debug = {
         input_data: signalData,
