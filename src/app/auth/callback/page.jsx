@@ -29,12 +29,29 @@ function AuthCallbackContent() {
           if (code) {
             // Exchange code for session
             const { data, error } = await supabase.auth.exchangeCodeForSession(code)
-            if (error) throw error
+            if (error) {
+              console.error('Error exchanging code for session:', error)
+              // Check if it's an expired/invalid error
+              if (error.message?.includes('expired') || error.message?.includes('invalid')) {
+                router.push('/?error=otp_expired&error_description=' + encodeURIComponent(error.message))
+                return
+              }
+              throw error
+            }
             if (data?.user?.email) {
               await completeAuth(data.user.email)
               return
             }
           }
+          
+          // Check for error parameters in URL (from Supabase redirect)
+          const errorParam = searchParams.get('error')
+          const errorDescription = searchParams.get('error_description')
+          if (errorParam) {
+            router.push(`/?error=${errorParam}${errorDescription ? '&error_description=' + encodeURIComponent(errorDescription) : ''}`)
+            return
+          }
+          
           router.push('/?error=no_token')
           return
         }

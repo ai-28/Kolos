@@ -709,12 +709,21 @@ function ClientDashboardContent() {
       // Get client name
       const clientNameForEmail = client.name || client["name"] || client["Full Name"] || client["Name"] || "Valued Client"
       
-      // Generate magic link
+      // Generate magic link RIGHT BEFORE sending email (to minimize expiration time)
+      // This ensures the link is as fresh as possible when the user receives it
+      console.log('📧 Generating magic link for:', clientEmail);
       const magicLink = await generateMagicLink(clientEmail)
       
-      console.log('📧 Magic link generated:', magicLink);
+      if (!magicLink || !magicLink.startsWith('http')) {
+        throw new Error('Failed to generate valid magic link. Please check SUPABASE_SERVICE_ROLE_KEY is set correctly.')
+      }
       
-      // Send email
+      console.log('📧 Magic link generated successfully:', {
+        linkLength: magicLink.length,
+        linkPreview: magicLink.substring(0, 80) + '...',
+      });
+      
+      // Send email immediately after generating link
       const result = await sendSignalsEmail({
         toEmail: clientEmail,
         clientName: clientNameForEmail,
