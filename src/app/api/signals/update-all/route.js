@@ -57,6 +57,20 @@ const getColumnLetter = (index) => {
  * Headers: Authorization: Bearer YOUR_CRON_SECRET
  * Body (optional): { "profile_ids": ["id1", "id2"], "skip_profile_ids": ["id3"] }
  */
+// GET handler for testing/status
+export async function GET() {
+    return NextResponse.json({
+        message: "Signal Update API Endpoint",
+        method: "Use POST method to trigger signal updates",
+        authentication: "Requires Authorization: Bearer CRON_SECRET header",
+        usage: "POST /api/signals/update-all",
+        body: {
+            profile_ids: "optional - comma-separated profile IDs to update",
+            skip_profile_ids: "optional - comma-separated profile IDs to skip"
+        }
+    }, { status: 200 });
+}
+
 export async function POST(request) {
     const startTime = Date.now();
     console.log(`🕐 Starting bulk signal update at ${new Date().toISOString()}`);
@@ -111,7 +125,7 @@ export async function POST(request) {
         // Get all client profiles
         console.log('📊 Fetching all client profiles...');
         const profiles = await getSheetData(SHEETS.PROFILES);
-        
+
         if (!profiles || profiles.length === 0) {
             return NextResponse.json({
                 success: true,
@@ -127,17 +141,17 @@ export async function POST(request) {
         let profilesToProcess = profiles.filter(p => {
             const profileId = p.id || p.ID || p["id"] || p["ID"];
             if (!profileId) return false;
-            
+
             // If target list is provided, only process those
             if (targetProfileIds && !targetProfileIds.includes(String(profileId).trim())) {
                 return false;
             }
-            
+
             // Skip profiles in skip list
             if (skipProfileIds.includes(String(profileId).trim())) {
                 return false;
             }
-            
+
             return true;
         });
 
@@ -155,7 +169,7 @@ export async function POST(request) {
         for (let i = 0; i < profilesToProcess.length; i++) {
             const profile = profilesToProcess[i];
             const profileId = profile.id || profile.ID || profile["id"] || profile["ID"];
-            
+
             console.log(`\n📝 [${i + 1}/${profilesToProcess.length}] Processing profile: ${profileId} (${profile.name || 'Unknown'})`);
 
             try {
@@ -223,7 +237,7 @@ export async function POST(request) {
     } catch (error) {
         console.error("❌ Error in bulk signal update:", error);
         const duration = (Date.now() - startTime) / 1000;
-        
+
         return NextResponse.json(
             {
                 error: "Failed to update signals in bulk",
@@ -242,7 +256,7 @@ async function updateSignalsForProfile(profileId, profile, updatedContent, sheet
     // Step 1: Delete existing signals for this profile
     const allSignals = await getSheetData(SHEETS.SIGNALS);
     const signalIndices = [];
-    
+
     for (let i = 0; i < allSignals.length; i++) {
         const signal = allSignals[i];
         const signalProfileId = signal.profile_id || signal["profile_id"] || signal["Profile ID"];
@@ -401,7 +415,7 @@ REMEMBER: Your response must be ONLY valid JSON starting with { and ending with 
         parsedData = responseContent;
     } else {
         let jsonString = responseContent.trim();
-        
+
         // Remove markdown code blocks if present
         if (jsonString.startsWith('```json')) {
             jsonString = jsonString.replace(/^```json\s*/i, '').replace(/\s*```\s*$/i, '');
