@@ -128,7 +128,59 @@ Return only the JSON object.
 }
 
 /**
+ * Enrich a person using Apollo People Match API
+ * This endpoint returns email and LinkedIn URL using person_id
+ */
+async function enrichPersonInApollo(personId, firstName, lastName, organizationName) {
+    if (!process.env.APOLLO_API_KEY) {
+        throw new Error('APOLLO_API_KEY is not configured');
+    }
+
+    if (!personId) {
+        return null;
+    }
+
+    try {
+        // Apollo API: People Match/Enrichment
+        // This endpoint returns email and LinkedIn URL
+        const enrichResponse = await fetch('https://api.apollo.io/v1/people/match', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache',
+                'X-Api-Key': process.env.APOLLO_API_KEY,
+            },
+            body: JSON.stringify({
+                person_id: ,
+                first_name: firstName,
+                last_name: lastName,
+                organization_name: organizationName,
+            }),
+        });
+
+        if (!enrichResponse.ok) {
+            const errorText = await enrichResponse.text();
+            console.warn(`⚠️ Apollo enrichment error: ${enrichResponse.status} - ${errorText}`);
+            return null;
+        }
+
+        const enrichData = await enrichResponse.json();
+        const person = enrichData.person || enrichData;
+
+        return {
+            email: person.email || null,
+            linkedin_url: person.linkedin_url || null,
+            phone: person.phone_numbers?.[0]?.raw_number || person.phone_numbers?.[0]?.sanitized_number || null,
+        };
+    } catch (error) {
+        console.warn('⚠️ Error enriching person in Apollo:', error);
+        return null;
+    }
+}
+
+/**
  * Search for a person in Apollo using company name, person name, and role
+ * Uses mixed_people/api_search to get person ID, then enriches with people/match to get email and LinkedIn
  * Returns email and LinkedIn URL if found
  */
 async function searchPersonInApollo(companyName, personName, personRole) {
@@ -141,9 +193,10 @@ async function searchPersonInApollo(companyName, personName, personRole) {
     }
 
     try {
-        // Apollo API: Search for people
-        // Documentation: https://apolloio.github.io/apollo-api-docs/?shell#search-people
-        const searchResponse = await fetch('https://api.apollo.io/v1/mixed_people/search', {
+        // Step 1: Search for people using mixed_people/api_search to get person ID
+        // Apollo API: Mixed People Search
+        // Documentation: https://api.apollo.io/api/v1/mixed_people/api_search
+        const searchResponse = await fetch('https://api.apollo.io/api/v1/mixed_people/api_search', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -178,10 +231,34 @@ async function searchPersonInApollo(companyName, personName, personRole) {
         // Get the first matching person
         const person = people[0];
 
+        // Extract person ID and name parts for enrichment
+        const personId = person.id || person.person_id || null;
+        const firstName = person.first_name || personName.split(' ')[0] || '';
+        const lastName = person.last_name || personName.split(' ').slice(1).join(' ') || '';
+
+        // Step 2: Enrich person using people/match API to get email and LinkedIn
+        let email = null;
+        let linkedinUrl = null;
+        let phone = null;
+
+        if (personId) {
+            const enrichedData = await enrichPersonInApollo(personId, firstName, lastName, companyName);
+            if (enrichedData) {
+                email = enrichedData.email;
+                linkedinUrl = enrichedData.linkedin_url;
+                phone = enrichedData.phone;
+            }
+        }
+
+        // Fallback to search result data if enrichment didn't return values
+        if (!email) email = person.email || null;
+        if (!linkedinUrl) linkedinUrl = person.linkedin_url || null;
+        if (!phone) phone = person.phone_numbers?.[0]?.raw_number || person.phone_numbers?.[0]?.sanitized_number || null;
+
         return {
-            email: person.email || null,
-            linkedin_url: person.linkedin_url || null,
-            phone: person.phone_numbers?.[0]?.raw_number || person.phone_numbers?.[0]?.sanitized_number || null,
+            email: email,
+            linkedin_url: linkedinUrl,
+            phone: phone,
         };
     } catch (error) {
         console.error('❌ Error searching Apollo:', error);
