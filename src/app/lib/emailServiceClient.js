@@ -199,19 +199,17 @@ export function buildSignalsEmailHTML({ clientName, magicLink, signals }) {
                             📧 Check Your Inbox:
                           </p>
                           <p style="margin: 0; font-family: Arial, sans-serif; font-size: 12px; color: #0a3d3d; line-height: 1.5;">
-                            Look for an email from <strong>Supabase</strong> (subject: "Confirm your signup" or "Magic Link"). The secure authentication link in that email will log you into your dashboard. Please also check your spam/junk folder.
+                            Look for an email from <strong>Supabase</strong>. The secure authentication link in that email will log you into your dashboard. Please also check your spam/junk folder.
                           </p>
                         </div>
-                        ${magicLink ? `
                         <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e0e0e0;">
                           <p style="margin: 0 0 8px 0; font-family: Arial, sans-serif; font-size: 12px; color: #666666;">
-                            If you don't receive the Supabase email, you can request a new magic link:
+                            If you don't receive the Supabase email, you can request a new magic link by visiting:
                           </p>
                           <p style="margin: 0; font-family: Arial, sans-serif; font-size: 11px; color: #999999; word-break: break-all;">
-                            <a href="${magicLink}" style="color: #0a3d3d; text-decoration: underline;">${magicLink}</a>
+                            <a href="https://ai.kolos.network" style="color: #0a3d3d; text-decoration: underline;">https://ai.kolos.network</a>
                           </p>
                         </div>
-                        ` : ''}
                       </td>
                     </tr>
                   </table>
