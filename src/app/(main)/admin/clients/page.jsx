@@ -646,29 +646,33 @@ function ClientDashboardContent() {
     }
   }
 
-  // Generate magic link
+  // Generate magic link - get URL from backend API (doesn't send Supabase email)
   const generateMagicLink = async (email) => {
-    if (!supabase) {
-      return `${window.location.origin}/auth/callback?email=${encodeURIComponent(email)}`
-    }
-
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email: email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-          flowType: 'pkce',
+      // Call backend API to generate magic link URL without sending email
+      const response = await fetch('/api/auth/generate-magic-link', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-      })
+        body: JSON.stringify({ email }),
+      });
 
-      if (error) {
-        console.error('Error generating magic link:', error)
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        console.error('Error generating magic link:', data.error);
+        // Fallback to login page if generation fails
+        return `${window.location.origin}/?email=${encodeURIComponent(email)}`;
       }
-    } catch (error) {
-      console.error('Supabase error:', error)
-    }
 
-    return `${window.location.origin}/auth/callback?email=${encodeURIComponent(email)}`
+      // Return the actual magic link URL
+      return data.magicLink;
+    } catch (error) {
+      console.error('Error generating magic link:', error);
+      // Fallback to login page if API call fails
+      return `${window.location.origin}/?email=${encodeURIComponent(email)}`;
+    }
   }
 
   // Send email to client
