@@ -18,63 +18,78 @@ function AuthCallbackContent() {
           return
         }
 
+        // Wait a moment for hash fragment to be available (important for admin.generateLink magic links)
+        // The hash fragment might not be immediately available when page loads from redirect
+        await new Promise(resolve => setTimeout(resolve, 100))
 
-        // Get tokens from hash fragment
+        // Get tokens from hash fragment (implicit flow - used by admin.generateLink)
         const hashParams = new URLSearchParams(window.location.hash.substring(1))
         const accessToken = hashParams.get('access_token')
         const refreshToken = hashParams.get('refresh_token')
+        const errorHash = hashParams.get('error')
+        const errorDescriptionHash = hashParams.get('error_description')
 
-        if (!accessToken) {
-          // Try to get code parameter (PKCE flow)
-          const code = searchParams.get('code')
-          if (code) {
-            // Exchange code for session
-            const { data, error } = await supabase.auth.exchangeCodeForSession(code)
-            if (error) {
-              console.error('Error exchanging code for session:', error)
-              // Check if it's an expired/invalid error
-              if (error.message?.includes('expired') || error.message?.includes('invalid')) {
-                router.push('/?error=otp_expired&error_description=' + encodeURIComponent(error.message))
-                return
-              }
-              throw error
-            }
-            if (data?.user?.email) {
-              await completeAuth(data.user.email)
-              return
-            }
-          }
-          
-          // Check for error parameters in URL (from Supabase redirect)
-          const errorParam = searchParams.get('error')
-          const errorDescription = searchParams.get('error_description')
-          if (errorParam) {
-            router.push(`/?error=${errorParam}${errorDescription ? '&error_description=' + encodeURIComponent(errorDescription) : ''}`)
+        // Handle errors from hash fragment first
+        if (errorHash) {
+          console.error('Auth error from hash fragment:', errorHash, errorDescriptionHash)
+          router.push(`/?error=${errorHash}${errorDescriptionHash ? '&error_description=' + encodeURIComponent(errorDescriptionHash) : ''}`)
+          return
+        }
+
+        // If we have tokens in hash fragment (implicit flow from admin.generateLink)
+        if (accessToken) {
+          console.log('Found access token in hash fragment (implicit flow)')
+          const { data: { user }, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken || '',
+          })
+
+          if (error) {
+            console.error('Auth error setting session:', error)
+            router.push('/?error=auth_failed')
             return
           }
-          
-          router.push('/?error=no_token')
+
+          if (!user?.email) {
+            router.push('/?error=no_email')
+            return
+          }
+
+          await completeAuth(user.email)
           return
         }
 
-        // Set the session with the access token
-        const { data: { user }, error } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken || '',
-        })
-
-        if (error) {
-          console.error('Auth error:', error)
-          router.push('/?error=auth_failed')
+        // Try to get code parameter (PKCE flow - used by signInWithOtp with flowType: 'pkce')
+        const code = searchParams.get('code')
+        if (code) {
+          console.log('Found code parameter (PKCE flow)')
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+          if (error) {
+            console.error('Error exchanging code for session:', error)
+            if (error.message?.includes('expired') || error.message?.includes('invalid')) {
+              router.push('/?error=otp_expired&error_description=' + encodeURIComponent(error.message))
+              return
+            }
+            throw error
+          }
+          if (data?.user?.email) {
+            await completeAuth(data.user.email)
+            return
+          }
+        }
+        
+        // Check for error parameters in URL query (from Supabase redirect)
+        const errorParam = searchParams.get('error')
+        const errorDescription = searchParams.get('error_description')
+        if (errorParam) {
+          console.error('Auth error from query params:', errorParam, errorDescription)
+          router.push(`/?error=${errorParam}${errorDescription ? '&error_description=' + encodeURIComponent(errorDescription) : ''}`)
           return
         }
-
-        if (!user?.email) {
-          router.push('/?error=no_email')
-          return
-        }
-
-        await completeAuth(user.email)
+        
+        // No tokens found - log for debugging
+        console.error('No authentication tokens found. Hash:', window.location.hash.substring(0, 50), 'Query:', window.location.search)
+        router.push('/?error=no_token')
       } catch (error) {
         console.error('Error in auth callback:', error)
         router.push('/?error=callback_error')
