@@ -128,10 +128,16 @@ function AuthCallbackContent() {
         // Normalize role and redirect based on role
         const normalizedRole = normalizeRole(data.role || '')
         
+        // Wait a moment to ensure all cookies (including Supabase cookies) are properly set
+        // This helps middleware detect the session correctly
+        await new Promise(resolve => setTimeout(resolve, 200))
+        
         // Simple redirect - no signal activation logic
         if (normalizedRole === 'Admin') {
+          console.log('🔄 Redirecting to admin dashboard')
           router.push('/admin/dashboard')
         } else {
+          console.log('🔄 Redirecting to client dashboard')
           router.push('/client/dashboard')
         }
       } catch (error) {

@@ -92,29 +92,59 @@ function ClientDashboardContent() {
       setLoading(true)
       
       // Get session to get client_id
+      console.log('🔍 Fetching session...')
       const sessionResponse = await fetch('/api/auth/session')
       const sessionData = await sessionResponse.json()
       
       if (!sessionResponse.ok || !sessionData.clientId) {
+        console.error('❌ Session fetch failed:', {
+          ok: sessionResponse.ok,
+          status: sessionResponse.status,
+          error: sessionData.error,
+          hasClientId: !!sessionData.clientId
+        })
         // Not authenticated, redirect to home/login
         router.push('/')
         return
       }
 
       const clientId = sessionData.clientId
+      console.log('✅ Session fetched, clientId:', clientId, 'email:', sessionData.email)
       
       // Fetch client data
+      console.log(`🔍 Fetching client data for ID: ${clientId}`)
       const response = await fetch(`/api/airtable/clients/${clientId}`)
       const data = await response.json()
 
       if (!response.ok) {
+        console.error('❌ Client fetch failed:', {
+          status: response.status,
+          error: data.error,
+          clientId: clientId,
+          email: sessionData.email
+        })
         if (response.status === 401 || response.status === 403) {
           // Unauthorized, redirect to home/login
           router.push('/')
           return
         }
+        if (response.status === 404) {
+          // Client not found - show error but don't redirect
+          console.error('❌ Client not found in Profiles sheet:', {
+            clientId,
+            email: sessionData.email,
+            error: data.error
+          })
+          throw new Error(data.error || "Client not found")
+        }
         throw new Error(data.error || "Failed to fetch client")
       }
+
+      console.log('✅ Client data fetched successfully:', {
+        clientId: data.client?.id,
+        email: data.client?.email,
+        name: data.client?.name
+      })
 
       const clientData = data.client
       setClient(clientData)

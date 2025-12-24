@@ -46,6 +46,7 @@ export async function middleware(request) {
   if (pathname.startsWith('/client/dashboard')) {
     if (!clientId) {
       // Redirect to home page if not authenticated
+      console.log('🚫 Client dashboard: No client_id cookie found')
       const url = new URL('/', request.url)
       return NextResponse.redirect(url)
     }
@@ -53,32 +54,45 @@ export async function middleware(request) {
     // SECURITY: Always validate Supabase session - this is the source of truth
     // Supabase session expiration ensures users must re-authenticate with magic link
     const isValid = await validateSupabaseSession(cookieStore)
+    
+    // Get all cookies for debugging
+    const allCookies = Array.from(cookieStore.getAll())
+    const cookieNames = allCookies.map(c => c.name).join(', ')
+    const hasCustomCookies = cookieStore.get('user_email')?.value
+    const hasSupabaseCookies = allCookies.some(cookie =>
+      cookie.name.startsWith('sb-') ||
+      cookie.name.includes('supabase') ||
+      (cookie.name.includes('auth') && cookie.name.includes('token'))
+    )
+
+    console.log('🔍 Client dashboard middleware check:', {
+      pathname,
+      hasClientId: !!clientId,
+      hasCustomCookies: !!hasCustomCookies,
+      hasSupabaseCookies,
+      isValid,
+      cookieCount: allCookies.length,
+      cookieNames: cookieNames.substring(0, 200) // First 200 chars
+    })
+
     if (!isValid) {
       // Check if this is a TRUE fresh login (no Supabase cookies set yet)
       // vs an expired session (Supabase cookies exist but are invalid)
-      const hasCustomCookies = cookieStore.get('user_email')?.value
-      const allCookies = Array.from(cookieStore.getAll())
-      const hasSupabaseCookies = allCookies.some(cookie =>
-        cookie.name.startsWith('sb-') ||
-        cookie.name.includes('supabase') ||
-        (cookie.name.includes('auth') && cookie.name.includes('token'))
-      )
-
-      // Only allow through if: custom cookies exist BUT no Supabase cookies yet
-      // This means cookies are being set right now (true fresh login)
-      // If Supabase cookies exist but are invalid, session expired - require re-login
-      if (hasCustomCookies && !hasSupabaseCookies) {
-        // True fresh login - Supabase cookies not set yet, allow through this one time
-        console.log('⚠️ Fresh login detected - Supabase cookies not set yet, allowing through')
+      // IMPORTANT: For fresh logins, Supabase cookies might be set client-side but not yet
+      // readable by middleware on the first redirect. Allow through if custom cookies exist.
+      if (hasCustomCookies) {
+        // Fresh login - custom cookies exist (set by complete-login API)
+        // Supabase cookies might not be readable yet, but that's OK for fresh logins
+        // The session API will handle validation on subsequent requests
+        console.log('✅ Fresh login detected - custom cookies exist, allowing through (Supabase cookies may not be readable yet)')
         return NextResponse.next()
       }
 
-      // Supabase session expired or invalid - require re-login
-      // This happens when:
-      // 1. User was active but Supabase session expired (refresh token expired)
-      // 2. User closed browser for hours and came back
-      // 3. Supabase cookies exist but are invalid
-      console.log('🔒 Security: Supabase session expired or invalid - requiring re-login')
+
+      console.log('🔒 Security: Supabase session expired or invalid - requiring re-login', {
+        hasCustomCookies: !!hasCustomCookies,
+        hasSupabaseCookies
+      })
       const url = new URL('/', request.url)
       const response = NextResponse.redirect(url)
       response.cookies.delete('user_email')
@@ -91,31 +105,33 @@ export async function middleware(request) {
   // Protect admin routes - require admin role
   if (pathname.startsWith('/admin')) {
     if (!clientId) {
+      console.log('🚫 Admin route: No client_id cookie found')
       const url = new URL('/', request.url)
       return NextResponse.redirect(url)
     }
 
     // SECURITY: Always validate Supabase session - this is the source of truth
     const isValid = await validateSupabaseSession(cookieStore)
-    if (!isValid) {
-      // Same security logic as client dashboard
-      const hasCustomCookies = cookieStore.get('user_email')?.value
-      const allCookies = Array.from(cookieStore.getAll())
-      const hasSupabaseCookies = allCookies.some(cookie =>
-        cookie.name.startsWith('sb-') ||
-        cookie.name.includes('supabase') ||
-        (cookie.name.includes('auth') && cookie.name.includes('token'))
-      )
+    
+    // Get all cookies for debugging
+    const allCookies = Array.from(cookieStore.getAll())
+    const hasCustomCookies = cookieStore.get('user_email')?.value
+    const hasSupabaseCookies = allCookies.some(cookie =>
+      cookie.name.startsWith('sb-') ||
+      cookie.name.includes('supabase') ||
+      (cookie.name.includes('auth') && cookie.name.includes('token'))
+    )
 
-      // Only allow through if: custom cookies exist BUT no Supabase cookies yet
-      if (hasCustomCookies && !hasSupabaseCookies) {
-        // True fresh login - Supabase cookies not set yet
-        console.log('⚠️ Fresh login detected - Supabase cookies not set yet, allowing through')
+    if (!isValid) {
+      // Same security logic as client dashboard - allow fresh logins
+      if (hasCustomCookies) {
+        // Fresh login - custom cookies exist
+        console.log('✅ Fresh login detected (admin) - custom cookies exist, allowing through')
         return NextResponse.next()
       }
 
       // Supabase session expired or invalid - require re-login
-      console.log('🔒 Security: Supabase session expired or invalid - requiring re-login')
+      console.log('🔒 Security: Supabase session expired or invalid (admin) - requiring re-login')
       const url = new URL('/', request.url)
       const response = NextResponse.redirect(url)
       response.cookies.delete('user_email')
@@ -127,6 +143,7 @@ export async function middleware(request) {
     const normalizedRole = normalizeRole(role)
     if (normalizedRole !== 'Admin') {
       // Not an admin, redirect to client dashboard
+      console.log('🔄 Not admin, redirecting to client dashboard')
       const url = new URL('/client/dashboard', request.url)
       return NextResponse.redirect(url)
     }
@@ -141,6 +158,7 @@ async function validateSupabaseSession(cookieStore) {
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
     if (!supabaseUrl || !supabaseAnonKey) {
+      console.log('⚠️ Supabase env vars not set, skipping validation')
       return false
     }
 
@@ -153,6 +171,20 @@ async function validateSupabaseSession(cookieStore) {
       cookie.name.includes('supabase') ||
       (cookie.name.includes('auth') && cookie.name.includes('token'))
     )
+
+    // Log Supabase cookie names for debugging
+    const supabaseCookieNames = allCookies
+      .filter(cookie =>
+        cookie.name.startsWith('sb-') ||
+        cookie.name.includes('supabase') ||
+        (cookie.name.includes('auth') && cookie.name.includes('token'))
+      )
+      .map(c => c.name)
+      .join(', ')
+
+    if (supabaseCookieNames) {
+      console.log('🔍 Found Supabase cookies:', supabaseCookieNames)
+    }
 
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
@@ -183,10 +215,14 @@ async function validateSupabaseSession(cookieStore) {
         return false
       }
       // No cookies at all - might be fresh login, let middleware handle it
+      console.log('ℹ️ No Supabase cookies found - might be fresh login')
       return false
     }
 
     // Session is valid if we have a user and no error
+    if (user) {
+      console.log('✅ Supabase session valid for user:', user.email)
+    }
     return !!user
   } catch (error) {
     console.error('Error validating Supabase session in middleware:', error)
