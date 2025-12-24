@@ -17,6 +17,43 @@ export default function Dashboard() {
     fetchClients();
   }, []);
 
+  // Inactivity timeout - logout after 30 minutes of no activity
+  // Modern platforms use this to improve security
+  useEffect(() => {
+    let inactivityTimer
+    
+    const resetTimer = () => {
+      clearTimeout(inactivityTimer)
+      inactivityTimer = setTimeout(() => {
+        // Logout after 30 minutes of inactivity
+        console.log('⏰ Inactivity timeout - logging out')
+        fetch('/api/auth/logout', { method: 'POST' })
+          .then(() => {
+            router.push('/?timeout=true')
+          })
+          .catch((error) => {
+            console.error('Logout error:', error)
+            router.push('/')
+          })
+      }, 30 * 60 * 1000) // 30 minutes
+    }
+
+    // Reset timer on user activity
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click']
+    events.forEach(event => {
+      document.addEventListener(event, resetTimer, true)
+    })
+
+    resetTimer() // Start timer
+
+    return () => {
+      clearTimeout(inactivityTimer)
+      events.forEach(event => {
+        document.removeEventListener(event, resetTimer, true)
+      })
+    }
+  }, [router])
+
   const fetchClients = async () => {
     try {
       setLoading(true);

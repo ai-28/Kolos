@@ -62,11 +62,15 @@ export async function GET(request) {
         })
 
         // Set session cookies
+        // Modern best practice: Shorter expiration (1 day) with Supabase handling refresh
+        // Supabase automatically refreshes tokens, so we don't need 7-day cookies
+        const cookieMaxAge = 60 * 60 * 24 // 1 day (Supabase handles longer sessions via refresh tokens)
+        
         response.cookies.set('user_email', email, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
-            maxAge: 60 * 60 * 24 * 7, // 7 days
+            maxAge: cookieMaxAge,
             path: '/',
         })
 
@@ -74,7 +78,7 @@ export async function GET(request) {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
-            maxAge: 60 * 60 * 24 * 7,
+            maxAge: cookieMaxAge,
             path: '/',
         })
 
@@ -82,7 +86,7 @@ export async function GET(request) {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
-            maxAge: 60 * 60 * 24 * 7,
+            maxAge: cookieMaxAge,
             path: '/',
         })
 
