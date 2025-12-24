@@ -2067,6 +2067,32 @@ console.log("client",client)
                                     <Button
                                       variant="ghost"
                                       size="sm"
+                                      onClick={() => {
+                                        setSelectedDealForModal(deal)
+                                        setShowLinkedInModal(true)
+                                      }}
+                                      disabled={!dealId}
+                                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 min-h-[44px] min-w-[44px]"
+                                      title="View LinkedIn URLs"
+                                    >
+                                      <span className="text-xs font-semibold">L</span>
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        setSelectedDealForModal(deal)
+                                        setShowEmailModal(true)
+                                      }}
+                                      disabled={!dealId}
+                                      className="text-green-600 hover:text-green-700 hover:bg-green-50 min-h-[44px] min-w-[44px]"
+                                      title="View Email Addresses"
+                                    >
+                                      <span className="text-xs font-semibold">E</span>
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
                                       onClick={() => handleEditDeal(deal)}
                                       disabled={!dealId}
                                       className="text-[#0a3d3d] hover:text-[#0a3d3d]/80 hover:bg-[#0a3d3d]/10 min-h-[44px] min-w-[44px]"
