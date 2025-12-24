@@ -50,19 +50,36 @@ function ClientDashboardContent() {
   }, [])
 
   // Check for activate_signal parameter from email "Activate Kolos" button
+  // Check both URL params and localStorage (in case URL params are lost during auth flow)
   useEffect(() => {
-    const activateSignalParam = searchParams.get('activate_signal')
-    if (activateSignalParam && signals.length > 0) {
+    // First check URL params
+    let activateSignalParam = searchParams.get('activate_signal')
+    
+    // If not in URL, check localStorage (stored before clicking magic link)
+    if (!activateSignalParam) {
+      activateSignalParam = localStorage.getItem('kolos_activate_signal')
+      if (activateSignalParam) {
+        // Remove from localStorage after reading
+        localStorage.removeItem('kolos_activate_signal')
+      }
+    }
+    
+    if (activateSignalParam) {
       try {
         const signalData = JSON.parse(decodeURIComponent(activateSignalParam))
+        console.log('📧 Activating signal from email:', signalData)
+        
         // Find matching signal in the signals array or use the provided data
-        const matchingSignal = signals.find(s => 
+        // Don't wait for signals to load - use the data directly
+        const matchingSignal = signals.length > 0 ? signals.find(s => 
           s.headline_source === signalData.headline_source && 
           s.date === signalData.date
-        ) || signalData
+        ) : null
+        
+        const signalToUse = matchingSignal || signalData
         
         // Set the signal and open the deal modal
-        setSelectedSignal(matchingSignal)
+        setSelectedSignal(signalToUse)
         setShowCreateDealModal(true)
         
         // Pre-fill deal form with signal data
@@ -76,7 +93,9 @@ function ClientDashboardContent() {
         })
         
         // Remove the parameter from URL
-        router.replace('/client/dashboard', { scroll: false })
+        if (searchParams.get('activate_signal')) {
+          router.replace('/client/dashboard', { scroll: false })
+        }
       } catch (error) {
         console.error('Error parsing activate_signal:', error)
       }

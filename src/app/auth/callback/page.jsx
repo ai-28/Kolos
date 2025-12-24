@@ -95,8 +95,18 @@ function AuthCallbackContent() {
         const normalizedRole = normalizeRole(data.role || '')
         
         // Check if we need to activate a signal (from email "Activate Kolos" button)
+        // Check both URL params and localStorage (in case URL params are lost)
         const urlParams = new URLSearchParams(window.location.search)
-        const activateSignal = urlParams.get('activate_signal')
+        let activateSignal = urlParams.get('activate_signal')
+        
+        // Also check localStorage (signal data might be stored there before clicking magic link)
+        if (!activateSignal && typeof window !== 'undefined') {
+          activateSignal = localStorage.getItem('kolos_activate_signal')
+          if (activateSignal) {
+            // Keep it in localStorage for the dashboard to pick up
+            // Don't remove it here - let the dashboard remove it after using it
+          }
+        }
         
         if (normalizedRole === 'Admin') {
           if (activateSignal) {
@@ -108,6 +118,10 @@ function AuthCallbackContent() {
         } else {
           if (activateSignal) {
             // Client: redirect to client dashboard with signal data to open deal modal
+            // Store in localStorage as backup in case URL params are lost
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('kolos_activate_signal', activateSignal)
+            }
             router.push(`/client/dashboard?activate_signal=${encodeURIComponent(activateSignal)}`)
           } else {
             router.push('/client/dashboard')
