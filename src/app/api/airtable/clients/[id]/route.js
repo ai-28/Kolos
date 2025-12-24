@@ -65,20 +65,38 @@ export async function GET(request, { params }) {
             );
         }
 
-        console.log(`Searching for client with ID: ${requestedId}`);
+        console.log(`Searching for client with ID: ${requestedId}`, {
+            sessionClientId,
+            sessionEmail: session.email,
+            isAdmin
+        });
 
         let client = await findRowById(SHEETS.PROFILES, requestedId);
 
         if (!client) {
             console.log(`Client not found by ID, trying email search...`);
             const profiles = await getSheetData(SHEETS.PROFILES);
+
+            // First try: search by requestedId as email (in case client_id is actually an email)
             client = profiles.find(
                 (p) => p.email && p.email.toLowerCase().trim() === requestedId.toLowerCase()
             );
+
+            // Second try: if still not found and we have session email, search by session email
+            if (!client && session.email) {
+                console.log(`Client not found by requestedId, trying session email: ${session.email}`);
+                client = profiles.find(
+                    (p) => p.email && p.email.toLowerCase().trim() === session.email.toLowerCase().trim()
+                );
+            }
         }
 
         if (!client) {
-            console.log(`Client not found with ID/email: ${requestedId}`);
+            console.log(`Client not found with ID/email: ${requestedId}`, {
+                triedId: requestedId,
+                triedEmail: session.email,
+                sessionClientId
+            });
             return NextResponse.json(
                 { error: "Client not found" },
                 { status: 404 }
