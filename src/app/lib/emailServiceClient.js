@@ -76,11 +76,14 @@ export function buildSignalsEmailHTML({ clientName, magicLink, signals }) {
                 next_step: signal.next_step || '',
                 estimated_target_value_USD: signal.estimated_target_value_USD || '',
             }));
-            // Build activate link - store signal data in sessionStorage before navigation
-            // Best practice: Use sessionStorage (not localStorage) for temporary auth flow data
-            // sessionStorage persists across redirects but clears when tab closes (more secure)
-            // This ensures signal data survives the Supabase auth redirect flow
-            const activateLink = magicLink ? `javascript:(function(){sessionStorage.setItem('kolos_activate_signal', '${signalData}');window.location.href='${magicLink}';})()` : '';
+            // Build activate link - append signal data directly to magic link URL
+            // When user clicks, they'll login via magic link, and signal data will be preserved
+            // The auth callback will extract it and pass to dashboard
+            const activateLink = magicLink ? (
+                magicLink.includes('?')
+                    ? `${magicLink}&activate_signal=${encodeURIComponent(signalData)}`
+                    : `${magicLink}?activate_signal=${encodeURIComponent(signalData)}`
+            ) : '';
 
             console.log('📧 Signal email HTML:', {
                 index,

@@ -18,6 +18,17 @@ function AuthCallbackContent() {
           return
         }
 
+        // Extract activate_signal BEFORE processing auth (in case it's in the URL)
+        // This needs to be done early because Supabase redirect might strip query params
+        const urlParams = new URLSearchParams(window.location.search)
+        const activateSignalFromUrl = urlParams.get('activate_signal')
+        
+        // If found in URL, store in sessionStorage immediately (before auth processing)
+        if (activateSignalFromUrl && typeof window !== 'undefined') {
+          sessionStorage.setItem('kolos_activate_signal', activateSignalFromUrl)
+          console.log('📧 Stored activate_signal from URL to sessionStorage')
+        }
+
         // Get tokens from hash fragment
         const hashParams = new URLSearchParams(window.location.hash.substring(1))
         const accessToken = hashParams.get('access_token')
