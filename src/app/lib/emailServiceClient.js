@@ -76,17 +76,11 @@ export function buildSignalsEmailHTML({ clientName, magicLink, signals }) {
                 next_step: signal.next_step || '',
                 estimated_target_value_USD: signal.estimated_target_value_USD || '',
             }));
-            // Build activate link - store signal data in localStorage before navigating
-            // This ensures signal data persists even if magic link is single-use
-            // Strategy: Store signal data, then navigate to magic link
-            // After login, dashboard will check localStorage for signal data
-            // If user is already logged in, we can skip magic link and go directly to dashboard
-            const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://ai.kolos.network';
-            const activateLink = magicLink ? `javascript:(function(){localStorage.setItem('kolos_activate_signal', '${signalData}');window.location.href='${magicLink}';})()` : '';
-
-            // Also create a direct link for when user is already logged in
-            // This allows clicking multiple buttons even after first login
-            const directActivateLink = `${baseUrl}/client/dashboard?activate_signal=${signalData}`;
+            // Build activate link - store signal data in sessionStorage before navigation
+            // Best practice: Use sessionStorage (not localStorage) for temporary auth flow data
+            // sessionStorage persists across redirects but clears when tab closes (more secure)
+            // This ensures signal data survives the Supabase auth redirect flow
+            const activateLink = magicLink ? `javascript:(function(){sessionStorage.setItem('kolos_activate_signal', '${signalData}');window.location.href='${magicLink}';})()` : '';
 
             console.log('📧 Signal email HTML:', {
                 index,
@@ -189,7 +183,7 @@ export function buildSignalsEmailHTML({ clientName, magicLink, signals }) {
                 ${activateLink ? `
                 <tr>
                   <td style="padding: 16px 0 0 0;">
-                    <a href="${activateLink}" onclick="localStorage.setItem('kolos_activate_signal', '${signalData}'); return true;" style="display: inline-block; padding: 12px 24px; background-color: #0a3d3d; color: #ffffff; text-decoration: none; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px; font-weight: 600;">Activate Kolos →</a>
+                    <a href="${activateLink}" style="display: inline-block; padding: 12px 24px; background-color: #0a3d3d; color: #ffffff; text-decoration: none; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px; font-weight: 600;">Activate Kolos →</a>
                   </td>
                 </tr>
                 ` : ''}

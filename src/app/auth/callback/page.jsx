@@ -95,16 +95,16 @@ function AuthCallbackContent() {
         const normalizedRole = normalizeRole(data.role || '')
         
         // Check if we need to activate a signal (from email "Activate Kolos" button)
-        // Check both URL params and localStorage (in case URL params are lost)
+        // Check both URL params (if Supabase preserves them) and sessionStorage (fallback)
         const urlParams = new URLSearchParams(window.location.search)
         let activateSignal = urlParams.get('activate_signal')
         
-        // Also check localStorage (signal data might be stored there before clicking magic link)
+        // Fallback: Check sessionStorage (stored before clicking magic link)
         if (!activateSignal && typeof window !== 'undefined') {
-          activateSignal = localStorage.getItem('kolos_activate_signal')
+          activateSignal = sessionStorage.getItem('kolos_activate_signal')
           if (activateSignal) {
-            // Keep it in localStorage for the dashboard to pick up
-            // Don't remove it here - let the dashboard remove it after using it
+            // Keep in sessionStorage for dashboard to pick up, then clear it
+            // Don't remove here - let dashboard remove after using
           }
         }
         
@@ -118,9 +118,9 @@ function AuthCallbackContent() {
         } else {
           if (activateSignal) {
             // Client: redirect to client dashboard with signal data to open deal modal
-            // Store in localStorage as backup in case URL params are lost
-            if (typeof window !== 'undefined') {
-              localStorage.setItem('kolos_activate_signal', activateSignal)
+            // Store in sessionStorage as backup in case URL params are lost
+            if (typeof window !== 'undefined' && !urlParams.get('activate_signal')) {
+              sessionStorage.setItem('kolos_activate_signal', activateSignal)
             }
             router.push(`/client/dashboard?activate_signal=${encodeURIComponent(activateSignal)}`)
           } else {
