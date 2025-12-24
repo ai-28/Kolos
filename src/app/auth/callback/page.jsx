@@ -106,16 +106,28 @@ function AuthCallbackContent() {
         const normalizedRole = normalizeRole(data.role || '')
         
         // Check if we need to activate a signal (from email "Activate Kolos" button)
-        // Check both URL params (if Supabase preserves them) and sessionStorage (fallback)
-        const urlParams = new URLSearchParams(window.location.search)
-        let activateSignal = urlParams.get('activate_signal')
-        
-        // Fallback: Check sessionStorage (stored before clicking magic link)
-        if (!activateSignal && typeof window !== 'undefined') {
+        // Check sessionStorage first (stored early in the auth flow)
+        let activateSignal = null
+        if (typeof window !== 'undefined') {
           activateSignal = sessionStorage.getItem('kolos_activate_signal')
-          if (activateSignal) {
-            // Keep in sessionStorage for dashboard to pick up, then clear it
-            // Don't remove here - let dashboard remove after using
+          console.log('📧 Auth callback checking for activate_signal:', {
+            foundInSessionStorage: !!activateSignal,
+            value: activateSignal?.substring(0, 50),
+          })
+        }
+        
+        // Also check URL params as fallback
+        if (!activateSignal) {
+          const urlParams = new URLSearchParams(window.location.search)
+          activateSignal = urlParams.get('activate_signal')
+          console.log('📧 Auth callback checking URL params:', {
+            foundInURL: !!activateSignal,
+          })
+          
+          // If found in URL but not in sessionStorage, store it
+          if (activateSignal && typeof window !== 'undefined') {
+            sessionStorage.setItem('kolos_activate_signal', activateSignal)
+            console.log('📧 Stored activate_signal from URL to sessionStorage')
           }
         }
         
@@ -129,10 +141,8 @@ function AuthCallbackContent() {
         } else {
           if (activateSignal) {
             // Client: redirect to client dashboard with signal data to open deal modal
-            // Store in sessionStorage as backup in case URL params are lost
-            if (typeof window !== 'undefined' && !urlParams.get('activate_signal')) {
-              sessionStorage.setItem('kolos_activate_signal', activateSignal)
-            }
+            // Keep in sessionStorage for dashboard to read
+            console.log('📧 Redirecting to client dashboard with activate_signal')
             router.push(`/client/dashboard?activate_signal=${encodeURIComponent(activateSignal)}`)
           } else {
             router.push('/client/dashboard')

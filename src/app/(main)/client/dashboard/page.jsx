@@ -50,68 +50,82 @@ function ClientDashboardContent() {
   }, [])
 
   // Check for activate_signal parameter from email "Activate Kolos" button
-  // Best practice: Check URL params first, then sessionStorage as fallback
+  // This needs to run after component mounts and check sessionStorage
   useEffect(() => {
-    // First check URL params (if Supabase preserved them)
-    let activateSignalParam = searchParams.get('activate_signal')
-    
-    // Fallback: Check sessionStorage (stored before clicking magic link)
-    // sessionStorage is better than localStorage for auth flow data (clears on tab close)
-    if (!activateSignalParam && typeof window !== 'undefined') {
-      activateSignalParam = sessionStorage.getItem('kolos_activate_signal')
-      if (activateSignalParam) {
-        console.log('📧 Found signal data in sessionStorage')
-        // Remove from sessionStorage after reading (so it only triggers once)
-        sessionStorage.removeItem('kolos_activate_signal')
-      }
-    }
-    
-    if (activateSignalParam) {
-      console.log('📧 Processing activate_signal:', {
-        hasParam: !!activateSignalParam,
-        paramLength: activateSignalParam.length,
-        signalsLoaded: signals.length,
-        source: searchParams.get('activate_signal') ? 'URL' : 'sessionStorage',
-      })
+    // Small delay to ensure sessionStorage is available and component is ready
+    const checkActivateSignal = () => {
+      // First check URL params (if Supabase preserved them)
+      let activateSignalParam = searchParams.get('activate_signal')
       
-      try {
-        const signalData = JSON.parse(decodeURIComponent(activateSignalParam))
-        console.log('📧 Parsed signal data:', signalData)
-        
-        // Find matching signal in the signals array or use the provided data
-        // Don't wait for signals to load - use the data directly
-        const matchingSignal = signals.length > 0 ? signals.find(s => 
-          s.headline_source === signalData.headline_source && 
-          s.date === signalData.date
-        ) : null
-        
-        const signalToUse = matchingSignal || signalData
-        console.log('📧 Using signal:', signalToUse)
-        
-        // Set the signal and open the deal modal
-        setSelectedSignal(signalToUse)
-        setShowCreateDealModal(true)
-        console.log('✅ Deal modal opened with signal data')
-        
-        // Pre-fill deal form with signal data
-        setDealFormData({
-          deal_name: signalData.headline_source || '',
-          target: '',
-          source: signalData.url || '',
-          stage: 'list',
-          target_deal_size: signalData.estimated_target_value_USD || '',
-          next_step: signalData.next_step || ''
+      // Fallback: Check sessionStorage (stored in auth callback)
+      if (!activateSignalParam && typeof window !== 'undefined') {
+        activateSignalParam = sessionStorage.getItem('kolos_activate_signal')
+        console.log('📧 Checking sessionStorage for activate_signal:', {
+          found: !!activateSignalParam,
+          value: activateSignalParam?.substring(0, 50),
+        })
+      }
+      
+      if (activateSignalParam) {
+        console.log('📧 Processing activate_signal:', {
+          hasParam: !!activateSignalParam,
+          paramLength: activateSignalParam.length,
+          signalsLoaded: signals.length,
+          source: searchParams.get('activate_signal') ? 'URL' : 'sessionStorage',
         })
         
-        // Remove the parameter from URL (clean up)
-        if (searchParams.get('activate_signal')) {
-          router.replace('/client/dashboard', { scroll: false })
+        try {
+          const signalData = JSON.parse(decodeURIComponent(activateSignalParam))
+          console.log('📧 Parsed signal data:', signalData)
+          
+          // Find matching signal in the signals array or use the provided data
+          // Don't wait for signals to load - use the data directly
+          const matchingSignal = signals.length > 0 ? signals.find(s => 
+            s.headline_source === signalData.headline_source && 
+            s.date === signalData.date
+          ) : null
+          
+          const signalToUse = matchingSignal || signalData
+          console.log('📧 Using signal:', signalToUse)
+          
+          // Set the signal and open the deal modal
+          setSelectedSignal(signalToUse)
+          setShowCreateDealModal(true)
+          console.log('✅ Deal modal state set to true')
+          
+          // Pre-fill deal form with signal data
+          setDealFormData({
+            deal_name: signalData.headline_source || '',
+            target: '',
+            source: signalData.url || '',
+            stage: 'list',
+            target_deal_size: signalData.estimated_target_value_USD || '',
+            next_step: signalData.next_step || ''
+          })
+          
+          // Remove from sessionStorage after using (so it only triggers once)
+          if (typeof window !== 'undefined') {
+            sessionStorage.removeItem('kolos_activate_signal')
+          }
+          
+          // Remove the parameter from URL (clean up)
+          if (searchParams.get('activate_signal')) {
+            router.replace('/client/dashboard', { scroll: false })
+          }
+        } catch (error) {
+          console.error('❌ Error parsing activate_signal:', error)
+          console.error('Raw param:', activateSignalParam)
         }
-      } catch (error) {
-        console.error('❌ Error parsing activate_signal:', error)
-        console.error('Raw param:', activateSignalParam)
+      } else {
+        console.log('📧 No activate_signal found in URL or sessionStorage')
       }
     }
+
+    // Check immediately and also after a short delay (in case sessionStorage is set asynchronously)
+    checkActivateSignal()
+    const timeout = setTimeout(checkActivateSignal, 500)
+    
+    return () => clearTimeout(timeout)
   }, [searchParams, signals, router])
 
   const fetchClientData = async () => {
