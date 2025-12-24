@@ -98,14 +98,32 @@ function AuthCallbackContent() {
 
     const completeAuth = async (email) => {
       try {
+        console.log('Completing auth for email:', email)
         // Look up user in Users sheet via API
         const response = await fetch(`/api/auth/complete-login?email=${encodeURIComponent(email)}`)
         const data = await response.json()
 
         if (!response.ok || !data.success) {
-          router.push(`/?error=${data.error || 'login_failed'}`)
+          console.error('Complete login failed:', {
+            status: response.status,
+            error: data.error,
+            email: email
+          })
+          // Show specific error message
+          const errorCode = data.error || 'login_failed'
+          if (errorCode === 'user_not_found') {
+            router.push(`/?error=user_not_found&email=${encodeURIComponent(email)}`)
+          } else {
+            router.push(`/?error=${errorCode}`)
+          }
           return
         }
+
+        console.log('✅ Login successful, redirecting...', {
+          email: data.email,
+          clientId: data.clientId,
+          role: data.role
+        })
 
         // Normalize role and redirect based on role
         const normalizedRole = normalizeRole(data.role || '')

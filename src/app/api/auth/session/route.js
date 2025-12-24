@@ -9,7 +9,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 export async function GET() {
     try {
         const session = await getSession();
-        
+
         if (!session) {
             return NextResponse.json(
                 { error: "Not authenticated" },
@@ -20,23 +20,45 @@ export async function GET() {
         // Validate Supabase session is still valid
         // This ensures users are logged out when Supabase session expires
         if (supabaseUrl && supabaseAnonKey) {
+            const cookieStore = cookies()
+            const allCookies = Array.from(cookieStore.getAll())
+            const hasSupabaseCookies = allCookies.some(cookie =>
+                cookie.name.startsWith('sb-') ||
+                cookie.name.includes('supabase') ||
+                (cookie.name.includes('auth') && cookie.name.includes('token'))
+            )
+
             const supabase = createClient(supabaseUrl, supabaseAnonKey, {
                 cookies: {
                     get(name) {
-                        return cookies().get(name)?.value
+                        return cookieStore.get(name)?.value
                     },
                     set(name, value, options) {
-                        cookies().set({ name, value, ...options })
+                        cookieStore.set({ name, value, ...options })
                     },
                     remove(name, options) {
-                        cookies().set({ name, value: '', ...options })
+                        cookieStore.set({ name, value: '', ...options })
                     },
                 },
             })
 
             const { data: { user }, error } = await supabase.auth.getUser()
-            
+
             if (error || !user) {
+                // Check if this is a fresh login (custom cookies exist but Supabase cookies not set yet)
+                const hasCustomCookies = cookieStore.get('user_email')?.value && cookieStore.get('client_id')?.value
+
+                if (hasCustomCookies && !hasSupabaseCookies) {
+                    // Fresh login - Supabase cookies not set yet, allow through
+                    console.log('⚠️ Fresh login detected in session API - Supabase cookies not set yet, allowing through')
+                    // Return session data even without Supabase validation for fresh logins
+                    return NextResponse.json({
+                        email: session.email,
+                        clientId: session.clientId,
+                        role: session.role,
+                    });
+                }
+
                 // Supabase session expired or invalid, clear cookies and return 401
                 console.log('⚠️ Supabase session expired or invalid, clearing cookies')
                 const response = NextResponse.json(
