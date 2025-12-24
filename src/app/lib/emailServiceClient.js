@@ -64,26 +64,9 @@ export function buildSignalsEmailHTML({ clientName, magicLink, signals }) {
             const url = signal.url || '';
             const value = signal.estimated_target_value_USD || 'N/A';
 
-            // Create activate link with signal data encoded
-            // After login, this will open the deal modal with this signal
-            const signalData = encodeURIComponent(JSON.stringify({
-                headline_source: signal.headline_source || '',
-                date: signal.date || '',
-                signal_type: signal.signal_type || '',
-                url: signal.url || '',
-                scores_R_O_A: signal.scores_R_O_A || '',
-                overall: signal.overall || '',
-                next_step: signal.next_step || '',
-                estimated_target_value_USD: signal.estimated_target_value_USD || '',
-            }));
-            // Build activate link - append signal data directly to magic link URL
-            // When user clicks, they'll login via magic link, and signal data will be preserved
-            // The auth callback will extract it and pass to dashboard
-            const activateLink = magicLink ? (
-                magicLink.includes('?')
-                    ? `${magicLink}&activate_signal=${encodeURIComponent(signalData)}`
-                    : `${magicLink}?activate_signal=${encodeURIComponent(signalData)}`
-            ) : '';
+            // Build activate link - same as "Access Dashboard" button, just login
+            // Keep it simple - no modal, just login
+            const activateLink = magicLink || '';
 
             console.log('📧 Signal email HTML:', {
                 index,

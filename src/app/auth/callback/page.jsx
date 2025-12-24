@@ -18,16 +18,6 @@ function AuthCallbackContent() {
           return
         }
 
-        // Extract activate_signal BEFORE processing auth (in case it's in the URL)
-        // This needs to be done early because Supabase redirect might strip query params
-        const urlParams = new URLSearchParams(window.location.search)
-        const activateSignalFromUrl = urlParams.get('activate_signal')
-        
-        // If found in URL, store in sessionStorage immediately (before auth processing)
-        if (activateSignalFromUrl && typeof window !== 'undefined') {
-          sessionStorage.setItem('kolos_activate_signal', activateSignalFromUrl)
-          console.log('📧 Stored activate_signal from URL to sessionStorage')
-        }
 
         // Get tokens from hash fragment
         const hashParams = new URLSearchParams(window.location.hash.substring(1))
@@ -105,48 +95,11 @@ function AuthCallbackContent() {
         // Normalize role and redirect based on role
         const normalizedRole = normalizeRole(data.role || '')
         
-        // Check if we need to activate a signal (from email "Activate Kolos" button)
-        // Check sessionStorage first (stored early in the auth flow)
-        let activateSignal = null
-        if (typeof window !== 'undefined') {
-          activateSignal = sessionStorage.getItem('kolos_activate_signal')
-          console.log('📧 Auth callback checking for activate_signal:', {
-            foundInSessionStorage: !!activateSignal,
-            value: activateSignal?.substring(0, 50),
-          })
-        }
-        
-        // Also check URL params as fallback
-        if (!activateSignal) {
-          const urlParams = new URLSearchParams(window.location.search)
-          activateSignal = urlParams.get('activate_signal')
-          console.log('📧 Auth callback checking URL params:', {
-            foundInURL: !!activateSignal,
-          })
-          
-          // If found in URL but not in sessionStorage, store it
-          if (activateSignal && typeof window !== 'undefined') {
-            sessionStorage.setItem('kolos_activate_signal', activateSignal)
-            console.log('📧 Stored activate_signal from URL to sessionStorage')
-          }
-        }
-        
+        // Simple redirect - no signal activation logic
         if (normalizedRole === 'Admin') {
-          if (activateSignal) {
-            // Admin: redirect to admin dashboard with signal data
-            router.push(`/admin/dashboard?activate_signal=${encodeURIComponent(activateSignal)}`)
-          } else {
-            router.push('/admin/dashboard')
-          }
+          router.push('/admin/dashboard')
         } else {
-          if (activateSignal) {
-            // Client: redirect to client dashboard with signal data to open deal modal
-            // Keep in sessionStorage for dashboard to read
-            console.log('📧 Redirecting to client dashboard with activate_signal')
-            router.push(`/client/dashboard?activate_signal=${encodeURIComponent(activateSignal)}`)
-          } else {
-            router.push('/client/dashboard')
-          }
+          router.push('/client/dashboard')
         }
       } catch (error) {
         console.error('Error completing login:', error)
