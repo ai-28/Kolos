@@ -8,19 +8,27 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 export async function GET() {
     try {
+        console.log('🔍 Session API called')
         const session = await getSession();
 
         if (!session) {
+            console.log('❌ No session found - user not authenticated')
             return NextResponse.json(
                 { error: "Not authenticated" },
                 { status: 401 }
             );
         }
 
+        console.log('✅ Session found:', {
+            email: session.email,
+            clientId: session.clientId,
+            role: session.role
+        })
+
         // Validate Supabase session is still valid
         // This ensures users are logged out when Supabase session expires
         if (supabaseUrl && supabaseAnonKey) {
-            const cookieStore = cookies()
+            const cookieStore = await cookies()
             const allCookies = Array.from(cookieStore.getAll())
             const hasSupabaseCookies = allCookies.some(cookie =>
                 cookie.name.startsWith('sb-') ||
@@ -78,9 +86,14 @@ export async function GET() {
             role: session.role,
         });
     } catch (error) {
-        console.error("Error getting session:", error);
+        console.error("❌ Error getting session:", error);
+        console.error("Error stack:", error.stack);
         return NextResponse.json(
-            { error: "Failed to get session", details: error.message },
+            {
+                error: "Failed to get session",
+                details: error.message,
+                stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+            },
             { status: 500 }
         );
     }

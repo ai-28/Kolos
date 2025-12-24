@@ -54,7 +54,7 @@ export async function middleware(request) {
     // SECURITY: Always validate Supabase session - this is the source of truth
     // Supabase session expiration ensures users must re-authenticate with magic link
     const isValid = await validateSupabaseSession(cookieStore)
-    
+
     // Get all cookies for debugging
     const allCookies = Array.from(cookieStore.getAll())
     const cookieNames = allCookies.map(c => c.name).join(', ')
@@ -112,7 +112,7 @@ export async function middleware(request) {
 
     // SECURITY: Always validate Supabase session - this is the source of truth
     const isValid = await validateSupabaseSession(cookieStore)
-    
+
     // Get all cookies for debugging
     const allCookies = Array.from(cookieStore.getAll())
     const hasCustomCookies = cookieStore.get('user_email')?.value
