@@ -511,32 +511,6 @@ async function findAllCLevelExecutives(companyName, companyDomain = null) {
             withLinkedIn: enrichedExecutives.filter(e => e.linkedin_url).length,
         });
 
-        // Sort executives by role priority
-        // CEO and President are both top priority (some companies use President instead of CEO)
-        // Within same role, prioritize those with contact info
-        const rolePriority = {
-            'CEO': 1,
-            'Chief Executive Officer': 1,
-            'President': 2, // Alternative to CEO (some companies use this instead)
-            'chair of board': 3,
-            'chairman of board': 3,
-        };
-
-        enrichedExecutives.sort((a, b) => {
-            // First, sort by role priority
-            const priorityA = rolePriority[a.role] || 999;
-            const priorityB = rolePriority[b.role] || 999;
-            if (priorityA !== priorityB) {
-                return priorityA - priorityB;
-            }
-
-            // If same role, prioritize those with contact info (email or LinkedIn)
-            const hasContactA = !!(a.email || a.linkedin_url);
-            const hasContactB = !!(b.email || b.linkedin_url);
-            return hasContactB - hasContactA; // true (1) comes before false (0)
-        });
-
-        return enrichedExecutives;
     } catch (error) {
         console.error('❌ Error finding C-level executives:', error);
         throw error;
