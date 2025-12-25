@@ -35,12 +35,9 @@ export async function POST(request) {
             }
         });
 
-        // Get the base URL for redirect - must match EXACTLY what's in Supabase settings
-        // signInWithOtp works, so we need to match its exact redirectTo format
+      
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://ai.kolos.network';
-        // IMPORTANT: This must match exactly what signInWithOtp uses:
-        // In EmailModal: `${window.location.origin}/auth/callback`
-        // So we use the same format
+
         const redirectTo = `${baseUrl}/auth/callback`;
 
         console.log('Using redirectTo (must match Supabase settings):', redirectTo);
@@ -51,16 +48,13 @@ export async function POST(request) {
             baseUrl,
         });
 
-        // Generate magic link without sending email
-        // Try to match the exact behavior of signInWithOtp which works
-        // The key is using the same redirectTo and ensuring the link format matches
+     
         const { data, error } = await supabaseAdmin.auth.admin.generateLink({
             type: 'magiclink',
             email: email,
             options: {
                 redirectTo: redirectTo,
-                // Note: admin.generateLink should create the same type of link as signInWithOtp
-                // The expiration and format should be identical
+                
             }
         });
 

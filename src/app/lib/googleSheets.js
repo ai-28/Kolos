@@ -3,7 +3,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 // Initialize Google Sheets client
-function getSheetsClient() {
+export function getSheetsClient() {
     try {
         let credentials;
 
@@ -70,6 +70,7 @@ const SHEETS = {
     SIGNALS: 'Signals',
     DEALS: 'Deals',
     USERS: 'Users',
+    CONNECTIONS: 'Connections',
 };
 
 /**
@@ -514,6 +515,77 @@ export async function updateSignalLinkedInUrl(profileId, headlineSource, date, l
     } catch (error) {
         console.error(`❌ Error updating signal LinkedIn URL:`, error);
         return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Find connections by user ID (from_user_id or to_user_id)
+ */
+export async function findConnectionsByUserId(userId) {
+    try {
+        if (!userId) {
+            return [];
+        }
+
+        const data = await getSheetData(SHEETS.CONNECTIONS);
+
+        return data.filter(row => {
+            const fromUserId = row.from_user_id || row['from_user_id'] || row['From User ID'];
+            const toUserId = row.to_user_id || row['to_user_id'] || row['To User ID'];
+
+            return (fromUserId && String(fromUserId).trim() === String(userId).trim()) ||
+                (toUserId && String(toUserId).trim() === String(userId).trim());
+        });
+    } catch (error) {
+        console.error('Error finding connections by user ID:', error);
+        throw error;
+    }
+}
+
+/**
+ * Find connection between two users
+ */
+export async function findConnectionBetweenUsers(fromUserId, toUserId) {
+    try {
+        if (!fromUserId || !toUserId) {
+            return null;
+        }
+
+        const data = await getSheetData(SHEETS.CONNECTIONS);
+
+        return data.find(row => {
+            const fromId = row.from_user_id || row['from_user_id'] || row['From User ID'];
+            const toId = row.to_user_id || row['to_user_id'] || row['To User ID'];
+
+            return (fromId && String(fromId).trim() === String(fromUserId).trim() &&
+                toId && String(toId).trim() === String(toUserId).trim()) ||
+                (fromId && String(fromId).trim() === String(toUserId).trim() &&
+                    toId && String(toId).trim() === String(fromUserId).trim());
+        }) || null;
+    } catch (error) {
+        console.error('Error finding connection between users:', error);
+        throw error;
+    }
+}
+
+/**
+ * Find connections by deal ID
+ */
+export async function findConnectionsByDealId(dealId) {
+    try {
+        if (!dealId) {
+            return [];
+        }
+
+        const data = await getSheetData(SHEETS.CONNECTIONS);
+
+        return data.filter(row => {
+            const dealIdField = row.deal_id || row['deal_id'] || row['Deal ID'];
+            return dealIdField && String(dealIdField).trim() === String(dealId).trim();
+        });
+    } catch (error) {
+        console.error('Error finding connections by deal ID:', error);
+        throw error;
     }
 }
 

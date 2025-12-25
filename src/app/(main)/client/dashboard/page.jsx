@@ -43,10 +43,19 @@ function ClientDashboardContent() {
   const [showLinkedInModal, setShowLinkedInModal] = useState(false)
   const [showEmailModal, setShowEmailModal] = useState(false)
   const [selectedDealForModal, setSelectedDealForModal] = useState(null)
+  const [showConnectionModal, setShowConnectionModal] = useState(false)
+  const [selectedDealForConnection, setSelectedDealForConnection] = useState(null)
+  const [connectionType, setConnectionType] = useState('linkedin')
+  const [connectionMessage, setConnectionMessage] = useState('')
+  const [requestingConnection, setRequestingConnection] = useState(false)
+  const [matchedUsers, setMatchedUsers] = useState([])
+  const [loadingMatches, setLoadingMatches] = useState(false)
 
   useEffect(() => {
     // Get client ID from session and fetch client data
     fetchClientData()
+    // Fetch matched users for connections
+    fetchMatchedUsers()
   }, [])
 
   // Inactivity timeout - logout after 30 minutes of no activity
@@ -203,6 +212,110 @@ function ClientDashboardContent() {
     }
   }
 
+  // Fetch matched users
+  const fetchMatchedUsers = async () => {
+    try {
+      setLoadingMatches(true)
+      const response = await fetch('/api/users/match?limit=5')
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
+        setMatchedUsers(data.matches || [])
+      }
+    } catch (error) {
+      console.error('Error fetching matched users:', error)
+    } finally {
+      setLoadingMatches(false)
+    }
+  }
+
+  // Handle deal connection request
+  const handleDealConnection = async (deal) => {
+    setSelectedDealForConnection(deal)
+    setShowConnectionModal(true)
+    setConnectionMessage(`Interested in connecting regarding: ${deal.deal_name || deal['deal_name'] || 'this opportunity'}`)
+  }
+
+  // Submit connection request
+  const handleSubmitConnection = async () => {
+    if (!selectedDealForConnection) return
+
+    setRequestingConnection(true)
+    try {
+      const dealId = selectedDealForConnection.deal_id || selectedDealForConnection['deal_id'] || selectedDealForConnection.id || selectedDealForConnection['id']
+      
+      const response = await fetch(`/api/deals/${dealId}/connect`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          connection_type: connectionType,
+          message: connectionMessage,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create connection request')
+      }
+
+      toast.success('Connection request created successfully!')
+
+      setShowConnectionModal(false)
+      setSelectedDealForConnection(null)
+      setConnectionMessage('')
+      setConnectionType('linkedin')
+    } catch (error) {
+      console.error('Error creating connection:', error)
+      toast.error(error.message || 'Failed to create connection request')
+    } finally {
+      setRequestingConnection(false)
+    }
+  }
+
+  // Handle user connection request
+  const handleUserConnection = async (user, type = 'linkedin') => {
+    setRequestingConnection(true)
+    try {
+      const response = await fetch('/api/connections/request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to_user_id: user.client_id,
+          connection_type: type,
+          message: `Interested in connecting based on our matching profile`,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create connection request')
+      }
+
+      toast.success(`Connection request sent to ${user.name}!`)
+      
+      // If LinkedIn, open the LinkedIn URL
+      if (type === 'linkedin' || type === 'both') {
+        if (user.linkedin_url) {
+          window.open(user.linkedin_url, '_blank')
+        }
+      }
+      console.log("user",user)
+      // Refresh matches
+      fetchMatchedUsers()
+    } catch (error) {
+      console.error('Error creating user connection:', error)
+      toast.error(error.message || 'Failed to create connection request')
+    } finally {
+      setRequestingConnection(false)
+    }
+  }
+
   const handleEdit = () => {
     // Initialize edit data with current client values
     setEditData({
@@ -229,6 +342,7 @@ function ClientDashboardContent() {
       constraints_notes: client?.constraints_notes || client?.["constraints_notes"] || client?.constraints || client?.["constraints"] || "",
       active_deal: client?.active_deal || client?.["active_deal"] || "",
       travel_cities: client?.travel_cities || client?.["travel_cities"] || client?.city || client?.["city"] || "",
+      linkedin_url: client?.linkedin_url || client?.["linkedin_url"] || "",
     })
     setIsEditing(true)
   }
@@ -972,6 +1086,17 @@ console.log("client",client)
                         className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-sm sm:text-base min-h-[44px]"
                         placeholder="your.email@example.com"
                       />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">LinkedIn Profile URL</label>
+                      <input
+                        type="url"
+                        value={editData.linkedin_url || ""}
+                        onChange={(e) => setEditData({...editData, linkedin_url: e.target.value})}
+                        className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-sm sm:text-base min-h-[44px]"
+                        placeholder="https://linkedin.com/in/yourprofile"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Your LinkedIn profile URL for networking</p>
                     </div>
                     <div className="sm:col-span-2">
                       <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Role</label>
@@ -1875,8 +2000,81 @@ console.log("client",client)
           </section>
           )}
 
-          {/* Active Deals */}
-          {!isEditing && (
+          {/* Suggested Connections */}
+          {!isEditing && matchedUsers.length > 0 && (
+            <section className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="suggested-connections">
+              <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
+                <span className="text-[#532418] text-[32px] font-marcellus">Suggested Connections</span>
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {matchedUsers.map((user) => (
+                  <Card key={user.client_id} className="bg-[#fffff4] border border-[#ffe0ccff] !shadow-none rounded-lg">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold text-[#0a3d3d] mb-1">
+                            {user.name}
+                          </h3>
+                          <p className="text-sm text-gray-600 mb-1">{user.company}</p>
+                          <p className="text-xs text-gray-500">{user.role}</p>
+                        </div>
+                        <Badge className="bg-[#c9a961] text-[#0a3d3d]">
+                          {user.match_score}% Match
+                        </Badge>
+                      </div>
+                      
+                      {user.match_reasons && user.match_reasons.length > 0 && (
+                        <div className="mb-3">
+                          <p className="text-xs font-medium text-gray-700 mb-1">Why we matched:</p>
+                          <ul className="text-xs text-gray-600 space-y-1">
+                            {user.match_reasons.slice(0, 2).map((reason, idx) => (
+                              <li key={idx}>• {reason}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2 mt-4">
+                        {user.linkedin_url && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleUserConnection(user, 'linkedin')}
+                            disabled={requestingConnection}
+                            className="flex-1 bg-[#0a3d3d] hover:bg-[#083030] text-white text-xs"
+                          >
+                            {requestingConnection ? (
+                              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                            ) : (
+                              <Linkedin className="w-3 h-3 mr-1" />
+                            )}
+                            Connect
+                          </Button>
+                        )}
+                        {user.email && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleUserConnection(user, 'email')}
+                            disabled={requestingConnection}
+                            className="flex-1 text-xs border-[#0a3d3d] text-[#0a3d3d] hover:bg-[#0a3d3d]/10"
+                          >
+                            <Mail className="w-3 h-3 mr-1" />
+                            Email
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+              {loadingMatches && (
+                <div className="flex justify-center py-4">
+                  <Loader2 className="w-6 h-6 animate-spin text-[#0a3d3d]" />
+                </div>
+              )}
+            </section>
+          )}
+
           <section className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="active-deals">
             <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
               <span className="text-[#532418] text-[32px] font-marcellus">Active Deals</span>
@@ -2120,6 +2318,20 @@ console.log("client",client)
                                     >
                                       <span className="text-xs font-semibold">E</span>
                                     </Button>
+                                    {/* C button temporarily hidden
+                                    {(deal.decision_maker_linkedin_url || deal['decision_maker_linkedin_url'] || deal.decision_maker_email || deal['decision_maker_email']) && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleDealConnection(deal)}
+                                        disabled={!dealId || requestingConnection}
+                                        className="text-purple-600 hover:text-purple-700 hover:bg-purple-50 min-h-[44px] min-w-[44px]"
+                                        title="Request Connection"
+                                      >
+                                        <span className="text-xs font-semibold">C</span>
+                                      </Button>
+                                    )}
+                                    */}
                                     <Button
                                       variant="ghost"
                                       size="sm"
@@ -2158,8 +2370,7 @@ console.log("client",client)
                 )}
               </CardContent>
             </Card>
-          </section>
-          )}
+            </section>
 
           {/* Industry & Geographic Focus */}
           <section className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="industry-focus">
@@ -2758,6 +2969,97 @@ console.log("client",client)
                       )
                     }
                   })()}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Connection Request Modal */}
+        {showConnectionModal && selectedDealForConnection && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-3 md:p-4">
+            <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Request Connection</h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowConnectionModal(false)
+                      setSelectedDealForConnection(null)
+                      setConnectionMessage('')
+                    }}
+                    className="h-8 w-8 p-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">
+                      <strong>Deal:</strong> {selectedDealForConnection.deal_name || selectedDealForConnection['deal_name'] || 'N/A'}
+                    </p>
+                    <p className="text-sm text-gray-600 mb-4">
+                      <strong>Decision Maker:</strong> {selectedDealForConnection.decision_maker_name || selectedDealForConnection['decision_maker_name'] || 'N/A'}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Connection Type
+                    </label>
+                    <select
+                      value={connectionType}
+                      onChange={(e) => setConnectionType(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                    >
+                      <option value="linkedin">LinkedIn Only</option>
+                      <option value="email">Email Only</option>
+                      <option value="both">Both LinkedIn & Email</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Message (Optional)
+                    </label>
+                    <textarea
+                      value={connectionMessage}
+                      onChange={(e) => setConnectionMessage(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[100px]"
+                      placeholder="Add a personalized message..."
+                    />
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      onClick={handleSubmitConnection}
+                      disabled={requestingConnection}
+                      className="flex-1 bg-[#0a3d3d] hover:bg-[#083030] text-white"
+                    >
+                      {requestingConnection ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Requesting...
+                        </>
+                      ) : (
+                        'Request Connection'
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowConnectionModal(false)
+                        setSelectedDealForConnection(null)
+                        setConnectionMessage('')
+                      }}
+                      disabled={requestingConnection}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

@@ -76,14 +76,9 @@ export async function middleware(request) {
     })
 
     if (!isValid) {
-      // Check if this is a TRUE fresh login (no Supabase cookies set yet)
-      // vs an expired session (Supabase cookies exist but are invalid)
-      // IMPORTANT: For fresh logins, Supabase cookies might be set client-side but not yet
-      // readable by middleware on the first redirect. Allow through if custom cookies exist.
+      
       if (hasCustomCookies) {
-        // Fresh login - custom cookies exist (set by complete-login API)
-        // Supabase cookies might not be readable yet, but that's OK for fresh logins
-        // The session API will handle validation on subsequent requests
+      
         console.log('✅ Fresh login detected - custom cookies exist, allowing through (Supabase cookies may not be readable yet)')
         return NextResponse.next()
       }
