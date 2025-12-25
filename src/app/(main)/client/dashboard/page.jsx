@@ -2847,54 +2847,7 @@ console.log("client",client)
                             : selectedDealForModal.all_decision_makers)
                         : []
                       
-                      const primaryName = selectedDealForModal.decision_maker_name || selectedDealForModal["decision_maker_name"] || ""
-                      
-                      // If no decision makers in array, try to show primary from individual fields
                       if (!Array.isArray(allDecisionMakers) || allDecisionMakers.length === 0) {
-                        // Fallback: Show primary decision maker from individual fields
-                        const primaryEmail = selectedDealForModal.decision_maker_email 
-                          || selectedDealForModal["decision_maker_email"]
-                          || ""
-                        const primaryName = selectedDealForModal.decision_maker_name 
-                          || selectedDealForModal["decision_maker_name"]
-                          || ""
-                        const primaryRole = selectedDealForModal.decision_maker_role 
-                          || selectedDealForModal["decision_maker_role"]
-                          || ""
-                        
-                        if (primaryName || primaryEmail) {
-                          return (
-                            <div className="border rounded-lg p-4 bg-green-50 border-green-300 shadow-md">
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <h3 className="font-semibold text-green-700 text-lg">
-                                      {primaryName || "Unknown"}
-                                    </h3>
-                                    <Badge className="bg-green-600 text-white text-xs">
-                                      Primary
-                                    </Badge>
-                                  </div>
-                                  {primaryRole && (
-                                    <p className="text-sm text-gray-600 mb-2">{primaryRole}</p>
-                                  )}
-                                  {primaryEmail ? (
-                                    <a
-                                      href={`mailto:${primaryEmail}`}
-                                      className="text-green-600 hover:text-green-700 hover:underline text-sm flex items-center gap-1"
-                                    >
-                                      <Mail className="w-4 h-4" />
-                                      {primaryEmail}
-                                    </a>
-                                  ) : (
-                                    <p className="text-sm text-gray-400 italic">No email address available</p>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        }
-                        
                         return (
                           <div className="text-center py-8 text-gray-500">
                             <p>No decision makers found for this deal.</p>
@@ -2903,42 +2856,18 @@ console.log("client",client)
                       }
 
                       return allDecisionMakers.map((dm, index) => {
-                        const isPrimary = dm.name === primaryName
-                        // Try multiple possible field names for linkedin_url
-                        let linkedinUrl = dm.linkedin_url 
-                          || dm["linkedin_url"]
-                          || ""
-                        
-                        // If this is the primary decision maker and no LinkedIn in array, try primary fields
-                        if (isPrimary && !linkedinUrl) {
-                          linkedinUrl = selectedDealForModal.decision_maker_linkedin_url 
-                            || selectedDealForModal["decision_maker_linkedin_url"]
-                            || ""
-                        }
+                        const linkedinUrl = dm.linkedin_url || dm["linkedin_url"] || ""
                         
                         return (
                           <div
                             key={index}
-                            className={`border rounded-lg p-4 ${
-                              isPrimary 
-                                ? 'bg-blue-50 border-blue-300 shadow-md' 
-                                : 'bg-white border-gray-200'
-                            }`}
+                            className="border rounded-lg p-4 bg-white border-gray-200"
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <h3 className={`font-semibold ${
-                                    isPrimary ? 'text-blue-700 text-lg' : 'text-gray-900'
-                                  }`}>
-                                    {dm.name || "Unknown"}
-                                  </h3>
-                                  {isPrimary && (
-                                    <Badge className="bg-blue-600 text-white text-xs">
-                                      Primary
-                                    </Badge>
-                                  )}
-                                </div>
+                                <h3 className="font-semibold text-gray-900 mb-2">
+                                  {dm.name || "Unknown"}
+                                </h3>
                                 {dm.role && (
                                   <p className="text-sm text-gray-600 mb-2">{dm.role}</p>
                                 )}
@@ -3091,130 +3020,40 @@ console.log("client",client)
                 <div className="space-y-3">
                   {(() => {
                     try {
-                      // Debug: Log the deal object to see what fields are available
-                      console.log('🔍 Deal data for Email modal:', selectedDealForModal)
-                      
-                      // Try multiple possible field names for all_decision_makers
-                      const allDecisionMakersField = selectedDealForModal.all_decision_makers 
-                        || selectedDealForModal["all_decision_makers"]
-                        || null
-                      
-                      console.log('🔍 all_decision_makers field:', allDecisionMakersField)
-                      
-                      const allDecisionMakers = allDecisionMakersField
-                        ? (typeof allDecisionMakersField === 'string' 
-                            ? JSON.parse(allDecisionMakersField) 
-                            : allDecisionMakersField)
+                      const allDecisionMakers = selectedDealForModal.all_decision_makers 
+                        ? (typeof selectedDealForModal.all_decision_makers === 'string' 
+                            ? JSON.parse(selectedDealForModal.all_decision_makers) 
+                            : selectedDealForModal.all_decision_makers)
                         : []
                       
-                      console.log('🔍 Parsed decision makers:', allDecisionMakers)
-                      
-                      // Try multiple possible field names for primary decision maker
-                      const primaryName = selectedDealForModal.decision_maker_name 
-                        || selectedDealForModal["decision_maker_name"]
-                        || ""
-                      
-                      // If no decision makers in array, try to show primary from individual fields
                       if (!Array.isArray(allDecisionMakers) || allDecisionMakers.length === 0) {
-                        // Fallback: Show primary decision maker from individual fields
-                        const primaryLinkedIn = selectedDealForModal.decision_maker_linkedin_url 
-                          || selectedDealForModal["decision_maker_linkedin_url"]
-                          || ""
-                        const primaryName = selectedDealForModal.decision_maker_name 
-                          || selectedDealForModal["decision_maker_name"]
-                          || ""
-                        const primaryRole = selectedDealForModal.decision_maker_role 
-                          || selectedDealForModal["decision_maker_role"]
-                          || ""
-                        
-                        if (primaryName || primaryLinkedIn) {
-                          return (
-                            <div className="border rounded-lg p-4 bg-blue-50 border-blue-300 shadow-md">
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <h3 className="font-semibold text-blue-700 text-lg">
-                                      {primaryName || "Unknown"}
-                                    </h3>
-                                    <Badge className="bg-blue-600 text-white text-xs">
-                                      Primary
-                                    </Badge>
-                                  </div>
-                                  {primaryRole && (
-                                    <p className="text-sm text-gray-600 mb-2">{primaryRole}</p>
-                                  )}
-                                  {primaryLinkedIn ? (
-                                    <a
-                                      href={primaryLinkedIn}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-blue-600 hover:text-blue-700 hover:underline text-sm flex items-center gap-1"
-                                    >
-                                      <Linkedin className="w-4 h-4" />
-                                      {primaryLinkedIn}
-                                    </a>
-                                  ) : (
-                                    <p className="text-sm text-gray-400 italic">No LinkedIn URL available</p>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        }
-                        
                         return (
                           <div className="text-center py-8 text-gray-500">
                             <p>No decision makers found for this deal.</p>
-                            <p className="text-xs mt-2">Available fields: {Object.keys(selectedDealForModal).join(', ')}</p>
                           </div>
                         )
                       }
 
                       return allDecisionMakers.map((dm, index) => {
-                        const isPrimary = dm.name === primaryName
-                        console.log('🔍 Decision maker:', dm, 'Email field:', dm.email)
-                        // Try multiple possible field names for email
-                        let email = dm.email 
-                          || dm["email"]
-                          || ""
-                        
-                        // If this is the primary decision maker and no email in array, try primary fields
-                        if (isPrimary && !email) {
-                          email = selectedDealForModal.decision_maker_email 
-                            || selectedDealForModal["decision_maker_email"]
-                            || ""
-                        }
+                        const email = dm.email || dm["email"] || ""
                         
                         return (
                           <div
                             key={index}
-                            className={`border rounded-lg p-4 ${
-                              isPrimary 
-                                ? 'bg-green-50 border-green-300 shadow-md' 
-                                : 'bg-white border-gray-200'
-                            }`}
+                            className="border rounded-lg p-4 bg-white border-gray-200"
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <h3 className={`font-semibold ${
-                                    isPrimary ? 'text-green-700 text-lg' : 'text-gray-900'
-                                  }`}>
-                                    {dm.name || "Unknown"}
-                                  </h3>
-                                  {isPrimary && (
-                                    <Badge className="bg-green-600 text-white text-xs">
-                                      Primary
-                                    </Badge>
-                                  )}
-                                </div>
+                                <h3 className="font-semibold text-gray-900 mb-2">
+                                  {dm.name || "Unknown"}
+                                </h3>
                                 {dm.role && (
                                   <p className="text-sm text-gray-600 mb-2">{dm.role}</p>
                                 )}
                                 {email ? (
                                   <a
                                     href={`mailto:${email}`}
-                                    className="text-green-600 hover:text-green-700 hover:underline text-sm flex items-center gap-1"
+                                    className="text-blue-600 hover:text-blue-700 hover:underline text-sm flex items-center gap-1"
                                   >
                                     <Mail className="w-4 h-4" />
                                     {email}
