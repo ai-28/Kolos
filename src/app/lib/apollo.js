@@ -514,18 +514,41 @@ async function findAllCLevelExecutives(companyName, companyDomain = null) {
         // Sort executives by role priority
         // CEO and President are both top priority (some companies use President instead of CEO)
         // Within same role, prioritize those with contact info
-        const rolePriority = {
-            'CEO': 1,
-            'Chief Executive Officer': 1,
-            'President': 2, // Alternative to CEO (some companies use this instead)
-            'chair of board': 3,
-            'chairman of board': 3,
-        };
+
+        // Helper function to get priority from role (handles substring matching)
+        function getRolePriority(role) {
+            if (!role) return 999;
+            const roleLower = role.toLowerCase();
+
+            // Check for CEO variations (must check before President to avoid false matches)
+            if (roleLower.includes('chief executive officer') ||
+                (roleLower.includes('ceo') && !roleLower.includes('vice'))) {
+                return 1;
+            }
+            // Check for President (but exclude Vice President)
+            if (roleLower.includes('president') && !roleLower.includes('vice president') && !roleLower.includes('vice-president')) {
+                return 2;
+            }
+            // Check for Chair of Board
+            if (roleLower.includes('chair') && roleLower.includes('board')) {
+                return 3;
+            }
+
+            // Fallback to exact match for backward compatibility
+            const rolePriority = {
+                'CEO': 1,
+                'Chief Executive Officer': 1,
+                'President': 2,
+                'chair of board': 3,
+                'chairman of board': 3,
+            };
+            return rolePriority[role] || 999;
+        }
 
         enrichedExecutives.sort((a, b) => {
-            // First, sort by role priority
-            const priorityA = rolePriority[a.role] || 999;
-            const priorityB = rolePriority[b.role] || 999;
+            // First, sort by role priority (using substring matching)
+            const priorityA = getRolePriority(a.role);
+            const priorityB = getRolePriority(b.role);
             if (priorityA !== priorityB) {
                 return priorityA - priorityB;
             }
