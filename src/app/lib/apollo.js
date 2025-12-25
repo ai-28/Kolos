@@ -511,6 +511,7 @@ async function findAllCLevelExecutives(companyName, companyDomain = null) {
             withLinkedIn: enrichedExecutives.filter(e => e.linkedin_url).length,
         });
 
+        return enrichedExecutives;
     } catch (error) {
         console.error('❌ Error finding C-level executives:', error);
         throw error;
