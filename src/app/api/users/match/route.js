@@ -126,13 +126,11 @@ export async function GET(request) {
 
         // Calculate matches for all other users
         const matches = allProfiles
-            // .filter(profile => {
-            //     const profileId = profile.id || profile.ID || profile['id'] || profile['ID'];
-            //     // Exclude current user and already connected users
-            //     return profileId && 
-            //            String(profileId).trim() !== String(currentUserId).trim() &&
-            //            !connectedUserIds.has(String(profileId).trim());
-            // })
+            .filter(profile => {
+                const profileId = profile.id || profile.ID || profile['id'] || profile['ID'];
+                // Exclude current user and already connected users
+                return profileId && String(profileId).trim() !== String(currentUserId).trim();
+            })
             .map(profile => {
                 const matchResult = calculateMatchScore(currentUser, profile);
                 return {
