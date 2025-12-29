@@ -65,12 +65,23 @@ function ClientDashboardContent() {
     try {
       setLoading(true)
       console.log('🔍 Fetching session data...')
-      const sessionResponse = await fetch('/api/session')
-      const sessionData = await sessionResponse.json()
-
-      if (!sessionResponse.ok || !sessionData.clientId) {
+      const sessionResponse = await fetch('/api/auth/session')
+      
+      // Check if response is OK before parsing JSON
+      if (!sessionResponse.ok) {
         console.error('❌ Session fetch failed:', {
           status: sessionResponse.status,
+          statusText: sessionResponse.statusText
+        })
+        // Not authenticated, redirect to home/login
+        router.push('/')
+        return
+      }
+      
+      const sessionData = await sessionResponse.json()
+
+      if (!sessionData.clientId) {
+        console.error('❌ Session data missing clientId:', {
           error: sessionData.error,
           hasClientId: !!sessionData.clientId
         })
