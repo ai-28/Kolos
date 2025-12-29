@@ -25,8 +25,28 @@ export default function AdminConnectionsPage() {
   const [copiedConnectionId, setCopiedConnectionId] = useState(null);
   const [expandedDrafts, setExpandedDrafts] = useState(new Set());
 
-  useEffect(() => {
-    fetchConnections();
+  // Define fetchConnections first
+  const fetchConnections = useCallback(async () => {
+    try {
+      setLoading(true);
+      const url = filterStatus !== "all" 
+        ? `/api/admin/connections?status=${filterStatus}`
+        : `/api/admin/connections`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to fetch connections");
+      }
+
+      setConnections(data.connections || []);
+    } catch (error) {
+      console.error("Error fetching connections:", error);
+      toast.error(error.message || "Failed to load connections");
+    } finally {
+      setLoading(false);
+    }
   }, [filterStatus]);
 
   // Handle real-time connection updates via SSE
@@ -62,30 +82,11 @@ export default function AdminConnectionsPage() {
   }, [fetchConnections]);
 
   // Connect to SSE for real-time updates
-  const fetchConnections = useCallback(async () => {
-    try {
-      setLoading(true);
-      const url = filterStatus !== "all" 
-        ? `/api/admin/connections?status=${filterStatus}`
-        : `/api/admin/connections`;
-      
-      const response = await fetch(url);
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to fetch connections");
-      }
-
-      setConnections(data.connections || []);
-    } catch (error) {
-      console.error("Error fetching connections:", error);
-      toast.error(error.message || "Failed to load connections");
-    } finally {
-      setLoading(false);
-    }
-  }, [filterStatus]);
-
   const { isConnected, error: sseError } = useConnectionEvents(handleConnectionUpdate);
+
+  useEffect(() => {
+    fetchConnections();
+  }, [fetchConnections]);
 
   const handleApprove = async (connectionId) => {
     setProcessing(connectionId);
