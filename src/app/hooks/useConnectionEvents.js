@@ -17,6 +17,16 @@ export function useConnectionEvents(onUpdate, onError = null) {
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 5;
   const reconnectDelay = 3000; // 3 seconds
+  
+  // Use refs to store callbacks so they don't cause re-subscriptions
+  const onUpdateRef = useRef(onUpdate);
+  const onErrorRef = useRef(onError);
+  
+  // Update refs when callbacks change
+  useEffect(() => {
+    onUpdateRef.current = onUpdate;
+    onErrorRef.current = onError;
+  }, [onUpdate, onError]);
 
   useEffect(() => {
     let mounted = true;
@@ -58,9 +68,9 @@ export function useConnectionEvents(onUpdate, onError = null) {
               }
 
               // Handle connection updates
-              if (data.type && data.connection_id && onUpdate) {
+              if (data.type && data.connection_id && onUpdateRef.current) {
                 console.log('📨 Connection update received:', data);
-                onUpdate(data);
+                onUpdateRef.current(data);
               }
             } catch (parseError) {
               console.error('Error parsing SSE message:', parseError);
@@ -93,8 +103,8 @@ export function useConnectionEvents(onUpdate, onError = null) {
               // Max reconnection attempts reached
               const errorMsg = 'Failed to maintain connection. Please refresh the page.';
               setError(errorMsg);
-              if (onError) {
-                onError(new Error(errorMsg));
+              if (onErrorRef.current) {
+                onErrorRef.current(new Error(errorMsg));
               }
             }
           }
@@ -103,8 +113,8 @@ export function useConnectionEvents(onUpdate, onError = null) {
         if (mounted) {
           setIsConnected(false);
           setError(error.message);
-          if (onError) {
-            onError(error);
+          if (onErrorRef.current) {
+            onErrorRef.current(error);
           }
         }
       }
@@ -124,7 +134,7 @@ export function useConnectionEvents(onUpdate, onError = null) {
         eventSourceRef.current = null;
       }
     };
-  }, [onUpdate, onError, router]);
+  }, [router]); // Only depend on router, not callbacks
 
   return { isConnected, error };
 }

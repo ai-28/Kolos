@@ -2316,7 +2316,7 @@ console.log("client",client)
                   </CardContent>
                 </Card>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
                   {connections.map((conn) => {
                     const hasDraft = conn.draft_message && conn.draft_message.trim() !== ''
                     const clientApproved = conn.client_approved || false

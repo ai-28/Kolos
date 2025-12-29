@@ -48,19 +48,26 @@ class ConnectionEventEmitter {
       timestamp: new Date().toISOString(),
     };
 
+    console.log(`📢 Emitting event: ${eventType} for connection ${connectionId}`);
+    console.log(`📊 Active listeners: ${this.getSubscriberCount()}`);
+
     // Broadcast to all listeners
     // The SSE endpoint will filter events based on:
     // - Admin role (admins see all events)
     // - Connection ownership (clients see their own connections)
+    let notifiedCount = 0;
     this.listeners.forEach((listeners, userId) => {
       listeners.forEach((callback) => {
         try {
           callback(event);
+          notifiedCount++;
         } catch (error) {
           console.error(`Error notifying listener for user ${userId}:`, error);
         }
       });
     });
+    
+    console.log(`✅ Notified ${notifiedCount} listener(s) for event ${eventType}`);
   }
 
   /**
