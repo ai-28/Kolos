@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { findConnectionById, updateConnection } from "@/app/lib/googleSheets";
 import { requireAuth } from "@/app/lib/session";
 import { normalizeRole } from "@/app/lib/roleUtils";
+import { connectionEventEmitter } from "@/app/lib/connectionEventEmitter";
 
 /**
  * PATCH /api/admin/connections/[id]/approve
@@ -43,10 +44,20 @@ export async function PATCH(request, { params }) {
         }
 
         // Update connection
-        await updateConnection(connectionId, {
+        const updatedConnection = await updateConnection(connectionId, {
             admin_approved: true,
             status: 'admin_approved'
         });
+
+        // Emit SSE event to notify client
+        const fromUserId = connection.from_user_id || connection['from_user_id'] || connection['From User ID'];
+        connectionEventEmitter.emit(
+            connectionId,
+            'admin_approved',
+            updatedConnection,
+            session.clientId,
+            fromUserId // Notify the client who made the request
+        );
 
         return NextResponse.json({
             success: true,

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { findConnectionById, updateConnection } from "@/app/lib/googleSheets";
 import { requireAuth } from "@/app/lib/session";
+import { connectionEventEmitter } from "@/app/lib/connectionEventEmitter";
 
 /**
  * POST /api/connections/[id]/approve-draft
@@ -69,11 +70,20 @@ export async function POST(request, { params }) {
         }
 
         // Update connection
-        await updateConnection(connectionId, {
+        const updatedConnection = await updateConnection(connectionId, {
             client_approved: true,
             client_approved_at: new Date().toISOString(),
             status: 'client_approved'
         });
+
+        // Emit SSE event to notify admin
+        // Admin will see this event since they subscribe to all connections
+        connectionEventEmitter.emit(
+            connectionId,
+            'client_approved',
+            updatedConnection,
+            userId
+        );
 
         return NextResponse.json({
             success: true,

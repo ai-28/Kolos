@@ -3,6 +3,7 @@ import { findConnectionById, updateConnection, findRowById, SHEETS } from "@/app
 import { requireAuth } from "@/app/lib/session";
 import { normalizeRole } from "@/app/lib/roleUtils";
 import { generateConnectionDraft } from "@/app/lib/aiDraftGenerator";
+import { connectionEventEmitter } from "@/app/lib/connectionEventEmitter";
 
 /**
  * POST /api/admin/connections/[id]/generate-draft
@@ -115,11 +116,20 @@ export async function POST(request, { params }) {
         });
 
         // Update connection with draft
-        await updateConnection(connectionId, {
+        const updatedConnection = await updateConnection(connectionId, {
             draft_message: draftMessage,
             draft_generated_at: new Date().toISOString(),
             status: 'draft_generated'
         });
+
+        // Emit SSE event to notify client
+        connectionEventEmitter.emit(
+            connectionId,
+            'draft_generated',
+            updatedConnection,
+            session.clientId,
+            fromUserId // Notify the client who made the request
+        );
 
         return NextResponse.json({
             success: true,

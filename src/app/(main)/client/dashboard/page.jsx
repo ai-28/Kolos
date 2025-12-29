@@ -1,14 +1,15 @@
 "use client"
 
-import { useState, useEffect, Suspense } from "react"
+import { useState, useEffect, Suspense, useCallback } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/app/components/ui/avatar"
 import { Badge } from "@/app/components/ui/badge"
 import { Button } from "@/app/components/ui/button"
 import { Card, CardContent } from "@/app/components/ui/card"
 import {KolosLogo} from "@/app/components/svg"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, Loader2, Edit2, Save, X, Trash2, Menu, Linkedin, Mail, FileText, Check, Lock } from "lucide-react"
+import { ArrowLeft, Loader2, Edit2, Save, X, Trash2, Menu, Linkedin, Mail, FileText, Check, Lock, Copy, CheckCircle } from "lucide-react"
 import { toast } from "sonner"
+import { useConnectionEvents } from "@/app/hooks/useConnectionEvents"
 import { DashboardIcon, BusinessGoalsIcon,SignalsIcon, IndustryFocusIcon, BusinessMatchIcon, BusinessRequestsIcon,TravelPlanIcon, UpcomingEventIcon } from "@/app/components/svg"
 import Image from "next/image"
 import { normalizeRole } from "@/app/lib/roleUtils"
@@ -56,6 +57,7 @@ function ClientDashboardContent() {
   const [approvingDraft, setApprovingDraft] = useState(null)
   const [editingDraft, setEditingDraft] = useState(null)
   const [draftEditText, setDraftEditText] = useState("")
+  const [copiedConnectionId, setCopiedConnectionId] = useState(null)
 
   useEffect(() => {
     // Get client ID from session and fetch client data
@@ -70,6 +72,53 @@ function ClientDashboardContent() {
       fetchConnections()
     }
   }, [client])
+
+  // Helper function to check if connection exists for a deal
+  const hasConnectionForDeal = (dealId) => {
+    if (!dealId || !connections || connections.length === 0) return false
+    return connections.some(conn => {
+      const connDealId = conn.deal_id || conn['deal_id']
+      return connDealId && String(connDealId).trim() === String(dealId).trim()
+    })
+  }
+
+  // Helper function to check if connection exists for a user
+  const hasConnectionForUser = (userId) => {
+    if (!userId || !connections || connections.length === 0) return false
+    return connections.some(conn => {
+      const connToUserId = conn.to_user_id || conn['to_user_id']
+      return connToUserId && String(connToUserId).trim() === String(userId).trim()
+    })
+  }
+
+  // Handle real-time connection updates via SSE
+  const handleConnectionUpdate = useCallback((event) => {
+    console.log('📨 Client received connection update:', event);
+    
+    // Refresh connections list when any update occurs
+    fetchConnections();
+    
+    // Show toast notification based on event type
+    switch (event.type) {
+      case 'admin_approved':
+        toast.success('Your connection request was approved!');
+        break;
+      case 'draft_generated':
+        toast.success('Draft message is ready for review');
+        break;
+      case 'draft_updated':
+        toast.info('Draft message was updated');
+        break;
+      case 'final_approved':
+        toast.success('Connection finalized and locked');
+        break;
+      default:
+        break;
+    }
+  }, []);
+
+  // Connect to SSE for real-time updates
+  const { isConnected, error: sseError } = useConnectionEvents(handleConnectionUpdate);
 
   // Inactivity timeout - logout after 30 minutes of no activity
   // Modern platforms use this to improve security
@@ -407,6 +456,20 @@ function ClientDashboardContent() {
   const handleCancelEditDraft = () => {
     setEditingDraft(null)
     setDraftEditText("")
+  }
+
+  const handleCopyDraft = async (draftText, connectionId) => {
+    try {
+      await navigator.clipboard.writeText(draftText)
+      setCopiedConnectionId(connectionId)
+      toast.success('Draft message copied to clipboard!')
+      setTimeout(() => {
+        setCopiedConnectionId(null)
+      }, 2000)
+    } catch (error) {
+      console.error('Error copying text:', error)
+      toast.error('Failed to copy text')
+    }
   }
 
   const handleSaveDraft = async (connectionId) => {
@@ -2196,11 +2259,17 @@ console.log("client",client)
                         <Button
                           size="sm"
                           onClick={() => handleUserConnectionRequest(user)}
-                          disabled={requestingConnection}
-                          className="flex-1 bg-[#0a3d3d] hover:bg-[#083030] text-white text-xs"
+                          disabled={requestingConnection || hasConnectionForUser(user.client_id)}
+                          className={`flex-1 text-xs ${
+                            hasConnectionForUser(user.client_id)
+                              ? "bg-gray-300 text-gray-600 cursor-not-allowed"
+                              : "bg-[#0a3d3d] hover:bg-[#083030] text-white"
+                          }`}
                         >
                           {requestingConnection ? (
                             <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                          ) : hasConnectionForUser(user.client_id) ? (
+                            "Requested"
                           ) : (
                             "Make Request"
                           )}
@@ -2339,9 +2408,32 @@ console.log("client",client)
                                 </div>
                               ) : (
                                 <>
-                                  <p className="text-sm text-gray-800 whitespace-pre-wrap mb-2">
-                                    {conn.draft_message}
-                                  </p>
+                                  <div className="flex items-start justify-between gap-2 mb-2">
+                                    <p className="text-sm text-gray-800 whitespace-pre-wrap flex-1">
+                                      {conn.draft_message}
+                                    </p>
+                                    {draftLocked && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleCopyDraft(conn.draft_message, conn.connection_id)}
+                                        className="h-7 px-2 text-xs flex-shrink-0"
+                                        title="Copy draft message"
+                                      >
+                                        {copiedConnectionId === conn.connection_id ? (
+                                          <>
+                                            <CheckCircle className="w-3 h-3 mr-1 text-green-600" />
+                                            Copied
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Copy className="w-3 h-3 mr-1" />
+                                            Copy
+                                          </>
+                                        )}
+                                      </Button>
+                                    )}
+                                  </div>
                                   {conn.draft_generated_at && (
                                     <p className="text-xs text-gray-500 mb-2">
                                       Generated: {new Date(conn.draft_generated_at).toLocaleString()}
@@ -2624,11 +2716,17 @@ console.log("client",client)
                                       variant="outline"
                                       size="sm"
                                       onClick={() => handleDealConnectionRequest(deal)}
-                                      disabled={!dealId || requestingConnection}
-                                      className="bg-[#0a3d3d] hover:bg-[#083030] text-white min-h-[44px] text-xs"
+                                      disabled={!dealId || requestingConnection || hasConnectionForDeal(dealId)}
+                                      className={`min-h-[44px] text-xs ${
+                                        hasConnectionForDeal(dealId)
+                                          ? "bg-gray-300 text-gray-600 cursor-not-allowed"
+                                          : "bg-[#0a3d3d] hover:bg-[#083030] text-white"
+                                      }`}
                                     >
                                       {requestingConnection ? (
                                         <Loader2 className="w-4 h-4 animate-spin" />
+                                      ) : hasConnectionForDeal(dealId) ? (
+                                        "Requested"
                                       ) : (
                                         "Connection Request"
                                       )}
