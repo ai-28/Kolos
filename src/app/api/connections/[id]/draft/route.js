@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { findConnectionById, updateConnection } from "@/app/lib/googleSheets";
 import { requireAuth } from "@/app/lib/session";
 import { connectionEventEmitter } from "@/app/lib/connectionEventEmitter";
+import { formatConnection } from "@/app/lib/formatConnection";
 
 /**
  * PATCH /api/connections/[id]/draft
@@ -67,18 +68,25 @@ export async function PATCH(request, { params }) {
         }
 
         // Update draft message
-        const updatedConnection = await updateConnection(connectionId, {
+        await updateConnection(connectionId, {
             draft_message: draft_message.trim(),
         });
 
+        // Fetch and format updated connection with all fields
+        const rawUpdatedConnection = await findConnectionById(connectionId);
+        const formattedConnection = rawUpdatedConnection ? formatConnection(rawUpdatedConnection) : null;
+
         // Emit SSE event (reuse isAdmin from above)
-        connectionEventEmitter.emit(
-            connectionId,
-            'draft_updated',
-            updatedConnection,
-            sessionClientId,
-            isAdmin ? fromUserId : null // If admin edited, notify client; if client edited, notify admin
-        );
+        if (formattedConnection) {
+            console.log('📤 Emitting draft_updated event:', connectionId);
+            connectionEventEmitter.emit(
+                connectionId,
+                'draft_updated',
+                formattedConnection,
+                sessionClientId,
+                isAdmin ? fromUserId : null // If admin edited, notify client; if client edited, notify admin
+            );
+        }
 
         return NextResponse.json({
             success: true,

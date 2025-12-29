@@ -47,15 +47,23 @@ export async function GET(request) {
           try {
             // Filter events based on user role and connection ownership
             const connection = event.connection;
-            const fromUserId = connection?.from_user_id || connection?.['from_user_id'] || connection?.['From User ID'];
-            const toUserId = connection?.to_user_id || connection?.['to_user_id'] || connection?.['To User ID'];
+            if (!connection) {
+              console.warn('Event received without connection data:', event);
+              return;
+            }
+
+            const fromUserId = connection.from_user_id || connection['from_user_id'] || connection['From User ID'];
+            const toUserId = connection.to_user_id || connection['to_user_id'] || connection['To User ID'];
 
             // Admin sees all events
             // Clients only see events for their own connections (where they are the requester)
             const shouldReceiveEvent = isAdmin || fromUserId === userId;
             
             if (shouldReceiveEvent) {
+              console.log(`📤 Sending SSE event to ${isAdmin ? 'admin' : 'client'} ${userId}:`, event.type);
               sendEvent(event);
+            } else {
+              console.log(`⏭️ Filtered out event for user ${userId} (not admin and not owner)`);
             }
           } catch (error) {
             console.error('Error processing connection event:', error);

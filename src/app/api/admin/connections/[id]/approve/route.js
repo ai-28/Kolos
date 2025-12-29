@@ -3,6 +3,7 @@ import { findConnectionById, updateConnection } from "@/app/lib/googleSheets";
 import { requireAuth } from "@/app/lib/session";
 import { normalizeRole } from "@/app/lib/roleUtils";
 import { connectionEventEmitter } from "@/app/lib/connectionEventEmitter";
+import { formatConnection } from "@/app/lib/formatConnection";
 
 /**
  * PATCH /api/admin/connections/[id]/approve
@@ -44,20 +45,27 @@ export async function PATCH(request, { params }) {
         }
 
         // Update connection
-        const updatedConnection = await updateConnection(connectionId, {
+        await updateConnection(connectionId, {
             admin_approved: true,
             status: 'admin_approved'
         });
 
-        // Emit SSE event to notify client
+        // Fetch and format updated connection with all fields
+        const rawUpdatedConnection = await findConnectionById(connectionId);
+        const formattedConnection = rawUpdatedConnection ? formatConnection(rawUpdatedConnection) : null;
+
+        // Emit SSE event to notify client and admin
         const fromUserId = connection.from_user_id || connection['from_user_id'] || connection['From User ID'];
-        connectionEventEmitter.emit(
-            connectionId,
-            'admin_approved',
-            updatedConnection,
-            session.clientId,
-            fromUserId // Notify the client who made the request
-        );
+        if (formattedConnection) {
+            console.log('📤 Emitting admin_approved event:', connectionId);
+            connectionEventEmitter.emit(
+                connectionId,
+                'admin_approved',
+                formattedConnection,
+                session.clientId,
+                fromUserId // Notify the client who made the request
+            );
+        }
 
         return NextResponse.json({
             success: true,

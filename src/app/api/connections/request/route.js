@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-import { findRowById, findConnectionBetweenUsers, SHEETS } from "@/app/lib/googleSheets";
+import { findRowById, findConnectionBetweenUsers, SHEETS, findConnectionById } from "@/app/lib/googleSheets";
 import { appendConnectionToSheet } from "@/app/lib/appendConnectionToSheet";
 import { requireAuth } from "@/app/lib/session";
+import { connectionEventEmitter } from "@/app/lib/connectionEventEmitter";
+import { formatConnection } from "@/app/lib/formatConnection";
 
 /**
  * POST /api/connections/request
@@ -149,6 +151,21 @@ export async function POST(request) {
 
         // Append to Connections sheet with proper column mapping
         await appendConnectionToSheet(connectionData);
+
+        // Fetch and format the created connection to emit with full data
+        const rawConnection = await findConnectionById(connectionId);
+        const formattedConnection = rawConnection ? formatConnection(rawConnection) : null;
+
+        // Emit SSE event for new connection
+        if (formattedConnection) {
+            console.log('📤 Emitting connection_created event:', connectionId);
+            connectionEventEmitter.emit(
+                connectionId,
+                'connection_created',
+                formattedConnection,
+                fromUserId
+            );
+        }
 
         return NextResponse.json({
             success: true,

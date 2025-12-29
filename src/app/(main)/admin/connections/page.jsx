@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
-import { Loader2, ArrowLeft, Check, X, FileText, Lock, Linkedin, Mail, Edit2, Save, Copy, CheckCircle } from "lucide-react";
+import { Loader2, ArrowLeft, Check, X, FileText, Lock, Linkedin, Mail, Edit2, Save, Copy, CheckCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { useConnectionEvents } from "@/app/hooks/useConnectionEvents";
 
@@ -23,6 +23,7 @@ export default function AdminConnectionsPage() {
   const [editingDraft, setEditingDraft] = useState(null);
   const [draftEditText, setDraftEditText] = useState("");
   const [copiedConnectionId, setCopiedConnectionId] = useState(null);
+  const [expandedDrafts, setExpandedDrafts] = useState(new Set());
 
   useEffect(() => {
     fetchConnections();
@@ -37,6 +38,9 @@ export default function AdminConnectionsPage() {
     
     // Show toast notification based on event type
     switch (event.type) {
+      case 'connection_created':
+        toast.success('New connection request received');
+        break;
       case 'admin_approved':
         toast.success('Connection approved');
         break;
@@ -403,17 +407,40 @@ export default function AdminConnectionsPage() {
                               <Lock className="w-4 h-4 text-green-600" title="Draft Locked" />
                             )}
                           </div>
-                          {!draftLocked && editingDraft !== conn.connection_id && (
+                          <div className="flex items-center gap-2">
+                            {!draftLocked && editingDraft !== conn.connection_id && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEditDraft(conn)}
+                                className="h-7 px-2 text-xs"
+                              >
+                                <Edit2 className="w-3 h-3 mr-1" />
+                                Edit
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleEditDraft(conn)}
+                              onClick={() => {
+                                const newExpanded = new Set(expandedDrafts);
+                                if (newExpanded.has(conn.connection_id)) {
+                                  newExpanded.delete(conn.connection_id);
+                                } else {
+                                  newExpanded.add(conn.connection_id);
+                                }
+                                setExpandedDrafts(newExpanded);
+                              }}
                               className="h-7 px-2 text-xs"
+                              title={expandedDrafts.has(conn.connection_id) ? "Collapse" : "Expand"}
                             >
-                              <Edit2 className="w-3 h-3 mr-1" />
-                              Edit
+                              {expandedDrafts.has(conn.connection_id) ? (
+                                <ChevronUp className="w-3 h-3" />
+                              ) : (
+                                <ChevronDown className="w-3 h-3" />
+                              )}
                             </Button>
-                          )}
+                          </div>
                         </div>
                         {editingDraft === conn.connection_id ? (
                           <div className="space-y-2">
@@ -451,32 +478,61 @@ export default function AdminConnectionsPage() {
                           </div>
                         ) : (
                           <>
-                            <div className="flex items-start justify-between gap-2">
-                              <p className="text-sm text-gray-800 whitespace-pre-wrap flex-1">
-                                {conn.draft_message}
-                              </p>
-                              {draftLocked && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleCopyDraft(conn.draft_message, conn.connection_id)}
-                                  className="h-7 px-2 text-xs flex-shrink-0"
-                                  title="Copy draft message"
-                                >
-                                  {copiedConnectionId === conn.connection_id ? (
-                                    <>
-                                      <CheckCircle className="w-3 h-3 mr-1 text-green-600" />
-                                      Copied
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Copy className="w-3 h-3 mr-1" />
-                                      Copy
-                                    </>
-                                  )}
-                                </Button>
-                              )}
-                            </div>
+                            {expandedDrafts.has(conn.connection_id) ? (
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="text-sm text-gray-800 whitespace-pre-wrap flex-1">
+                                  {conn.draft_message}
+                                </p>
+                                {draftLocked && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleCopyDraft(conn.draft_message, conn.connection_id)}
+                                    className="h-7 px-2 text-xs flex-shrink-0"
+                                    title="Copy draft message"
+                                  >
+                                    {copiedConnectionId === conn.connection_id ? (
+                                      <>
+                                        <CheckCircle className="w-3 h-3 mr-1 text-green-600" />
+                                        Copied
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Copy className="w-3 h-3 mr-1" />
+                                        Copy
+                                      </>
+                                    )}
+                                  </Button>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="text-sm text-gray-800 whitespace-pre-wrap flex-1 line-clamp-3">
+                                  {conn.draft_message}
+                                </p>
+                                {draftLocked && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleCopyDraft(conn.draft_message, conn.connection_id)}
+                                    className="h-7 px-2 text-xs flex-shrink-0"
+                                    title="Copy draft message"
+                                  >
+                                    {copiedConnectionId === conn.connection_id ? (
+                                      <>
+                                        <CheckCircle className="w-3 h-3 mr-1 text-green-600" />
+                                        Copied
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Copy className="w-3 h-3 mr-1" />
+                                        Copy
+                                      </>
+                                    )}
+                                  </Button>
+                                )}
+                              </div>
+                            )}
                             {conn.draft_generated_at && (
                               <p className="text-xs text-gray-500 mt-2">
                                 Generated: {new Date(conn.draft_generated_at).toLocaleString()}

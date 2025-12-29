@@ -4,6 +4,7 @@ import { requireAuth } from "@/app/lib/session";
 import { normalizeRole } from "@/app/lib/roleUtils";
 import { generateConnectionDraft } from "@/app/lib/aiDraftGenerator";
 import { connectionEventEmitter } from "@/app/lib/connectionEventEmitter";
+import { formatConnection } from "@/app/lib/formatConnection";
 
 /**
  * POST /api/admin/connections/[id]/generate-draft
@@ -116,20 +117,27 @@ export async function POST(request, { params }) {
         });
 
         // Update connection with draft
-        const updatedConnection = await updateConnection(connectionId, {
+        await updateConnection(connectionId, {
             draft_message: draftMessage,
             draft_generated_at: new Date().toISOString(),
             status: 'draft_generated'
         });
 
-        // Emit SSE event to notify client
-        connectionEventEmitter.emit(
-            connectionId,
-            'draft_generated',
-            updatedConnection,
-            session.clientId,
-            fromUserId // Notify the client who made the request
-        );
+        // Fetch and format updated connection with all fields
+        const rawUpdatedConnection = await findConnectionById(connectionId);
+        const formattedConnection = rawUpdatedConnection ? formatConnection(rawUpdatedConnection) : null;
+
+        // Emit SSE event to notify client and admin
+        if (formattedConnection) {
+            console.log('📤 Emitting draft_generated event:', connectionId);
+            connectionEventEmitter.emit(
+                connectionId,
+                'draft_generated',
+                formattedConnection,
+                session.clientId,
+                fromUserId // Notify the client who made the request
+            );
+        }
 
         return NextResponse.json({
             success: true,

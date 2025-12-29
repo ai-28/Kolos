@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-import { findRowsByProfileId, SHEETS, findRowById } from "@/app/lib/googleSheets";
+import { findRowsByProfileId, SHEETS, findRowById, findConnectionById } from "@/app/lib/googleSheets";
 import { appendConnectionToSheet } from "@/app/lib/appendConnectionToSheet";
 import { requireAuth } from "@/app/lib/session";
+import { connectionEventEmitter } from "@/app/lib/connectionEventEmitter";
+import { formatConnection } from "@/app/lib/formatConnection";
 
 /**
  * POST /api/deals/[id]/connect
@@ -155,6 +157,21 @@ export async function POST(request, { params }) {
 
         // Append to Connections sheet with proper column mapping
         await appendConnectionToSheet(connectionData);
+
+        // Fetch and format the created connection to emit with full data
+        const rawConnection = await findConnectionById(connectionId);
+        const formattedConnection = rawConnection ? formatConnection(rawConnection) : null;
+
+        // Emit SSE event for new connection
+        if (formattedConnection) {
+            console.log('📤 Emitting connection_created event:', connectionId);
+            connectionEventEmitter.emit(
+                connectionId,
+                'connection_created',
+                formattedConnection,
+                userId
+            );
+        }
 
         // Return connection info with decision maker details
         return NextResponse.json({
