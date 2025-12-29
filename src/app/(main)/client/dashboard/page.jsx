@@ -60,142 +60,16 @@ function ClientDashboardContent() {
   const [copiedConnectionId, setCopiedConnectionId] = useState(null)
   const [expandedDrafts, setExpandedDrafts] = useState(new Set())
 
-  useEffect(() => {
-    // Get client ID from session and fetch client data
-    fetchClientData()
-    // Fetch matched users for connections
-    fetchMatchedUsers()
-  }, [])
-
-  // Fetch connections when client is loaded
-  useEffect(() => {
-    if (client) {
-      fetchConnections()
-    }
-  }, [client, fetchConnections])
-
-  // Helper function to check if connection exists for a deal
-  const hasConnectionForDeal = (dealId) => {
-    if (!dealId || !connections || connections.length === 0) return false
-    return connections.some(conn => {
-      const connDealId = conn.deal_id || conn['deal_id']
-      return connDealId && String(connDealId).trim() === String(dealId).trim()
-    })
-  }
-
-  // Helper function to check if connection exists for a user
-  const hasConnectionForUser = (userId) => {
-    if (!userId || !connections || connections.length === 0) return false
-    return connections.some(conn => {
-      const connToUserId = conn.to_user_id || conn['to_user_id']
-      return connToUserId && String(connToUserId).trim() === String(userId).trim()
-    })
-  }
-
-  // Fetch user's connections - define this first
-  const fetchConnections = useCallback(async () => {
-    if (!client) return
-    
-    setLoadingConnections(true)
-    try {
-      const response = await fetch('/api/connections')
-      const data = await response.json()
-      
-      if (response.ok && data.success) {
-        setConnections(data.connections || [])
-      }
-    } catch (error) {
-      console.error('Error fetching connections:', error)
-    } finally {
-      setLoadingConnections(false)
-    }
-  }, [client])
-
-  // Handle real-time connection updates via SSE
-  const handleConnectionUpdate = useCallback((event) => {
-    console.log('📨 Client received connection update:', event);
-    
-    // Refresh connections list when any update occurs
-    fetchConnections();
-    
-    // Show toast notification based on event type
-    switch (event.type) {
-      case 'connection_created':
-        toast.success('Connection request created');
-        break;
-      case 'admin_approved':
-        toast.success('Your connection request was approved!');
-        break;
-      case 'draft_generated':
-        toast.success('Draft message is ready for review');
-        break;
-      case 'draft_updated':
-        toast.info('Draft message was updated');
-        break;
-      case 'client_approved':
-        toast.success('Draft approved');
-        break;
-      case 'final_approved':
-        toast.success('Connection finalized and locked');
-        break;
-      default:
-        break;
-    }
-  }, [fetchConnections]);
-
-  // Connect to SSE for real-time updates
-  const { isConnected, error: sseError } = useConnectionEvents(handleConnectionUpdate);
-
-  // Inactivity timeout - logout after 30 minutes of no activity
-  // Modern platforms use this to improve security
-  useEffect(() => {
-    let inactivityTimer
-    
-    const resetTimer = () => {
-      clearTimeout(inactivityTimer)
-      inactivityTimer = setTimeout(() => {
-        // Logout after 30 minutes of inactivity
-        console.log('⏰ Inactivity timeout - logging out')
-        fetch('/api/auth/logout', { method: 'POST' })
-          .then(() => {
-            router.push('/?timeout=true')
-          })
-          .catch((error) => {
-            console.error('Logout error:', error)
-            router.push('/')
-          })
-      }, 30 * 60 * 1000) // 30 minutes
-    }
-
-    // Reset timer on user activity
-    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click']
-    events.forEach(event => {
-      document.addEventListener(event, resetTimer, true)
-    })
-
-    resetTimer() // Start timer
-
-    return () => {
-      clearTimeout(inactivityTimer)
-      events.forEach(event => {
-        document.removeEventListener(event, resetTimer, true)
-      })
-    }
-  }, [router])
-
-
+  // Fetch client data - define FIRST before useEffect
   const fetchClientData = async () => {
     try {
       setLoading(true)
-      
-      // Get session to get client_id
-      console.log('🔍 Fetching session...')
-      const sessionResponse = await fetch('/api/auth/session')
+      console.log('🔍 Fetching session data...')
+      const sessionResponse = await fetch('/api/session')
       const sessionData = await sessionResponse.json()
-      
+
       if (!sessionResponse.ok || !sessionData.clientId) {
         console.error('❌ Session fetch failed:', {
-          ok: sessionResponse.ok,
           status: sessionResponse.status,
           error: sessionData.error,
           hasClientId: !!sessionData.clientId
@@ -292,9 +166,6 @@ function ClientDashboardContent() {
         console.error("Error fetching deals:", dealError)
         setDeals([])
       }
-
-      // Fetch connections after client data is loaded
-      // fetchConnections will be called after it's defined
     } catch (error) {
       console.error("Error fetching client data:", error)
       router.push('/')
@@ -303,7 +174,7 @@ function ClientDashboardContent() {
     }
   }
 
-  // Fetch matched users
+  // Fetch matched users - define BEFORE useEffect
   const fetchMatchedUsers = async () => {
     try {
       setLoadingMatches(true)
@@ -319,6 +190,129 @@ function ClientDashboardContent() {
       setLoadingMatches(false)
     }
   }
+
+  // Fetch user's connections - define BEFORE useEffect that uses it
+  const fetchConnections = useCallback(async () => {
+    if (!client) return
+    
+    setLoadingConnections(true)
+    try {
+      const response = await fetch('/api/connections')
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
+        setConnections(data.connections || [])
+      }
+    } catch (error) {
+      console.error('Error fetching connections:', error)
+    } finally {
+      setLoadingConnections(false)
+    }
+  }, [client])
+
+  useEffect(() => {
+    // Get client ID from session and fetch client data
+    fetchClientData()
+    // Fetch matched users for connections
+    fetchMatchedUsers()
+  }, [])
+
+  // Fetch connections when client is loaded
+  useEffect(() => {
+    if (client) {
+      fetchConnections()
+    }
+  }, [client, fetchConnections])
+
+  // Helper function to check if connection exists for a deal
+  const hasConnectionForDeal = (dealId) => {
+    if (!dealId || !connections || connections.length === 0) return false
+    return connections.some(conn => {
+      const connDealId = conn.deal_id || conn['deal_id']
+      return connDealId && String(connDealId).trim() === String(dealId).trim()
+    })
+  }
+
+  // Helper function to check if connection exists for a user
+  const hasConnectionForUser = (userId) => {
+    if (!userId || !connections || connections.length === 0) return false
+    return connections.some(conn => {
+      const connToUserId = conn.to_user_id || conn['to_user_id']
+      return connToUserId && String(connToUserId).trim() === String(userId).trim()
+    })
+  }
+
+  // Handle real-time connection updates via SSE
+  const handleConnectionUpdate = useCallback((event) => {
+    console.log('📨 Client received connection update:', event);
+    
+    // Refresh connections list when any update occurs
+    fetchConnections();
+    
+    // Show toast notification based on event type
+    switch (event.type) {
+      case 'connection_created':
+        toast.success('Connection request created');
+        break;
+      case 'admin_approved':
+        toast.success('Your connection request was approved!');
+        break;
+      case 'draft_generated':
+        toast.success('Draft message is ready for review');
+        break;
+      case 'draft_updated':
+        toast.info('Draft message was updated');
+        break;
+      case 'client_approved':
+        toast.success('Draft approved');
+        break;
+      case 'final_approved':
+        toast.success('Connection finalized and locked');
+        break;
+      default:
+        break;
+    }
+  }, [fetchConnections]);
+
+  // Connect to SSE for real-time updates
+  const { isConnected, error: sseError } = useConnectionEvents(handleConnectionUpdate);
+
+  // Inactivity timeout - logout after 30 minutes of no activity
+  // Modern platforms use this to improve security
+  useEffect(() => {
+    let inactivityTimer
+    
+    const resetTimer = () => {
+      clearTimeout(inactivityTimer)
+      inactivityTimer = setTimeout(() => {
+        // Logout after 30 minutes of inactivity
+        console.log('⏰ Inactivity timeout - logging out')
+        fetch('/api/auth/logout', { method: 'POST' })
+          .then(() => {
+            router.push('/?timeout=true')
+          })
+          .catch((error) => {
+            console.error('Logout error:', error)
+            router.push('/')
+          })
+      }, 30 * 60 * 1000) // 30 minutes
+    }
+
+    // Reset timer on user activity
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click']
+    events.forEach(event => {
+      document.addEventListener(event, resetTimer, true)
+    })
+
+    resetTimer() // Start timer
+
+    return () => {
+      clearTimeout(inactivityTimer)
+      events.forEach(event => {
+        document.removeEventListener(event, resetTimer, true)
+      })
+    }
+  }, [router])
 
   // Handle deal connection request
   const handleDealConnectionRequest = async (deal) => {
