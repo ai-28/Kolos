@@ -49,9 +49,6 @@ function ClientDashboardContent() {
   const [connectionType, setConnectionType] = useState('linkedin')
   const [connectionMessage, setConnectionMessage] = useState('')
   const [requestingConnection, setRequestingConnection] = useState(false)
-  const [matchedUsers, setMatchedUsers] = useState([])
-  const [loadingMatches, setLoadingMatches] = useState(false)
-  const [expandedContact, setExpandedContact] = useState(null)
   const [connections, setConnections] = useState([])
   const [loadingConnections, setLoadingConnections] = useState(false)
   const [approvingDraft, setApprovingDraft] = useState(null)
@@ -185,23 +182,6 @@ function ClientDashboardContent() {
     }
   }
 
-  // Fetch matched users - define BEFORE useEffect
-  const fetchMatchedUsers = async () => {
-    try {
-      setLoadingMatches(true)
-      const response = await fetch('/api/users/match?limit=5')
-      const data = await response.json()
-      
-      if (response.ok && data.success) {
-        setMatchedUsers(data.matches || [])
-      }
-    } catch (error) {
-      console.error('Error fetching matched users:', error)
-    } finally {
-      setLoadingMatches(false)
-    }
-  }
-
   // Fetch user's connections - define BEFORE useEffect that uses it
   const fetchConnections = useCallback(async () => {
     if (!client) return
@@ -224,8 +204,6 @@ function ClientDashboardContent() {
   useEffect(() => {
     // Get client ID from session and fetch client data
     fetchClientData()
-    // Fetch matched users for connections
-    fetchMatchedUsers()
   }, [])
 
   // Fetch connections when client is loaded
@@ -241,15 +219,6 @@ function ClientDashboardContent() {
     return connections.some(conn => {
       const connDealId = conn.deal_id || conn['deal_id']
       return connDealId && String(connDealId).trim() === String(dealId).trim()
-    })
-  }
-
-  // Helper function to check if connection exists for a user
-  const hasConnectionForUser = (userId) => {
-    if (!userId || !connections || connections.length === 0) return false
-    return connections.some(conn => {
-      const connToUserId = conn.to_user_id || conn['to_user_id']
-      return connToUserId && String(connToUserId).trim() === String(userId).trim()
     })
   }
 
@@ -401,39 +370,6 @@ function ClientDashboardContent() {
     }
   }
 
-  // Handle user connection request
-  const handleUserConnectionRequest = async (user) => {
-    setRequestingConnection(true)
-    try {
-      const response = await fetch('/api/connections/request', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          to_user_id: user.client_id,
-          message: `Interested in connecting based on our matching profile`,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create connection request')
-      }
-
-      toast.success(`Connection request sent to ${user.name}!`)
-      
-      // Refresh matches and connections
-      fetchMatchedUsers()
-      fetchConnections()
-    } catch (error) {
-      console.error('Error creating user connection:', error)
-      toast.error(error.message || 'Failed to create connection request')
-    } finally {
-      setRequestingConnection(false)
-    }
-  }
 
   // Handle approve draft
   const handleApproveDraft = async (connectionId) => {
@@ -2199,106 +2135,6 @@ console.log("client",client)
           </section>
           )}
 
-          {/* Suggested Connections */}
-          {!isEditing && matchedUsers.length > 0 && (
-            <section className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="suggested-connections">
-              <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
-                <span className="text-[#532418] text-[32px] font-marcellus">Suggested Connections</span>
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {matchedUsers.map((user) => (
-                  <Card key={user.client_id} className="bg-[#fffff4] border border-[#ffe0ccff] !shadow-none rounded-lg">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <h3 className="text-lg font-semibold text-[#0a3d3d] mb-1">
-                            {user.name}
-                          </h3>
-                          <p className="text-sm text-gray-600 mb-1">{user.company}</p>
-                          <p className="text-xs text-gray-500">{user.role}</p>
-                        </div>
-                        <Badge className="bg-[#c9a961] text-[#0a3d3d]">
-                          {user.match_score}% Match
-                        </Badge>
-                      </div>
-                      
-                      {user.match_reasons && user.match_reasons.length > 0 && (
-                        <div className="mb-3">
-                          <p className="text-xs font-medium text-gray-700 mb-1">Why we matched:</p>
-                          <ul className="text-xs text-gray-600 space-y-1">
-                            {user.match_reasons.slice(0, 2).map((reason, idx) => (
-                              <li key={idx}>• {reason}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      <div className="flex gap-2 mt-4 relative">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setExpandedContact(
-                            expandedContact === user.client_id ? null : user.client_id
-                          )}
-                          className="flex-1 text-xs border-[#0a3d3d] text-[#0a3d3d] hover:bg-[#0a3d3d]/10"
-                        >
-                          Contact
-                        </Button>
-                        {expandedContact === user.client_id && (
-                          <div className="absolute z-10 bottom-full mb-2 left-0 right-0 bg-white border border-gray-200 rounded-lg p-3 shadow-lg">
-                            {user.linkedin_url && (
-                              <a 
-                                href={user.linkedin_url} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-2 mb-2 text-sm text-blue-600 hover:text-blue-700"
-                              >
-                                <Linkedin className="w-4 h-4" />
-                                LinkedIn
-                              </a>
-                            )}
-                            {user.email && (
-                              <div className="flex items-center gap-2 text-sm text-gray-700">
-                                <Mail className="w-4 h-4" />
-                                {user.email}
-                              </div>
-                            )}
-                            {!user.linkedin_url && !user.email && (
-                              <p className="text-xs text-gray-500">No contact information available</p>
-                            )}
-                          </div>
-                        )}
-                        <Button
-                          size="sm"
-                          onClick={() => handleUserConnectionRequest(user)}
-                          disabled={requestingConnection || hasConnectionForUser(user.client_id)}
-                          className={`flex-1 text-xs ${
-                            hasConnectionForUser(user.client_id)
-                              ? "bg-gray-300 text-gray-600 cursor-not-allowed"
-                              : "bg-[#0a3d3d] hover:bg-[#083030] text-white"
-                          }`}
-                        >
-                          {requestingConnection ? (
-                            <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                          ) : hasConnectionForUser(user.client_id) ? (
-                            "Requested"
-                          ) : (
-                            "Make Request"
-                          )}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-              {loadingMatches && (
-                <div className="flex justify-center py-4">
-                  <Loader2 className="w-6 h-6 animate-spin text-[#0a3d3d]" />
-                </div>
-              )}
-            </section>
-          )}
-
           {/* My Connection Requests */}
           {!isEditing && (
             <section className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="connection-requests">
@@ -2312,7 +2148,7 @@ console.log("client",client)
               ) : connections.length === 0 ? (
                 <Card className="bg-[#fffff4] border border-[#ffe0ccff] !shadow-none">
                   <CardContent className="p-6 text-center">
-                    <p className="text-gray-500">No connection requests yet. Create one from a deal or suggested connection above.</p>
+                    <p className="text-gray-500">No connection requests yet. Create one from a deal above.</p>
                   </CardContent>
                 </Card>
               ) : (
