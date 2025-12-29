@@ -48,8 +48,19 @@ export async function POST(request, { params }) {
             );
         }
 
-        // Check if already approved
-        const clientApproved = connection.client_approved || connection['client_approved'] || connection['Client Approved'] || false;
+        // Helper function to convert Google Sheets boolean values to actual booleans
+        const toBoolean = (value) => {
+            if (value === true || value === false) return value;
+            if (typeof value === 'string') {
+                const lower = value.toLowerCase().trim();
+                return lower === 'true' || lower === '1' || lower === 'yes';
+            }
+            return false;
+        };
+
+        // Check if already approved - properly convert boolean value
+        const rawClientApproved = connection.client_approved || connection['client_approved'] || connection['Client Approved'] || false;
+        const clientApproved = toBoolean(rawClientApproved);
         if (clientApproved) {
             return NextResponse.json(
                 { error: "Draft already approved by client" },

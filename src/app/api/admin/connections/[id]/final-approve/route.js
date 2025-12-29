@@ -33,8 +33,19 @@ export async function POST(request, { params }) {
             );
         }
 
-        // Check if client has approved
-        const clientApproved = connection.client_approved || connection['client_approved'] || connection['Client Approved'] || false;
+        // Helper function to convert Google Sheets boolean values to actual booleans
+        const toBoolean = (value) => {
+            if (value === true || value === false) return value;
+            if (typeof value === 'string') {
+                const lower = value.toLowerCase().trim();
+                return lower === 'true' || lower === '1' || lower === 'yes';
+            }
+            return false;
+        };
+
+        // Check if client has approved - properly convert boolean value
+        const rawClientApproved = connection.client_approved || connection['client_approved'] || connection['Client Approved'] || false;
+        const clientApproved = toBoolean(rawClientApproved);
         if (!clientApproved) {
             return NextResponse.json(
                 { error: "Client must approve draft before final admin approval" },
@@ -42,8 +53,9 @@ export async function POST(request, { params }) {
             );
         }
 
-        // Check if already locked
-        const draftLocked = connection.draft_locked || connection['draft_locked'] || connection['Draft Locked'] || false;
+        // Check if already locked - properly convert boolean value
+        const rawDraftLocked = connection.draft_locked || connection['draft_locked'] || connection['Draft Locked'] || false;
+        const draftLocked = toBoolean(rawDraftLocked);
         if (draftLocked) {
             return NextResponse.json(
                 { error: "Draft is already locked" },

@@ -34,8 +34,19 @@ export async function POST(request, { params }) {
             );
         }
 
-        // Check if admin has approved
-        const adminApproved = connection.admin_approved || connection['admin_approved'] || connection['Admin Approved'] || false;
+        // Helper function to convert Google Sheets boolean values to actual booleans
+        const toBoolean = (value) => {
+            if (value === true || value === false) return value;
+            if (typeof value === 'string') {
+                const lower = value.toLowerCase().trim();
+                return lower === 'true' || lower === '1' || lower === 'yes';
+            }
+            return false;
+        };
+
+        // Check if admin has approved - properly convert boolean value
+        const rawAdminApproved = connection.admin_approved || connection['admin_approved'] || connection['Admin Approved'] || false;
+        const adminApproved = toBoolean(rawAdminApproved);
         if (!adminApproved) {
             return NextResponse.json(
                 { error: "Connection must be approved by admin before generating draft" },
