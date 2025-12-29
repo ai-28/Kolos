@@ -54,6 +54,8 @@ function ClientDashboardContent() {
   const [connections, setConnections] = useState([])
   const [loadingConnections, setLoadingConnections] = useState(false)
   const [approvingDraft, setApprovingDraft] = useState(null)
+  const [editingDraft, setEditingDraft] = useState(null)
+  const [draftEditText, setDraftEditText] = useState("")
 
   useEffect(() => {
     // Get client ID from session and fetch client data
@@ -391,6 +393,48 @@ function ClientDashboardContent() {
     } catch (error) {
       console.error('Error approving draft:', error)
       toast.error(error.message || 'Failed to approve draft')
+    } finally {
+      setApprovingDraft(null)
+    }
+  }
+
+  // Handle edit draft
+  const handleEditDraft = (conn) => {
+    setEditingDraft(conn.connection_id)
+    setDraftEditText(conn.draft_message || '')
+  }
+
+  const handleCancelEditDraft = () => {
+    setEditingDraft(null)
+    setDraftEditText("")
+  }
+
+  const handleSaveDraft = async (connectionId) => {
+    setApprovingDraft(connectionId)
+    try {
+      const response = await fetch(`/api/connections/${connectionId}/draft`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          draft_message: draftEditText,
+        }),
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update draft')
+      }
+      
+      toast.success('Draft updated successfully!')
+      setEditingDraft(null)
+      setDraftEditText("")
+      fetchConnections()
+    } catch (error) {
+      console.error('Error updating draft:', error)
+      toast.error(error.message || 'Failed to update draft')
     } finally {
       setApprovingDraft(null)
     }
@@ -2236,50 +2280,104 @@ console.log("client",client)
                           {/* Draft Message */}
                           {hasDraft && (
                             <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                              <div className="flex items-center gap-2 mb-2">
-                                <FileText className="w-4 h-4 text-blue-600" />
-                                <span className="text-sm font-medium text-blue-900">Draft Message:</span>
-                                {draftLocked && (
-                                  <Lock className="w-4 h-4 text-green-600" title="Draft Locked" />
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <FileText className="w-4 h-4 text-blue-600" />
+                                  <span className="text-sm font-medium text-blue-900">Draft Message:</span>
+                                  {draftLocked && (
+                                    <Lock className="w-4 h-4 text-green-600" title="Draft Locked" />
+                                  )}
+                                </div>
+                                {!draftLocked && editingDraft !== conn.connection_id && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEditDraft(conn)}
+                                    className="h-7 px-2 text-xs"
+                                  >
+                                    <Edit2 className="w-3 h-3 mr-1" />
+                                    Edit
+                                  </Button>
                                 )}
                               </div>
-                              <p className="text-sm text-gray-800 whitespace-pre-wrap mb-2">
-                                {conn.draft_message}
-                              </p>
-                              {conn.draft_generated_at && (
-                                <p className="text-xs text-gray-500 mb-2">
-                                  Generated: {new Date(conn.draft_generated_at).toLocaleString()}
-                                </p>
-                              )}
-                              {!clientApproved && !draftLocked && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleApproveDraft(conn.connection_id)}
-                                  disabled={isProcessing}
-                                  className="bg-green-600 hover:bg-green-700 text-white"
-                                >
-                                  {isProcessing ? (
-                                    <>
-                                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                      Approving...
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Check className="w-4 h-4 mr-2" />
-                                      Approve Draft
-                                    </>
+                              {editingDraft === conn.connection_id ? (
+                                <div className="space-y-2">
+                                  <textarea
+                                    value={draftEditText}
+                                    onChange={(e) => setDraftEditText(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-h-[120px]"
+                                    placeholder="Enter draft message..."
+                                  />
+                                  <div className="flex gap-2">
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleSaveDraft(conn.connection_id)}
+                                      disabled={isProcessing}
+                                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                                    >
+                                      {isProcessing ? (
+                                        <>
+                                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                          Saving...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Save className="w-4 h-4 mr-2" />
+                                          Save
+                                        </>
+                                      )}
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={handleCancelEditDraft}
+                                      disabled={isProcessing}
+                                    >
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  <p className="text-sm text-gray-800 whitespace-pre-wrap mb-2">
+                                    {conn.draft_message}
+                                  </p>
+                                  {conn.draft_generated_at && (
+                                    <p className="text-xs text-gray-500 mb-2">
+                                      Generated: {new Date(conn.draft_generated_at).toLocaleString()}
+                                    </p>
                                   )}
-                                </Button>
-                              )}
-                              {clientApproved && conn.client_approved_at && (
-                                <p className="text-xs text-green-600 mt-2">
-                                  ✓ Approved on {new Date(conn.client_approved_at).toLocaleString()}
-                                </p>
-                              )}
-                              {draftLocked && (
-                                <p className="text-xs text-green-600 mt-2">
-                                  🔒 Draft locked and finalized
-                                </p>
+                                  {!clientApproved && !draftLocked && (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleApproveDraft(conn.connection_id)}
+                                      disabled={isProcessing}
+                                      className="bg-green-600 hover:bg-green-700 text-white"
+                                    >
+                                      {isProcessing ? (
+                                        <>
+                                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                          Approving...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Check className="w-4 h-4 mr-2" />
+                                          Approve Draft
+                                        </>
+                                      )}
+                                    </Button>
+                                  )}
+                                  {clientApproved && conn.client_approved_at && (
+                                    <p className="text-xs text-green-600 mt-2">
+                                      ✓ Approved on {new Date(conn.client_approved_at).toLocaleString()}
+                                    </p>
+                                  )}
+                                  {draftLocked && (
+                                    <p className="text-xs text-green-600 mt-2">
+                                      🔒 Draft locked and finalized
+                                    </p>
+                                  )}
+                                </>
                               )}
                             </div>
                           )}

@@ -1,0 +1,81 @@
+import { NextResponse } from "next/server";
+import { findConnectionById, updateConnection } from "@/app/lib/googleSheets";
+import { requireAuth } from "@/app/lib/session";
+
+/**
+ * PATCH /api/connections/[id]/draft
+ * Update draft message (admin or client can edit)
+ */
+export async function PATCH(request, { params }) {
+    try {
+        const session = await requireAuth();
+        const { id } = await params;
+        const connectionId = id;
+
+        // Get updated draft message from request body
+        const { draft_message } = await request.json();
+
+        if (!draft_message || typeof draft_message !== 'string') {
+            return NextResponse.json(
+                { error: "draft_message is required and must be a string" },
+                { status: 400 }
+            );
+        }
+
+        // Find connection
+        const connection = await findConnectionById(connectionId);
+        if (!connection) {
+            return NextResponse.json(
+                { error: "Connection not found" },
+                { status: 404 }
+            );
+        }
+
+        // Check if draft is locked
+        const draftLocked = connection.draft_locked || connection['draft_locked'] || connection['Draft Locked'] || false;
+        if (draftLocked) {
+            return NextResponse.json(
+                { error: "Draft is locked and cannot be edited" },
+                { status: 400 }
+            );
+        }
+
+        // Check ownership: client can only edit their own connections
+        const fromUserId = connection.from_user_id || connection['from_user_id'] || connection['From User ID'];
+        const sessionClientId = session.clientId;
+        const userRole = session.role || '';
+
+        // Admin can edit any connection, client can only edit their own
+        const isAdmin = userRole && userRole.toLowerCase().includes('admin');
+        if (!isAdmin && fromUserId !== sessionClientId) {
+            return NextResponse.json(
+                { error: "Forbidden: You can only edit your own connections" },
+                { status: 403 }
+            );
+        }
+
+        // Update draft message
+        await updateConnection(connectionId, {
+            draft_message: draft_message.trim(),
+        });
+
+        return NextResponse.json({
+            success: true,
+            message: "Draft updated successfully",
+            connection_id: connectionId,
+        });
+    } catch (error) {
+        if (error.message === 'Unauthorized') {
+            return NextResponse.json(
+                { error: "Unauthorized" },
+                { status: 401 }
+            );
+        }
+        console.error("Error updating draft:", error);
+        return NextResponse.json(
+            { error: "Failed to update draft", details: error.message },
+            { status: 500 }
+        );
+    }
+}
+

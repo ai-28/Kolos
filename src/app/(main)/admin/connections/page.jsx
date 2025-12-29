@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
-import { Loader2, ArrowLeft, Check, X, FileText, Lock } from "lucide-react";
+import { Loader2, ArrowLeft, Check, X, FileText, Lock, Linkedin, Mail, Edit2, Save } from "lucide-react";
 import { toast } from "sonner";
 
 export default function AdminConnectionsPage() {
@@ -14,6 +14,13 @@ export default function AdminConnectionsPage() {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(null);
   const [filterStatus, setFilterStatus] = useState("all");
+  const [showLinkedInModal, setShowLinkedInModal] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [selectedConnection, setSelectedConnection] = useState(null);
+  const [dealData, setDealData] = useState(null);
+  const [loadingDeal, setLoadingDeal] = useState(false);
+  const [editingDraft, setEditingDraft] = useState(null);
+  const [draftEditText, setDraftEditText] = useState("");
 
   useEffect(() => {
     fetchConnections();
@@ -125,6 +132,103 @@ export default function AdminConnectionsPage() {
       return <Badge className="bg-yellow-600">Draft Ready</Badge>;
     }
     return <Badge className="bg-gray-600">Pending</Badge>;
+  };
+
+  const handleLinkedInClick = async (conn) => {
+    setSelectedConnection(conn);
+    
+    // If it's a deal connection, fetch deal data
+    if (conn.deal_id) {
+      setLoadingDeal(true);
+      try {
+        const response = await fetch(`/api/deals?profile_id=${conn.from_user_id}`);
+        const data = await response.json();
+        
+        if (response.ok && data.deals) {
+          const deal = data.deals.find(d => {
+            const dId = d.deal_id || d['deal_id'] || d.id || d['id'];
+            return dId && String(dId).trim() === String(conn.deal_id).trim();
+          });
+          setDealData(deal || null);
+        }
+      } catch (error) {
+        console.error("Error fetching deal:", error);
+        toast.error("Failed to load deal information");
+      } finally {
+        setLoadingDeal(false);
+      }
+    }
+    
+    setShowLinkedInModal(true);
+  };
+
+  const handleEmailClick = async (conn) => {
+    setSelectedConnection(conn);
+    
+    // If it's a deal connection, fetch deal data
+    if (conn.deal_id) {
+      setLoadingDeal(true);
+      try {
+        const response = await fetch(`/api/deals?profile_id=${conn.from_user_id}`);
+        const data = await response.json();
+        
+        if (response.ok && data.deals) {
+          const deal = data.deals.find(d => {
+            const dId = d.deal_id || d['deal_id'] || d.id || d['id'];
+            return dId && String(dId).trim() === String(conn.deal_id).trim();
+          });
+          setDealData(deal || null);
+        }
+      } catch (error) {
+        console.error("Error fetching deal:", error);
+        toast.error("Failed to load deal information");
+      } finally {
+        setLoadingDeal(false);
+      }
+    }
+    
+    setShowEmailModal(true);
+  };
+
+  const handleEditDraft = (conn) => {
+    setEditingDraft(conn.connection_id);
+    setDraftEditText(conn.draft_message || '');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingDraft(null);
+    setDraftEditText("");
+  };
+
+  const handleSaveDraft = async (connectionId) => {
+    setProcessing(connectionId);
+    try {
+      const response = await fetch(`/api/connections/${connectionId}/draft`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          draft_message: draftEditText,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to update draft");
+      }
+
+      toast.success("Draft updated successfully");
+      setEditingDraft(null);
+      setDraftEditText("");
+      fetchConnections();
+    } catch (error) {
+      console.error("Error updating draft:", error);
+      toast.error(error.message || "Failed to update draft");
+    } finally {
+      setProcessing(null);
+    }
   };
 
   return (
@@ -243,20 +347,71 @@ export default function AdminConnectionsPage() {
                     {/* Draft Message */}
                     {hasDraft && (
                       <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <div className="flex items-center gap-2 mb-2">
-                          <FileText className="w-4 h-4 text-blue-600" />
-                          <span className="font-medium text-blue-900">Draft Message:</span>
-                          {draftLocked && (
-                            <Lock className="w-4 h-4 text-green-600" title="Draft Locked" />
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-blue-600" />
+                            <span className="font-medium text-blue-900">Draft Message:</span>
+                            {draftLocked && (
+                              <Lock className="w-4 h-4 text-green-600" title="Draft Locked" />
+                            )}
+                          </div>
+                          {!draftLocked && editingDraft !== conn.connection_id && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditDraft(conn)}
+                              className="h-7 px-2 text-xs"
+                            >
+                              <Edit2 className="w-3 h-3 mr-1" />
+                              Edit
+                            </Button>
                           )}
                         </div>
-                        <p className="text-sm text-gray-800 whitespace-pre-wrap">
-                          {conn.draft_message}
-                        </p>
-                        {conn.draft_generated_at && (
-                          <p className="text-xs text-gray-500 mt-2">
-                            Generated: {new Date(conn.draft_generated_at).toLocaleString()}
-                          </p>
+                        {editingDraft === conn.connection_id ? (
+                          <div className="space-y-2">
+                            <textarea
+                              value={draftEditText}
+                              onChange={(e) => setDraftEditText(e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-h-[120px]"
+                              placeholder="Enter draft message..."
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => handleSaveDraft(conn.connection_id)}
+                                disabled={processing === conn.connection_id}
+                                className="bg-blue-600 hover:bg-blue-700"
+                              >
+                                {processing === conn.connection_id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    <Save className="w-4 h-4 mr-1" />
+                                    Save
+                                  </>
+                                )}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={handleCancelEdit}
+                                disabled={processing === conn.connection_id}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-sm text-gray-800 whitespace-pre-wrap">
+                              {conn.draft_message}
+                            </p>
+                            {conn.draft_generated_at && (
+                              <p className="text-xs text-gray-500 mt-2">
+                                Generated: {new Date(conn.draft_generated_at).toLocaleString()}
+                              </p>
+                            )}
+                          </>
                         )}
                       </div>
                     )}
@@ -324,23 +479,27 @@ export default function AdminConnectionsPage() {
                       )}
 
                       {/* Contact Info */}
-                      {(conn.to_user_linkedin || conn.to_user_email) && (
+                      {(conn.to_user_linkedin || conn.to_user_email || isDealConnection) && (
                         <div className="ml-auto flex gap-2">
-                          {conn.to_user_linkedin && (
+                          {(conn.to_user_linkedin || isDealConnection) && (
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => window.open(conn.to_user_linkedin, "_blank")}
+                              onClick={() => handleLinkedInClick(conn)}
+                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                             >
+                              <Linkedin className="w-4 h-4 mr-1" />
                               LinkedIn
                             </Button>
                           )}
-                          {conn.to_user_email && (
+                          {(conn.to_user_email || isDealConnection) && (
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => window.location.href = `mailto:${conn.to_user_email}`}
+                              onClick={() => handleEmailClick(conn)}
+                              className="text-green-600 hover:text-green-700 hover:bg-green-50"
                             >
+                              <Mail className="w-4 h-4 mr-1" />
                               Email
                             </Button>
                           )}
@@ -351,6 +510,306 @@ export default function AdminConnectionsPage() {
                 </Card>
               );
             })}
+          </div>
+        )}
+
+        {/* LinkedIn Modal */}
+        {showLinkedInModal && selectedConnection && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+            <Card className="w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+              <CardContent className="p-4 md:p-6">
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-semibold text-gray-900">
+                    Decision Makers - LinkedIn
+                  </h2>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setShowLinkedInModal(false);
+                      setSelectedConnection(null);
+                      setDealData(null);
+                    }}
+                    className="min-w-[44px] min-h-[44px]"
+                  >
+                    <X className="w-5 h-5" />
+                  </Button>
+                </div>
+
+                {loadingDeal ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {(() => {
+                      // For deal connections, show all decision makers
+                      if (selectedConnection.deal_id && dealData) {
+                        try {
+                          const allDecisionMakers = dealData.all_decision_makers 
+                            ? (typeof dealData.all_decision_makers === 'string' 
+                                ? JSON.parse(dealData.all_decision_makers) 
+                                : dealData.all_decision_makers)
+                            : [];
+                          
+                          if (!Array.isArray(allDecisionMakers) || allDecisionMakers.length === 0) {
+                            // Fallback to primary decision maker
+                            const primaryLinkedIn = dealData.decision_maker_linkedin_url || dealData['decision_maker_linkedin_url'] || '';
+                            if (primaryLinkedIn) {
+                              return (
+                                <div className="border rounded-lg p-4 bg-white border-gray-200">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="flex-1">
+                                      <h3 className="font-semibold text-gray-900 mb-2">
+                                        {dealData.decision_maker_name || dealData['decision_maker_name'] || "Unknown"}
+                                      </h3>
+                                      {dealData.decision_maker_role && (
+                                        <p className="text-sm text-gray-600 mb-2">{dealData.decision_maker_role}</p>
+                                      )}
+                                      <a
+                                        href={primaryLinkedIn}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 hover:text-blue-700 hover:underline text-sm flex items-center gap-1"
+                                      >
+                                        <Linkedin className="w-4 h-4" />
+                                        {primaryLinkedIn}
+                                      </a>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            }
+                            return (
+                              <div className="text-center py-8 text-gray-500">
+                                <p>No LinkedIn URLs found for this deal.</p>
+                              </div>
+                            );
+                          }
+
+                          return allDecisionMakers.map((dm, index) => {
+                            const linkedinUrl = dm.linkedin_url || dm["linkedin_url"] || "";
+                            
+                            if (!linkedinUrl) return null;
+                            
+                            return (
+                              <div
+                                key={index}
+                                className="border rounded-lg p-4 bg-white border-gray-200"
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex-1">
+                                    <h3 className="font-semibold text-gray-900 mb-2">
+                                      {dm.name || "Unknown"}
+                                    </h3>
+                                    {dm.role && (
+                                      <p className="text-sm text-gray-600 mb-2">{dm.role}</p>
+                                    )}
+                                    <a
+                                      href={linkedinUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-600 hover:text-blue-700 hover:underline text-sm flex items-center gap-1"
+                                    >
+                                      <Linkedin className="w-4 h-4" />
+                                      {linkedinUrl}
+                                    </a>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }).filter(Boolean);
+                        } catch (error) {
+                          console.error("Error parsing decision makers:", error);
+                          return (
+                            <div className="text-center py-8 text-red-500">
+                              <p>Error loading decision makers data.</p>
+                            </div>
+                          );
+                        }
+                      } else {
+                        // For user-to-user connections, show single LinkedIn
+                        const linkedinUrl = selectedConnection.to_user_linkedin || '';
+                        if (linkedinUrl) {
+                          return (
+                            <div className="border rounded-lg p-4 bg-white border-gray-200">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1">
+                                  <h3 className="font-semibold text-gray-900 mb-2">
+                                    {selectedConnection.to_user_name || "Unknown"}
+                                  </h3>
+                                  <a
+                                    href={linkedinUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:text-blue-700 hover:underline text-sm flex items-center gap-1"
+                                  >
+                                    <Linkedin className="w-4 h-4" />
+                                    {linkedinUrl}
+                                  </a>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div className="text-center py-8 text-gray-500">
+                            <p>No LinkedIn URL available.</p>
+                          </div>
+                        );
+                      }
+                    })()}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Email Modal */}
+        {showEmailModal && selectedConnection && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+            <Card className="w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+              <CardContent className="p-4 md:p-6">
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-semibold text-gray-900">
+                    Decision Makers - Email
+                  </h2>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setShowEmailModal(false);
+                      setSelectedConnection(null);
+                      setDealData(null);
+                    }}
+                    className="min-w-[44px] min-h-[44px]"
+                  >
+                    <X className="w-5 h-5" />
+                  </Button>
+                </div>
+
+                {loadingDeal ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {(() => {
+                      // For deal connections, show all decision makers
+                      if (selectedConnection.deal_id && dealData) {
+                        try {
+                          const allDecisionMakers = dealData.all_decision_makers 
+                            ? (typeof dealData.all_decision_makers === 'string' 
+                                ? JSON.parse(dealData.all_decision_makers) 
+                                : dealData.all_decision_makers)
+                            : [];
+                          
+                          if (!Array.isArray(allDecisionMakers) || allDecisionMakers.length === 0) {
+                            // Fallback to primary decision maker
+                            const primaryEmail = dealData.decision_maker_email || dealData['decision_maker_email'] || '';
+                            if (primaryEmail) {
+                              return (
+                                <div className="border rounded-lg p-4 bg-white border-gray-200">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="flex-1">
+                                      <h3 className="font-semibold text-gray-900 mb-2">
+                                        {dealData.decision_maker_name || dealData['decision_maker_name'] || "Unknown"}
+                                      </h3>
+                                      {dealData.decision_maker_role && (
+                                        <p className="text-sm text-gray-600 mb-2">{dealData.decision_maker_role}</p>
+                                      )}
+                                      <a
+                                        href={`mailto:${primaryEmail}`}
+                                        className="text-blue-600 hover:text-blue-700 hover:underline text-sm flex items-center gap-1"
+                                      >
+                                        <Mail className="w-4 h-4" />
+                                        {primaryEmail}
+                                      </a>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            }
+                            return (
+                              <div className="text-center py-8 text-gray-500">
+                                <p>No email addresses found for this deal.</p>
+                              </div>
+                            );
+                          }
+
+                          return allDecisionMakers.map((dm, index) => {
+                            const email = dm.email || dm["email"] || "";
+                            
+                            if (!email) return null;
+                            
+                            return (
+                              <div
+                                key={index}
+                                className="border rounded-lg p-4 bg-white border-gray-200"
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex-1">
+                                    <h3 className="font-semibold text-gray-900 mb-2">
+                                      {dm.name || "Unknown"}
+                                    </h3>
+                                    {dm.role && (
+                                      <p className="text-sm text-gray-600 mb-2">{dm.role}</p>
+                                    )}
+                                    <a
+                                      href={`mailto:${email}`}
+                                      className="text-blue-600 hover:text-blue-700 hover:underline text-sm flex items-center gap-1"
+                                    >
+                                      <Mail className="w-4 h-4" />
+                                      {email}
+                                    </a>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }).filter(Boolean);
+                        } catch (error) {
+                          console.error("Error parsing decision makers:", error);
+                          return (
+                            <div className="text-center py-8 text-red-500">
+                              <p>Error loading decision makers data.</p>
+                            </div>
+                          );
+                        }
+                      } else {
+                        // For user-to-user connections, show single email
+                        const email = selectedConnection.to_user_email || '';
+                        if (email) {
+                          return (
+                            <div className="border rounded-lg p-4 bg-white border-gray-200">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1">
+                                  <h3 className="font-semibold text-gray-900 mb-2">
+                                    {selectedConnection.to_user_name || "Unknown"}
+                                  </h3>
+                                  <a
+                                    href={`mailto:${email}`}
+                                    className="text-blue-600 hover:text-blue-700 hover:underline text-sm flex items-center gap-1"
+                                  >
+                                    <Mail className="w-4 h-4" />
+                                    {email}
+                                  </a>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div className="text-center py-8 text-gray-500">
+                            <p>No email address available.</p>
+                          </div>
+                        );
+                      }
+                    })()}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         )}
       </main>
