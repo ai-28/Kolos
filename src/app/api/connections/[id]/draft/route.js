@@ -71,8 +71,7 @@ export async function PATCH(request, { params }) {
             draft_message: draft_message.trim(),
         });
 
-        // Emit SSE event
-        const isAdmin = userRole && userRole.toLowerCase().includes('admin');
+        // Emit SSE event (reuse isAdmin from above)
         connectionEventEmitter.emit(
             connectionId,
             'draft_updated',
