@@ -122,7 +122,7 @@ function ClientDashboardContent() {
       default:
         break;
     }
-  }, []);
+  }, [fetchConnections]);
 
   // Connect to SSE for real-time updates
   const { isConnected, error: sseError } = useConnectionEvents(handleConnectionUpdate);
@@ -302,7 +302,7 @@ function ClientDashboardContent() {
   }
 
   // Fetch user's connections
-  const fetchConnections = async () => {
+  const fetchConnections = useCallback(async () => {
     if (!client) return
     
     setLoadingConnections(true)
@@ -318,7 +318,7 @@ function ClientDashboardContent() {
     } finally {
       setLoadingConnections(false)
     }
-  }
+  }, [client])
 
   // Handle deal connection request
   const handleDealConnectionRequest = async (deal) => {

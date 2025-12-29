@@ -52,18 +52,29 @@ export async function GET(request) {
               return;
             }
 
-            const fromUserId = connection.from_user_id || connection['from_user_id'] || connection['From User ID'];
-            const toUserId = connection.to_user_id || connection['to_user_id'] || connection['To User ID'];
+            const fromUserId = connection.from_user_id || connection['from_user_id'] || connection['From User ID'] || '';
+            const toUserId = connection.to_user_id || connection['to_user_id'] || connection['To User ID'] || '';
 
             // Admin sees all events
             // Clients only see events for their own connections (where they are the requester)
-            const shouldReceiveEvent = isAdmin || fromUserId === userId;
-            
+            const shouldReceiveEvent = isAdmin || (fromUserId && String(fromUserId).trim() === String(userId).trim());
+
+            console.log(`🔍 Event filter check:`, {
+              eventType: event.type,
+              connectionId: event.connection_id,
+              userId,
+              isAdmin,
+              fromUserId,
+              toUserId,
+              shouldReceiveEvent,
+              connectionKeys: Object.keys(connection)
+            });
+
             if (shouldReceiveEvent) {
-              console.log(`📤 Sending SSE event to ${isAdmin ? 'admin' : 'client'} ${userId}:`, event.type);
+              console.log(`📤 Sending SSE event to ${isAdmin ? 'admin' : 'client'} ${userId}:`, event.type, `(connection: ${event.connection_id})`);
               sendEvent(event);
             } else {
-              console.log(`⏭️ Filtered out event for user ${userId} (not admin and not owner)`);
+              console.log(`⏭️ Filtered out event for user ${userId} (not admin and not owner). fromUserId: ${fromUserId}, userId: ${userId}`);
             }
           } catch (error) {
             console.error('Error processing connection event:', error);

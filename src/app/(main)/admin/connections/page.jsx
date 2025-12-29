@@ -59,12 +59,10 @@ export default function AdminConnectionsPage() {
       default:
         break;
     }
-  }, []);
+  }, [fetchConnections]);
 
   // Connect to SSE for real-time updates
-  const { isConnected, error: sseError } = useConnectionEvents(handleConnectionUpdate);
-
-  const fetchConnections = async () => {
+  const fetchConnections = useCallback(async () => {
     try {
       setLoading(true);
       const url = filterStatus !== "all" 
@@ -85,7 +83,9 @@ export default function AdminConnectionsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterStatus]);
+
+  const { isConnected, error: sseError } = useConnectionEvents(handleConnectionUpdate);
 
   const handleApprove = async (connectionId) => {
     setProcessing(connectionId);
