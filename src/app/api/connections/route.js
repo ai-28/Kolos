@@ -49,9 +49,25 @@ export async function GET(request) {
             });
         }
 
+        // Helper function to convert Google Sheets boolean values to actual booleans
+        const toBoolean = (value) => {
+            if (value === true || value === false) return value;
+            if (typeof value === 'string') {
+                const lower = value.toLowerCase().trim();
+                return lower === 'true' || lower === '1' || lower === 'yes';
+            }
+            return false;
+        };
+
         // Format connections for response
         const formattedConnections = filteredConnections.map(conn => {
             const isFromUser = (conn.from_user_id || conn['from_user_id'] || conn['From User ID']) === userId;
+            
+            // Get raw values for boolean fields
+            const rawAdminApproved = conn.admin_approved || conn['admin_approved'] || conn['Admin Approved'] || false;
+            const rawClientApproved = conn.client_approved || conn['client_approved'] || conn['Client Approved'] || false;
+            const rawAdminFinalApproved = conn.admin_final_approved || conn['admin_final_approved'] || conn['Admin Final Approved'] || false;
+            const rawDraftLocked = conn.draft_locked || conn['draft_locked'] || conn['Draft Locked'] || false;
             
             return {
                 connection_id: conn.connection_id || conn['connection_id'] || conn['Connection ID'],
@@ -61,14 +77,14 @@ export async function GET(request) {
                 connection_type: conn.connection_type || conn['connection_type'] || conn['Connection Type'],
                 status: conn.status || conn['status'] || conn['Status'],
                 requested_at: conn.requested_at || conn['requested_at'] || conn['Requested At'],
-                // New draft workflow fields
-                admin_approved: conn.admin_approved || conn['admin_approved'] || conn['Admin Approved'] || false,
+                // New draft workflow fields - properly convert boolean values
+                admin_approved: toBoolean(rawAdminApproved),
                 draft_message: conn.draft_message || conn['draft_message'] || conn['Draft Message'] || '',
                 draft_generated_at: conn.draft_generated_at || conn['draft_generated_at'] || conn['Draft Generated At'] || '',
-                client_approved: conn.client_approved || conn['client_approved'] || conn['Client Approved'] || false,
+                client_approved: toBoolean(rawClientApproved),
                 client_approved_at: conn.client_approved_at || conn['client_approved_at'] || conn['Client Approved At'] || '',
-                admin_final_approved: conn.admin_final_approved || conn['admin_final_approved'] || conn['Admin Final Approved'] || false,
-                draft_locked: conn.draft_locked || conn['draft_locked'] || conn['Draft Locked'] || false,
+                admin_final_approved: toBoolean(rawAdminFinalApproved),
+                draft_locked: toBoolean(rawDraftLocked),
                 client_goals: conn.client_goals || conn['client_goals'] || conn['Client Goals'] || '',
                 related_signal_id: conn.related_signal_id || conn['related_signal_id'] || conn['Related Signal ID'] || '',
                 // Other user's info
