@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent } from "@/app/components/ui/card";
-import { Loader2, ArrowLeft, User } from "lucide-react";
+import { Loader2, ArrowLeft, User, MessageSquare } from "lucide-react";
 import { normalizeRole } from "@/app/lib/roleUtils";
 
 export default function Dashboard() {
@@ -99,6 +99,15 @@ export default function Dashboard() {
               <h1 className="text-2xl font-bold text-gray-900">Client Dashboard</h1>
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push("/admin/connections")}
+                className="flex items-center gap-2"
+              >
+                <MessageSquare className="w-4 h-4" />
+                Connection Requests
+              </Button>
               <span className="text-sm text-gray-500">
                 {clients.length} {clients.length === 1 ? "client" : "clients"}
               </span>

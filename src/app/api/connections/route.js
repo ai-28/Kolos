@@ -60,12 +60,17 @@ export async function GET(request) {
                 deal_id: conn.deal_id || conn['deal_id'] || conn['Deal ID'],
                 connection_type: conn.connection_type || conn['connection_type'] || conn['Connection Type'],
                 status: conn.status || conn['status'] || conn['Status'],
-                message: conn.message || conn['message'] || conn['Message'],
                 requested_at: conn.requested_at || conn['requested_at'] || conn['Requested At'],
-                accepted_at: conn.accepted_at || conn['accepted_at'] || conn['Accepted At'],
-                linkedin_clicked: conn.linkedin_clicked || conn['linkedin_clicked'] || conn['LinkedIn Clicked'],
-                email_sent: conn.email_sent || conn['email_sent'] || conn['Email Sent'],
-                user_marked_connected: conn.user_marked_connected || conn['user_marked_connected'] || conn['User Marked Connected'],
+                // New draft workflow fields
+                admin_approved: conn.admin_approved || conn['admin_approved'] || conn['Admin Approved'] || false,
+                draft_message: conn.draft_message || conn['draft_message'] || conn['Draft Message'] || '',
+                draft_generated_at: conn.draft_generated_at || conn['draft_generated_at'] || conn['Draft Generated At'] || '',
+                client_approved: conn.client_approved || conn['client_approved'] || conn['Client Approved'] || false,
+                client_approved_at: conn.client_approved_at || conn['client_approved_at'] || conn['Client Approved At'] || '',
+                admin_final_approved: conn.admin_final_approved || conn['admin_final_approved'] || conn['Admin Final Approved'] || false,
+                draft_locked: conn.draft_locked || conn['draft_locked'] || conn['Draft Locked'] || false,
+                client_goals: conn.client_goals || conn['client_goals'] || conn['Client Goals'] || '',
+                related_signal_id: conn.related_signal_id || conn['related_signal_id'] || conn['Related Signal ID'] || '',
                 // Other user's info
                 other_user_name: isFromUser 
                     ? (conn.to_user_name || conn['to_user_name'] || conn['To User Name'])

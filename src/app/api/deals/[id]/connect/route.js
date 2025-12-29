@@ -21,14 +21,6 @@ export async function POST(request, { params }) {
         }
 
         const body = await request.json();
-        const { connection_type, message } = body;
-
-        if (!connection_type || !['linkedin', 'email', 'both'].includes(connection_type)) {
-            return NextResponse.json(
-                { error: "connection_type must be 'linkedin', 'email', or 'both'" },
-                { status: 400 }
-            );
-        }
 
         // Get user's deals
         const deals = await findRowsByProfileId(SHEETS.DEALS, userId);
@@ -106,7 +98,23 @@ export async function POST(request, { params }) {
         // Generate connection ID
         const connectionId = `conn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-        // Create connection row
+        // Auto-detect connection_type based on available contact info
+        const hasLinkedIn = deal.decision_maker_linkedin_url || deal['decision_maker_linkedin_url'];
+        const hasEmail = deal.decision_maker_email || deal['decision_maker_email'];
+
+        let autoConnectionType = '';
+        if (hasLinkedIn && hasEmail) {
+            autoConnectionType = 'both';
+        } else if (hasLinkedIn) {
+            autoConnectionType = 'linkedin';
+        } else if (hasEmail) {
+            autoConnectionType = 'email';
+        }
+
+        // Get client goals for AI context
+        const clientGoals = fromUser.goals || fromUser['goals'] || '';
+
+        // Create connection row with new schema
         const connectionRow = [
             connectionId,
             userId,
@@ -118,14 +126,18 @@ export async function POST(request, { params }) {
             deal.decision_maker_linkedin_url || deal['decision_maker_linkedin_url'] || '',
             fromUser.email || fromUser['email'] || '',
             deal.decision_maker_email || deal['decision_maker_email'] || '',
-            connection_type,
-            'pending',
-            message || `Interested in connecting regarding: ${deal.deal_name || deal['deal_name'] || 'this opportunity'}`,
-            new Date().toISOString(),
-            '', // accepted_at
-            false, // linkedin_clicked
-            false, // email_sent
-            false, // user_marked_connected
+            autoConnectionType, // Auto-detected
+            'pending', // status
+            new Date().toISOString(), // requested_at
+            false, // admin_approved
+            '', // draft_message
+            '', // draft_generated_at
+            false, // client_approved
+            '', // client_approved_at
+            false, // admin_final_approved
+            false, // draft_locked
+            clientGoals, // client_goals
+            '', // related_signal_id
         ];
 
         // Append to Connections sheet
@@ -146,7 +158,7 @@ export async function POST(request, { params }) {
                 linkedin_url: decisionMakerLinkedIn,
                 email: decisionMakerEmail,
             },
-            connection_type,
+            connection_type: autoConnectionType,
             message: "Connection request created successfully",
         });
     } catch (error) {

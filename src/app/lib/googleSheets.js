@@ -589,5 +589,117 @@ export async function findConnectionsByDealId(dealId) {
     }
 }
 
+/**
+ * Update connection row by connection_id
+ */
+export async function updateConnection(connectionId, updates) {
+    try {
+        if (!SPREADSHEET_ID) {
+            throw new Error('GOOGLE_SHEET_ID environment variable is not set');
+        }
+
+        const sheets = getSheetsClient();
+        const connections = await getSheetData(SHEETS.CONNECTIONS);
+
+        // Find connection by connection_id
+        const connectionIndex = connections.findIndex(conn => {
+            const connId = conn.connection_id || conn['connection_id'] || conn['Connection ID'];
+            return connId && String(connId).trim() === String(connectionId).trim();
+        });
+
+        if (connectionIndex === -1) {
+            throw new Error(`Connection not found: ${connectionId}`);
+        }
+
+        // Get headers
+        const headersResponse = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${SHEETS.CONNECTIONS}!1:1`,
+        });
+        const headers = headersResponse.data.values?.[0] || [];
+
+        // Helper function to convert column index to letter
+        const getColumnLetter = (index) => {
+            let result = '';
+            while (index >= 0) {
+                result = String.fromCharCode(65 + (index % 26)) + result;
+                index = Math.floor(index / 26) - 1;
+            }
+            return result;
+        };
+
+        // Map updates to column indices
+        const updateRequests = [];
+        for (const [field, value] of Object.entries(updates)) {
+            const columnIndex = headers.findIndex(
+                h => h && h.toLowerCase() === field.toLowerCase()
+            );
+
+            if (columnIndex !== -1) {
+                const rowNumber = connectionIndex + 2; // +2 because: 1 for header, 1 for 0-based index
+                const columnLetter = getColumnLetter(columnIndex);
+
+                updateRequests.push({
+                    range: `${SHEETS.CONNECTIONS}!${columnLetter}${rowNumber}`,
+                    values: [[value !== null && value !== undefined ? value : '']],
+                });
+            }
+        }
+
+        if (updateRequests.length === 0) {
+            throw new Error('No valid fields to update');
+        }
+
+        // Batch update
+        await sheets.spreadsheets.values.batchUpdate({
+            spreadsheetId: SPREADSHEET_ID,
+            resource: {
+                valueInputOption: 'USER_ENTERED',
+                data: updateRequests,
+            },
+        });
+
+        // Fetch and return updated connection
+        const updatedConnections = await getSheetData(SHEETS.CONNECTIONS);
+        const updatedConnection = updatedConnections.find(conn => {
+            const connId = conn.connection_id || conn['connection_id'] || conn['Connection ID'];
+            return connId && String(connId).trim() === String(connectionId).trim();
+        });
+
+        return updatedConnection;
+    } catch (error) {
+        console.error('Error updating connection:', error);
+        throw error;
+    }
+}
+
+/**
+ * Find connection by connection_id
+ */
+export async function findConnectionById(connectionId) {
+    try {
+        const data = await getSheetData(SHEETS.CONNECTIONS);
+        return data.find(conn => {
+            const connId = conn.connection_id || conn['connection_id'] || conn['Connection ID'];
+            return connId && String(connId).trim() === String(connectionId).trim();
+        }) || null;
+    } catch (error) {
+        console.error('Error finding connection by ID:', error);
+        throw error;
+    }
+}
+
+/**
+ * Get all connections (for admin)
+ */
+export async function getAllConnections() {
+    try {
+        return await getSheetData(SHEETS.CONNECTIONS);
+    } catch (error) {
+        console.error('Error getting all connections:', error);
+        throw error;
+    }
+}
+
 export { SHEETS };
 

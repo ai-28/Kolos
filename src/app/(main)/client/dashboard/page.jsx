@@ -7,7 +7,7 @@ import { Button } from "@/app/components/ui/button"
 import { Card, CardContent } from "@/app/components/ui/card"
 import {KolosLogo} from "@/app/components/svg"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, Loader2, Edit2, Save, X, Trash2, Menu, Linkedin, Mail } from "lucide-react"
+import { ArrowLeft, Loader2, Edit2, Save, X, Trash2, Menu, Linkedin, Mail, FileText, Check, Lock } from "lucide-react"
 import { toast } from "sonner"
 import { DashboardIcon, BusinessGoalsIcon,SignalsIcon, IndustryFocusIcon, BusinessMatchIcon, BusinessRequestsIcon,TravelPlanIcon, UpcomingEventIcon } from "@/app/components/svg"
 import Image from "next/image"
@@ -50,6 +50,10 @@ function ClientDashboardContent() {
   const [requestingConnection, setRequestingConnection] = useState(false)
   const [matchedUsers, setMatchedUsers] = useState([])
   const [loadingMatches, setLoadingMatches] = useState(false)
+  const [expandedContact, setExpandedContact] = useState(null)
+  const [connections, setConnections] = useState([])
+  const [loadingConnections, setLoadingConnections] = useState(false)
+  const [approvingDraft, setApprovingDraft] = useState(null)
 
   useEffect(() => {
     // Get client ID from session and fetch client data
@@ -57,6 +61,13 @@ function ClientDashboardContent() {
     // Fetch matched users for connections
     fetchMatchedUsers()
   }, [])
+
+  // Fetch connections when client is loaded
+  useEffect(() => {
+    if (client) {
+      fetchConnections()
+    }
+  }, [client])
 
   // Inactivity timeout - logout after 30 minutes of no activity
   // Modern platforms use this to improve security
@@ -204,6 +215,9 @@ function ClientDashboardContent() {
         console.error("Error fetching deals:", dealError)
         setDeals([])
       }
+
+      // Fetch connections after client data is loaded
+      // fetchConnections will be called after it's defined
     } catch (error) {
       console.error("Error fetching client data:", error)
       router.push('/')
@@ -229,11 +243,60 @@ function ClientDashboardContent() {
     }
   }
 
+  // Fetch user's connections
+  const fetchConnections = async () => {
+    if (!client) return
+    
+    setLoadingConnections(true)
+    try {
+      const response = await fetch('/api/connections')
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
+        setConnections(data.connections || [])
+      }
+    } catch (error) {
+      console.error('Error fetching connections:', error)
+    } finally {
+      setLoadingConnections(false)
+    }
+  }
+
   // Handle deal connection request
-  const handleDealConnection = async (deal) => {
-    setSelectedDealForConnection(deal)
-    setShowConnectionModal(true)
-    setConnectionMessage(`Interested in connecting regarding: ${deal.deal_name || deal['deal_name'] || 'this opportunity'}`)
+  const handleDealConnectionRequest = async (deal) => {
+    setRequestingConnection(true)
+    try {
+      const dealId = deal.deal_id || deal['deal_id'] || deal.id || deal['id']
+      
+      if (!dealId) {
+        throw new Error('Deal ID not found')
+      }
+
+      const response = await fetch('/api/connections/request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          deal_id: dealId,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create connection request')
+      }
+
+      toast.success('Connection request created successfully!')
+      // Refresh connections to show new request
+      fetchConnections()
+    } catch (error) {
+      console.error('Error creating connection request:', error)
+      toast.error(error.message || 'Failed to create connection request')
+    } finally {
+      setRequestingConnection(false)
+    }
   }
 
   // Submit connection request
@@ -276,7 +339,7 @@ function ClientDashboardContent() {
   }
 
   // Handle user connection request
-  const handleUserConnection = async (user, type = 'linkedin') => {
+  const handleUserConnectionRequest = async (user) => {
     setRequestingConnection(true)
     try {
       const response = await fetch('/api/connections/request', {
@@ -286,7 +349,6 @@ function ClientDashboardContent() {
         },
         body: JSON.stringify({
           to_user_id: user.client_id,
-          connection_type: type,
           message: `Interested in connecting based on our matching profile`,
         }),
       })
@@ -299,20 +361,38 @@ function ClientDashboardContent() {
 
       toast.success(`Connection request sent to ${user.name}!`)
       
-      // If LinkedIn, open the LinkedIn URL
-      if (type === 'linkedin' || type === 'both') {
-        if (user.linkedin_url) {
-          window.open(user.linkedin_url, '_blank')
-        }
-      }
-      console.log("user",user)
-      // Refresh matches
+      // Refresh matches and connections
       fetchMatchedUsers()
+      fetchConnections()
     } catch (error) {
       console.error('Error creating user connection:', error)
       toast.error(error.message || 'Failed to create connection request')
     } finally {
       setRequestingConnection(false)
+    }
+  }
+
+  // Handle approve draft
+  const handleApproveDraft = async (connectionId) => {
+    setApprovingDraft(connectionId)
+    try {
+      const response = await fetch(`/api/connections/${connectionId}/approve-draft`, {
+        method: 'POST',
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to approve draft')
+      }
+      
+      toast.success('Draft approved successfully!')
+      fetchConnections()
+    } catch (error) {
+      console.error('Error approving draft:', error)
+      toast.error(error.message || 'Failed to approve draft')
+    } finally {
+      setApprovingDraft(null)
     }
   }
 
@@ -2034,34 +2114,53 @@ console.log("client",client)
                         </div>
                       )}
 
-                      <div className="flex gap-2 mt-4">
-                        {user.linkedin_url && (
-                          <Button
-                            size="sm"
-                            onClick={() => handleUserConnection(user, 'linkedin')}
-                            disabled={requestingConnection}
-                            className="flex-1 bg-[#0a3d3d] hover:bg-[#083030] text-white text-xs"
-                          >
-                            {requestingConnection ? (
-                              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                            ) : (
-                              <Linkedin className="w-3 h-3 mr-1" />
+                      <div className="flex gap-2 mt-4 relative">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setExpandedContact(
+                            expandedContact === user.client_id ? null : user.client_id
+                          )}
+                          className="flex-1 text-xs border-[#0a3d3d] text-[#0a3d3d] hover:bg-[#0a3d3d]/10"
+                        >
+                          Contact
+                        </Button>
+                        {expandedContact === user.client_id && (
+                          <div className="absolute z-10 bottom-full mb-2 left-0 right-0 bg-white border border-gray-200 rounded-lg p-3 shadow-lg">
+                            {user.linkedin_url && (
+                              <a 
+                                href={user.linkedin_url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 mb-2 text-sm text-blue-600 hover:text-blue-700"
+                              >
+                                <Linkedin className="w-4 h-4" />
+                                LinkedIn
+                              </a>
                             )}
-                            Connect
-                          </Button>
+                            {user.email && (
+                              <div className="flex items-center gap-2 text-sm text-gray-700">
+                                <Mail className="w-4 h-4" />
+                                {user.email}
+                              </div>
+                            )}
+                            {!user.linkedin_url && !user.email && (
+                              <p className="text-xs text-gray-500">No contact information available</p>
+                            )}
+                          </div>
                         )}
-                        {user.email && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleUserConnection(user, 'email')}
-                            disabled={requestingConnection}
-                            className="flex-1 text-xs border-[#0a3d3d] text-[#0a3d3d] hover:bg-[#0a3d3d]/10"
-                          >
-                            <Mail className="w-3 h-3 mr-1" />
-                            Email
-                          </Button>
-                        )}
+                        <Button
+                          size="sm"
+                          onClick={() => handleUserConnectionRequest(user)}
+                          disabled={requestingConnection}
+                          className="flex-1 bg-[#0a3d3d] hover:bg-[#083030] text-white text-xs"
+                        >
+                          {requestingConnection ? (
+                            <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                          ) : (
+                            "Make Request"
+                          )}
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -2070,6 +2169,137 @@ console.log("client",client)
               {loadingMatches && (
                 <div className="flex justify-center py-4">
                   <Loader2 className="w-6 h-6 animate-spin text-[#0a3d3d]" />
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* My Connection Requests */}
+          {!isEditing && (
+            <section className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="connection-requests">
+              <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
+                <span className="text-[#532418] text-[32px] font-marcellus">My Connection Requests</span>
+              </h2>
+              {loadingConnections ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-[#0a3d3d]" />
+                </div>
+              ) : connections.length === 0 ? (
+                <Card className="bg-[#fffff4] border border-[#ffe0ccff] !shadow-none">
+                  <CardContent className="p-6 text-center">
+                    <p className="text-gray-500">No connection requests yet. Create one from a deal or suggested connection above.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-4">
+                  {connections.map((conn) => {
+                    const hasDraft = conn.draft_message && conn.draft_message.trim() !== ''
+                    const clientApproved = conn.client_approved || false
+                    const draftLocked = conn.draft_locked || false
+                    const status = conn.status || 'pending'
+                    const isProcessing = approvingDraft === conn.connection_id
+                    
+                    const getStatusBadge = () => {
+                      if (draftLocked) {
+                        return <Badge className="bg-green-600 text-white">Approved & Locked</Badge>
+                      }
+                      if (clientApproved) {
+                        return <Badge className="bg-blue-600 text-white">Waiting for Admin</Badge>
+                      }
+                      if (hasDraft) {
+                        return <Badge className="bg-yellow-600 text-white">Draft Ready</Badge>
+                      }
+                      if (status === 'admin_approved') {
+                        return <Badge className="bg-purple-600 text-white">Draft Pending</Badge>
+                      }
+                      return <Badge className="bg-gray-600 text-white">Pending</Badge>
+                    }
+                    
+                    return (
+                      <Card key={conn.connection_id} className="bg-[#fffff4] border border-[#ffe0ccff] !shadow-none">
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              <h3 className="text-lg font-semibold text-[#0a3d3d] mb-1">
+                                {conn.other_user_name || 'Unknown'}
+                              </h3>
+                              <p className="text-sm text-gray-600 mb-1">
+                                {conn.deal_id ? 'Deal Connection' : 'User Connection'}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Requested: {conn.requested_at ? new Date(conn.requested_at).toLocaleString() : 'N/A'}
+                              </p>
+                            </div>
+                            {getStatusBadge()}
+                          </div>
+                          
+                          {/* Draft Message */}
+                          {hasDraft && (
+                            <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                              <div className="flex items-center gap-2 mb-2">
+                                <FileText className="w-4 h-4 text-blue-600" />
+                                <span className="text-sm font-medium text-blue-900">Draft Message:</span>
+                                {draftLocked && (
+                                  <Lock className="w-4 h-4 text-green-600" title="Draft Locked" />
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-800 whitespace-pre-wrap mb-2">
+                                {conn.draft_message}
+                              </p>
+                              {conn.draft_generated_at && (
+                                <p className="text-xs text-gray-500 mb-2">
+                                  Generated: {new Date(conn.draft_generated_at).toLocaleString()}
+                                </p>
+                              )}
+                              {!clientApproved && !draftLocked && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleApproveDraft(conn.connection_id)}
+                                  disabled={isProcessing}
+                                  className="bg-green-600 hover:bg-green-700 text-white"
+                                >
+                                  {isProcessing ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                      Approving...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Check className="w-4 h-4 mr-2" />
+                                      Approve Draft
+                                    </>
+                                  )}
+                                </Button>
+                              )}
+                              {clientApproved && conn.client_approved_at && (
+                                <p className="text-xs text-green-600 mt-2">
+                                  ✓ Approved on {new Date(conn.client_approved_at).toLocaleString()}
+                                </p>
+                              )}
+                              {draftLocked && (
+                                <p className="text-xs text-green-600 mt-2">
+                                  🔒 Draft locked and finalized
+                                </p>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Status message for pending */}
+                          {!hasDraft && status === 'pending' && (
+                            <p className="text-sm text-gray-600 italic">
+                              Waiting for admin approval...
+                            </p>
+                          )}
+                          
+                          {!hasDraft && status === 'admin_approved' && (
+                            <p className="text-sm text-gray-600 italic">
+                              Admin approved. Draft generation in progress...
+                            </p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
                 </div>
               )}
             </section>
@@ -2293,45 +2523,18 @@ console.log("client",client)
                                 <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm">
                                   <div className="flex items-center gap-1">
                                     <Button
-                                      variant="ghost"
+                                      variant="outline"
                                       size="sm"
-                                      onClick={() => {
-                                        setSelectedDealForModal(deal)
-                                        setShowLinkedInModal(true)
-                                      }}
-                                      disabled={!dealId}
-                                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 min-h-[44px] min-w-[44px]"
-                                      title="View LinkedIn URLs"
+                                      onClick={() => handleDealConnectionRequest(deal)}
+                                      disabled={!dealId || requestingConnection}
+                                      className="bg-[#0a3d3d] hover:bg-[#083030] text-white min-h-[44px] text-xs"
                                     >
-                                      <span className="text-xs font-semibold">L</span>
+                                      {requestingConnection ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                      ) : (
+                                        "Connection Request"
+                                      )}
                                     </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => {
-                                        setSelectedDealForModal(deal)
-                                        setShowEmailModal(true)
-                                      }}
-                                      disabled={!dealId}
-                                      className="text-green-600 hover:text-green-700 hover:bg-green-50 min-h-[44px] min-w-[44px]"
-                                      title="View Email Addresses"
-                                    >
-                                      <span className="text-xs font-semibold">E</span>
-                                    </Button>
-                                    {/* C button temporarily hidden
-                                    {(deal.decision_maker_linkedin_url || deal['decision_maker_linkedin_url'] || deal.decision_maker_email || deal['decision_maker_email']) && (
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleDealConnection(deal)}
-                                        disabled={!dealId || requestingConnection}
-                                        className="text-purple-600 hover:text-purple-700 hover:bg-purple-50 min-h-[44px] min-w-[44px]"
-                                        title="Request Connection"
-                                      >
-                                        <span className="text-xs font-semibold">C</span>
-                                      </Button>
-                                    )}
-                                    */}
                                     <Button
                                       variant="ghost"
                                       size="sm"
