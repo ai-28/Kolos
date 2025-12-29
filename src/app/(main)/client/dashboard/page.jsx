@@ -72,7 +72,7 @@ function ClientDashboardContent() {
     if (client) {
       fetchConnections()
     }
-  }, [client])
+  }, [client, fetchConnections])
 
   // Helper function to check if connection exists for a deal
   const hasConnectionForDeal = (dealId) => {
@@ -91,6 +91,25 @@ function ClientDashboardContent() {
       return connToUserId && String(connToUserId).trim() === String(userId).trim()
     })
   }
+
+  // Fetch user's connections - define this first
+  const fetchConnections = useCallback(async () => {
+    if (!client) return
+    
+    setLoadingConnections(true)
+    try {
+      const response = await fetch('/api/connections')
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
+        setConnections(data.connections || [])
+      }
+    } catch (error) {
+      console.error('Error fetching connections:', error)
+    } finally {
+      setLoadingConnections(false)
+    }
+  }, [client])
 
   // Handle real-time connection updates via SSE
   const handleConnectionUpdate = useCallback((event) => {
@@ -300,25 +319,6 @@ function ClientDashboardContent() {
       setLoadingMatches(false)
     }
   }
-
-  // Fetch user's connections
-  const fetchConnections = useCallback(async () => {
-    if (!client) return
-    
-    setLoadingConnections(true)
-    try {
-      const response = await fetch('/api/connections')
-      const data = await response.json()
-      
-      if (response.ok && data.success) {
-        setConnections(data.connections || [])
-      }
-    } catch (error) {
-      console.error('Error fetching connections:', error)
-    } finally {
-      setLoadingConnections(false)
-    }
-  }, [client])
 
   // Handle deal connection request
   const handleDealConnectionRequest = async (deal) => {
