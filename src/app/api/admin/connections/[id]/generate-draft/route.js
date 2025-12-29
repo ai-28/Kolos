@@ -124,8 +124,13 @@ export async function POST(request, { params }) {
             );
         }
         console.error("Error generating draft:", error);
+        console.error("Error stack:", error.stack);
         return NextResponse.json(
-            { error: "Failed to generate draft", details: error.message },
+            { 
+                error: "Failed to generate draft", 
+                details: error.message,
+                ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
+            },
             { status: 500 }
         );
     }

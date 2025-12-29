@@ -82,7 +82,25 @@ export async function appendToSheet(sheetName, values) {
             throw new Error('GOOGLE_SHEET_ID environment variable is not set');
         }
 
+        // Validate values array is not empty
+        if (!values || !Array.isArray(values) || values.length === 0) {
+            throw new Error(`Cannot append empty values array to ${sheetName}`);
+        }
+
+        // Validate first value is not empty (critical for Connections sheet)
+        if (sheetName === SHEETS.CONNECTIONS && (!values[0] || values[0].toString().trim() === '')) {
+            throw new Error(`First field (connection_id) cannot be empty when appending to ${sheetName}`);
+        }
+
         const sheets = getSheetsClient();
+
+        // Log what we're appending (first few fields for debugging)
+        console.log(`📤 Appending to ${sheetName}:`, {
+            totalFields: values.length,
+            firstField: values[0],
+            secondField: values[1],
+            thirdField: values[2]
+        });
 
         // Append will automatically find the next empty row after existing data
         // Using A:AZ range to cover all columns we might write to (including 27th column AA)
@@ -97,6 +115,7 @@ export async function appendToSheet(sheetName, values) {
         });
 
         console.log(`✅ Successfully appended row to ${sheetName} sheet`);
+        console.log(`   First field written: ${values[0]}`);
         return { success: true, response };
     } catch (error) {
         console.error(`❌ Error appending to ${sheetName}:`, error);
@@ -104,6 +123,8 @@ export async function appendToSheet(sheetName, values) {
             message: error.message,
             code: error.code,
             response: error.response?.data,
+            valuesLength: values?.length,
+            firstValue: values?.[0]
         });
         throw error;
     }

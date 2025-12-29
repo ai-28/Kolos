@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { findRowsByProfileId, SHEETS, appendToSheet, findRowById } from "@/app/lib/googleSheets";
+import { findRowsByProfileId, SHEETS, findRowById } from "@/app/lib/googleSheets";
+import { appendConnectionToSheet } from "@/app/lib/appendConnectionToSheet";
 import { requireAuth } from "@/app/lib/session";
 
 /**
@@ -98,6 +99,11 @@ export async function POST(request, { params }) {
         // Generate connection ID
         const connectionId = `conn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
+        // Validate connection ID was generated
+        if (!connectionId || connectionId.trim() === '') {
+            throw new Error('Failed to generate connection ID');
+        }
+
         // Auto-detect connection_type based on available contact info
         const hasLinkedIn = deal.decision_maker_linkedin_url || deal['decision_maker_linkedin_url'];
         const hasEmail = deal.decision_maker_email || deal['decision_maker_email'];
@@ -114,44 +120,46 @@ export async function POST(request, { params }) {
         // Get client goals for AI context
         const clientGoals = fromUser.goals || fromUser['goals'] || '';
 
-        // Create connection row with new schema
-        const connectionRow = [
+        // Prepare connection data object (will be mapped to correct columns)
+        const connectionData = {
+            connection_id: connectionId,
+            from_user_id: userId || '',
+            to_user_id: '', // empty for deal connections
+            deal_id: dealId || '',
+            from_user_name: fromUser.name || fromUser['name'] || '',
+            to_user_name: deal.decision_maker_name || deal['decision_maker_name'] || '',
+            from_user_linkedin: fromUser.linkedin_url || fromUser['linkedin_url'] || '',
+            to_user_linkedin: deal.decision_maker_linkedin_url || deal['decision_maker_linkedin_url'] || '',
+            from_user_email: fromUser.email || fromUser['email'] || '',
+            to_user_email: deal.decision_maker_email || deal['decision_maker_email'] || '',
+            connection_type: autoConnectionType,
+            status: 'pending',
+            requested_at: new Date().toISOString(),
+            admin_approved: false,
+            draft_message: '',
+            draft_generated_at: '',
+            client_approved: false,
+            client_approved_at: '',
+            admin_final_approved: false,
+            draft_locked: false,
+            client_goals: clientGoals || '',
+            related_signal_id: '',
+        };
+
+        // Log for debugging
+        console.log('📝 Creating deal connection:', {
             connectionId,
             userId,
-            '', // to_user_id (empty for deal connections)
-            dealId,
-            fromUser.name || fromUser['name'] || '',
-            deal.decision_maker_name || deal['decision_maker_name'] || '',
-            fromUser.linkedin_url || fromUser['linkedin_url'] || '',
-            deal.decision_maker_linkedin_url || deal['decision_maker_linkedin_url'] || '',
-            fromUser.email || fromUser['email'] || '',
-            deal.decision_maker_email || deal['decision_maker_email'] || '',
-            autoConnectionType, // Auto-detected
-            'pending', // status
-            new Date().toISOString(), // requested_at
-            false, // admin_approved
-            '', // draft_message
-            '', // draft_generated_at
-            false, // client_approved
-            '', // client_approved_at
-            false, // admin_final_approved
-            false, // draft_locked
-            clientGoals, // client_goals
-            '', // related_signal_id
-        ];
+            dealId
+        });
 
-        // Append to Connections sheet
-        await appendToSheet(SHEETS.CONNECTIONS, connectionRow);
-
-        const connectionData = {
-            success: true,
-            connection_id: connectionId,
-        };
+        // Append to Connections sheet with proper column mapping
+        await appendConnectionToSheet(connectionData);
 
         // Return connection info with decision maker details
         return NextResponse.json({
             success: true,
-            connection_id: connectionData.connection_id,
+            connection_id: connectionId,
             decision_maker: {
                 name: deal.decision_maker_name || deal['decision_maker_name'] || '',
                 role: deal.decision_maker_role || deal['decision_maker_role'] || '',

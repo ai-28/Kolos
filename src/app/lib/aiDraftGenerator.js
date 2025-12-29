@@ -99,21 +99,43 @@ Requirements:
 Generate ONLY the message text, no greetings, no signatures, no markdown formatting. Just the body of the message.
 `;
 
-        const completion = await client.chat.completions.create({
-            model: "gpt-5.2",
-            messages: [
-                {
-                    role: "system",
-                    content: "You are a professional business development assistant specializing in creating personalized B2B connection messages. You create concise, compelling, and authentic messages that drive meaningful business connections."
-                },
-                {
-                    role: "user",
-                    content: prompt
-                }
-            ],
-            temperature: 0.7,
-            max_tokens: 500,
-        });
+        let completion;
+        try {
+            // Try gpt-4o first (latest and most capable)
+            completion = await client.chat.completions.create({
+                model: "gpt-4o",
+                messages: [
+                    {
+                        role: "system",
+                        content: "You are a professional business development assistant specializing in creating personalized B2B connection messages. You create concise, compelling, and authentic messages that drive meaningful business connections."
+                    },
+                    {
+                        role: "user",
+                        content: prompt
+                    }
+                ],
+                temperature: 0.7,
+                max_tokens: 500,
+            });
+        } catch (modelError) {
+            // Fallback to gpt-4-turbo if gpt-4o is not available
+            console.warn('gpt-4o not available, falling back to gpt-4-turbo:', modelError.message);
+            completion = await client.chat.completions.create({
+                model: "gpt-4-turbo",
+                messages: [
+                    {
+                        role: "system",
+                        content: "You are a professional business development assistant specializing in creating personalized B2B connection messages. You create concise, compelling, and authentic messages that drive meaningful business connections."
+                    },
+                    {
+                        role: "user",
+                        content: prompt
+                    }
+                ],
+                temperature: 0.7,
+                max_tokens: 500,
+            });
+        }
 
         const draftMessage = completion.choices[0].message.content.trim();
 
@@ -124,6 +146,10 @@ Generate ONLY the message text, no greetings, no signatures, no markdown formatt
         return draftMessage;
     } catch (error) {
         console.error('Error generating connection draft:', error);
+        // Provide more detailed error message
+        if (error.response) {
+            throw new Error(`Failed to generate draft: ${error.response.status} - ${error.response.data?.error?.message || error.message}`);
+        }
         throw new Error(`Failed to generate draft: ${error.message}`);
     }
 }

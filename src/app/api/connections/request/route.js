@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { appendToSheet, findRowById, findConnectionBetweenUsers, SHEETS } from "@/app/lib/googleSheets";
+import { findRowById, findConnectionBetweenUsers, SHEETS } from "@/app/lib/googleSheets";
+import { appendConnectionToSheet } from "@/app/lib/appendConnectionToSheet";
 import { requireAuth } from "@/app/lib/session";
 
 /**
@@ -50,7 +51,7 @@ export async function POST(request) {
             const existingConnection = await findConnectionBetweenUsers(fromUserId, to_user_id);
             if (existingConnection) {
                 return NextResponse.json(
-                    { 
+                    {
                         error: "Connection already exists",
                         connection_id: existingConnection.connection_id || existingConnection['connection_id'],
                     },
@@ -87,8 +88,13 @@ export async function POST(request) {
         // Generate connection ID
         const connectionId = `conn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
+        // Validate connection ID was generated
+        if (!connectionId || connectionId.trim() === '') {
+            throw new Error('Failed to generate connection ID');
+        }
+
         // Auto-detect connection_type based on available contact info
-        const hasLinkedIn = toUser 
+        const hasLinkedIn = toUser
             ? (toUser.linkedin_url || toUser['linkedin_url'])
             : (deal ? (deal.decision_maker_linkedin_url || deal['decision_maker_linkedin_url']) : false);
         const hasEmail = toUser
@@ -107,34 +113,42 @@ export async function POST(request) {
         // Get client goals for AI context
         const clientGoals = fromUser.goals || fromUser['goals'] || '';
 
-        // Create connection row with new schema
-        const connectionRow = [
+        // Prepare connection data object (will be mapped to correct columns)
+        const connectionData = {
+            connection_id: connectionId,
+            from_user_id: fromUserId || '',
+            to_user_id: to_user_id || '',
+            deal_id: deal_id || '',
+            from_user_name: fromUser.name || fromUser['name'] || '',
+            to_user_name: toUser ? (toUser.name || toUser['name'] || '') : (deal ? (deal.decision_maker_name || deal['decision_maker_name'] || '') : ''),
+            from_user_linkedin: fromUser.linkedin_url || fromUser['linkedin_url'] || '',
+            to_user_linkedin: toUser ? (toUser.linkedin_url || toUser['linkedin_url'] || '') : (deal ? (deal.decision_maker_linkedin_url || deal['decision_maker_linkedin_url'] || '') : ''),
+            from_user_email: fromUser.email || fromUser['email'] || '',
+            to_user_email: toUser ? (toUser.email || toUser['email'] || '') : (deal ? (deal.decision_maker_email || deal['decision_maker_email'] || '') : ''),
+            connection_type: autoConnectionType,
+            status: 'pending',
+            requested_at: new Date().toISOString(),
+            admin_approved: false,
+            draft_message: '',
+            draft_generated_at: '',
+            client_approved: false,
+            client_approved_at: '',
+            admin_final_approved: false,
+            draft_locked: false,
+            client_goals: clientGoals || '',
+            related_signal_id: '',
+        };
+
+        // Log for debugging
+        console.log('📝 Creating connection:', {
             connectionId,
             fromUserId,
-            to_user_id || '',
-            deal_id || '',
-            fromUser.name || fromUser['name'] || '',
-            toUser ? (toUser.name || toUser['name'] || '') : (deal ? (deal.decision_maker_name || deal['decision_maker_name'] || '') : ''),
-            fromUser.linkedin_url || fromUser['linkedin_url'] || '',
-            toUser ? (toUser.linkedin_url || toUser['linkedin_url'] || '') : (deal ? (deal.decision_maker_linkedin_url || deal['decision_maker_linkedin_url'] || '') : ''),
-            fromUser.email || fromUser['email'] || '',
-            toUser ? (toUser.email || toUser['email'] || '') : (deal ? (deal.decision_maker_email || deal['decision_maker_email'] || '') : ''),
-            autoConnectionType, // Auto-detected
-            'pending', // status
-            new Date().toISOString(), // requested_at
-            false, // admin_approved
-            '', // draft_message
-            '', // draft_generated_at
-            false, // client_approved
-            '', // client_approved_at
-            false, // admin_final_approved
-            false, // draft_locked
-            clientGoals, // client_goals
-            '', // related_signal_id
-        ];
+            deal_id: deal_id || null,
+            to_user_id: to_user_id || null
+        });
 
-        // Append to Connections sheet
-        await appendToSheet(SHEETS.CONNECTIONS, connectionRow);
+        // Append to Connections sheet with proper column mapping
+        await appendConnectionToSheet(connectionData);
 
         return NextResponse.json({
             success: true,

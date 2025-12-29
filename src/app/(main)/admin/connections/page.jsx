@@ -75,7 +75,10 @@ export default function AdminConnectionsPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to generate draft");
+        const errorMsg = data.details 
+          ? `${data.error}: ${data.details}` 
+          : data.error || "Failed to generate draft";
+        throw new Error(errorMsg);
       }
 
       toast.success("Draft generated successfully");
