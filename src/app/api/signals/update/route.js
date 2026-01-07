@@ -672,6 +672,7 @@ REMEMBER: Your response must be ONLY valid JSON starting with { and ending with 
                     signal.overall || '',
                     signal.next_step || '',
                     signal.estimated_target_value_USD || '',
+                    'Draft', // Default status to Draft
                 ];
 
                 try {

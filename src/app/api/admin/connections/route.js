@@ -52,6 +52,30 @@ export async function GET(request) {
             });
         }
 
+        // Get deals data for deal_name lookup
+        const { getSheetData } = await import("@/app/lib/googleSheets");
+        let dealsMap = new Map();
+        const dealIds = [...new Set(filteredConnections
+            .map(conn => conn.deal_id || conn['deal_id'] || conn['Deal ID'])
+            .filter(Boolean)
+        )];
+
+        if (dealIds.length > 0) {
+            try {
+                // Fetch all deals once
+                const allDeals = await getSheetData(SHEETS.DEALS);
+                // Create a map of deal_id -> deal
+                allDeals.forEach(deal => {
+                    const dId = deal.deal_id || deal['deal_id'] || deal.id || deal['id'];
+                    if (dId) {
+                        dealsMap.set(String(dId).trim(), deal);
+                    }
+                });
+            } catch (error) {
+                console.error('Error fetching deals for deal_name lookup:', error);
+            }
+        }
+
         // Helper function to convert Google Sheets boolean values to actual booleans
         const toBoolean = (value) => {
             if (value === true || value === false) return value;
@@ -64,17 +88,22 @@ export async function GET(request) {
 
         // Format connections for response
         const formattedConnections = filteredConnections.map(conn => {
+            const dealId = conn.deal_id || conn['deal_id'] || conn['Deal ID'];
+            const deal = dealId ? dealsMap.get(String(dealId).trim()) : null;
+            const dealName = deal ? (deal.deal_name || deal['deal_name'] || '') : '';
+
             // Get raw values for boolean fields
             const rawAdminApproved = conn.admin_approved || conn['admin_approved'] || conn['Admin Approved'] || false;
             const rawClientApproved = conn.client_approved || conn['client_approved'] || conn['Client Approved'] || false;
             const rawAdminFinalApproved = conn.admin_final_approved || conn['admin_final_approved'] || conn['Admin Final Approved'] || false;
             const rawDraftLocked = conn.draft_locked || conn['draft_locked'] || conn['Draft Locked'] || false;
-            
+
             return {
                 connection_id: conn.connection_id || conn['connection_id'] || conn['Connection ID'],
                 from_user_id: conn.from_user_id || conn['from_user_id'] || conn['From User ID'],
                 to_user_id: conn.to_user_id || conn['to_user_id'] || conn['To User ID'],
-                deal_id: conn.deal_id || conn['deal_id'] || conn['Deal ID'],
+                deal_id: dealId,
+                deal_name: dealName, // Include deal_name in response
                 from_user_name: conn.from_user_name || conn['from_user_name'] || conn['From User Name'],
                 to_user_name: conn.to_user_name || conn['to_user_name'] || conn['To User Name'],
                 from_user_email: conn.from_user_email || conn['from_user_email'] || conn['From User Email'],

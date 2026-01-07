@@ -386,7 +386,7 @@ export default function AdminConnectionsPage() {
                         </div>
                         <p className="text-sm text-gray-600 mb-1">
                           <span className="font-medium">To:</span>{" "}
-                          {conn.to_user_name || "Unknown"}
+                          {conn.to_user_name || conn.deal_name || "Unknown"}
                           {isDealConnection && (
                             <span className="text-gray-500"> (Deal Connection)</span>
                           )}
@@ -764,7 +764,7 @@ export default function AdminConnectionsPage() {
                               <div className="flex items-start justify-between gap-3">
                                 <div className="flex-1">
                                   <h3 className="font-semibold text-gray-900 mb-2">
-                                    {selectedConnection.to_user_name || "Unknown"}
+                                    {selectedConnection.to_user_name || selectedConnection.deal_name || "Unknown"}
                                   </h3>
                                   <a
                                     href={linkedinUrl}
@@ -913,7 +913,7 @@ export default function AdminConnectionsPage() {
                               <div className="flex items-start justify-between gap-3">
                                 <div className="flex-1">
                                   <h3 className="font-semibold text-gray-900 mb-2">
-                                    {selectedConnection.to_user_name || "Unknown"}
+                                    {selectedConnection.to_user_name || selectedConnection.deal_name || "Unknown"}
                                   </h3>
                                   <a
                                     href={`mailto:${email}`}

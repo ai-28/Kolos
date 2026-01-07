@@ -674,12 +674,13 @@ REMEMBER: Your response must be ONLY valid JSON starting with { and ending with 
             signal.overall || '',
             signal.next_step || '',
             signal.estimated_target_value_USD || '',
+            'Draft', // Default status to Draft
         ];
 
         try {
             await sheets.spreadsheets.values.append({
                 spreadsheetId: SPREADSHEET_ID,
-                range: `${SHEETS.SIGNALS}!A:I`,
+                range: `${SHEETS.SIGNALS}!A:J`,
                 valueInputOption: 'USER_ENTERED',
                 resource: {
                     values: [signalRow],

@@ -48,6 +48,7 @@ function ClientDashboardContent() {
   const [selectedDealForConnection, setSelectedDealForConnection] = useState(null)
   const [connectionType, setConnectionType] = useState('linkedin')
   const [connectionMessage, setConnectionMessage] = useState('')
+  const [expandedNextSteps, setExpandedNextSteps] = useState(new Set())
   const [requestingConnection, setRequestingConnection] = useState(false)
   const [connections, setConnections] = useState([])
   const [loadingConnections, setLoadingConnections] = useState(false)
@@ -2092,14 +2093,40 @@ console.log("client",client)
                           </div>
 
                           {/* Next Step */}
-                          {signal.next_step && (
-                            <div className="pt-4 border-t border-gray-200">
-                              <div className="text-[#67534F] mb-2 text-sm font-medium">Next Step</div>
-                              <div className="text-[#532418] bg-[#faf1dc] p-3 rounded-md">
-                                {signal.next_step}
+                          {signal.next_step && (() => {
+                            const isExpanded = expandedNextSteps.has(index)
+                            // Show expand button if text is likely longer than 2 lines (~120-150 chars)
+                            const shouldShowExpand = signal.next_step.length > 120
+                            
+                            return (
+                              <div className="pt-4 border-t border-gray-200">
+                                <div className="text-[#67534F] mb-2 text-sm font-medium">Next Step</div>
+                                <div className="text-[#532418] bg-[#faf1dc] p-3 rounded-md">
+                                  <div 
+                                    className={isExpanded ? '' : 'line-clamp-2'}
+                                  >
+                                    {signal.next_step}
+                                  </div>
+                                  {shouldShowExpand && (
+                                    <button
+                                      onClick={() => {
+                                        const newExpanded = new Set(expandedNextSteps)
+                                        if (isExpanded) {
+                                          newExpanded.delete(index)
+                                        } else {
+                                          newExpanded.add(index)
+                                        }
+                                        setExpandedNextSteps(newExpanded)
+                                      }}
+                                      className="mt-2 text-xs text-[#c9a961] hover:text-[#532418] hover:underline font-medium transition-colors"
+                                    >
+                                      {isExpanded ? 'Collapse' : 'Expand'}
+                                    </button>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          )}
+                            )
+                          })()}
 
                           {/* Create Deal Button */}
                           <div className="pt-3 sm:pt-4 border-t border-gray-200">
@@ -2118,7 +2145,7 @@ console.log("client",client)
                               }}
                               className="bg-[#0a3d3d] hover:bg-[#0a3d3d]/90 text-white w-full sm:w-auto min-h-[44px] text-sm sm:text-base"
                             >
-                              Activate Kolos
+                              Add to Deals
                             </Button>
                           </div>
                         </div>
@@ -2160,6 +2187,46 @@ console.log("client",client)
                     const status = conn.status || 'pending'
                     const isProcessing = approvingDraft === conn.connection_id
                     
+                    // Get display name with fallback to deal name or signal title
+                    const getDisplayName = () => {
+                      // First try other_user_name
+                      if (conn.other_user_name) {
+                        return conn.other_user_name
+                      }
+                      
+                      // Try deal_name from connection (added by API)
+                      if (conn.deal_name) {
+                        return conn.deal_name
+                      }
+                      
+                      // If deal connection, try to find deal name from deals array
+                      const dealId = conn.deal_id || conn['deal_id']
+                      if (dealId) {
+                        const deal = deals.find(d => {
+                          const dId = d.deal_id || d['deal_id'] || d.id || d['id']
+                          return dId && String(dId).trim() === String(dealId).trim()
+                        })
+                        if (deal && (deal.deal_name || deal['deal_name'])) {
+                          return deal.deal_name || deal['deal_name']
+                        }
+                      }
+                      
+                      // If signal connection, try to find signal headline
+                      // Note: related_signal_id might not directly map to signals array
+                      // But we can check if there's a signal with matching headline
+                      const signalId = conn.related_signal_id || conn['related_signal_id']
+                      if (signalId && signals.length > 0) {
+                        // Try to find signal by checking if any signal matches
+                        const signal = signals.find(s => s.headline_source)
+                        if (signal && signal.headline_source) {
+                          return signal.headline_source
+                        }
+                      }
+                      
+                      // Final fallback - should never reach here with proper deal_name in API
+                      return 'Unknown'
+                    }
+                    
                     const getStatusBadge = () => {
                       if (draftLocked) {
                         return <Badge className="bg-green-600 text-white">Approved & Locked</Badge>
@@ -2182,7 +2249,7 @@ console.log("client",client)
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex-1">
                               <h3 className="text-lg font-semibold text-[#0a3d3d] mb-1">
-                                {conn.other_user_name || 'Unknown'}
+                                {getDisplayName()}
                               </h3>
                               <p className="text-sm text-gray-600 mb-1">
                                 {conn.deal_id ? 'Deal Connection' : 'User Connection'}
@@ -3084,7 +3151,7 @@ console.log("client",client)
                           {editingDeal ? 'Updating...' : 'Creating...'}
                         </>
                       ) : (
-                        editingDeal ? 'Update Deal' : 'Activate Kolos'
+                        editingDeal ? 'Update Deal' : 'Create Deal'
                       )}
                     </Button>
                     <Button

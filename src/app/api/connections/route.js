@@ -59,21 +59,49 @@ export async function GET(request) {
             return false;
         };
 
+        // Get deals data for deal_name lookup
+        const { findRowsByProfileId } = await import("@/app/lib/googleSheets");
+        let dealsMap = new Map();
+        const dealIds = [...new Set(filteredConnections
+            .map(conn => conn.deal_id || conn['deal_id'] || conn['Deal ID'])
+            .filter(Boolean)
+        )];
+
+        if (dealIds.length > 0) {
+            try {
+                // Fetch all deals for this user once
+                const deals = await findRowsByProfileId(SHEETS.DEALS, userId);
+                // Create a map of deal_id -> deal
+                deals.forEach(deal => {
+                    const dId = deal.deal_id || deal['deal_id'] || deal.id || deal['id'];
+                    if (dId) {
+                        dealsMap.set(String(dId).trim(), deal);
+                    }
+                });
+            } catch (error) {
+                console.error('Error fetching deals for deal_name lookup:', error);
+            }
+        }
+
         // Format connections for response
         const formattedConnections = filteredConnections.map(conn => {
             const isFromUser = (conn.from_user_id || conn['from_user_id'] || conn['From User ID']) === userId;
-            
+            const dealId = conn.deal_id || conn['deal_id'] || conn['Deal ID'];
+            const deal = dealId ? dealsMap.get(String(dealId).trim()) : null;
+            const dealName = deal ? (deal.deal_name || deal['deal_name'] || '') : '';
+
             // Get raw values for boolean fields
             const rawAdminApproved = conn.admin_approved || conn['admin_approved'] || conn['Admin Approved'] || false;
             const rawClientApproved = conn.client_approved || conn['client_approved'] || conn['Client Approved'] || false;
             const rawAdminFinalApproved = conn.admin_final_approved || conn['admin_final_approved'] || conn['Admin Final Approved'] || false;
             const rawDraftLocked = conn.draft_locked || conn['draft_locked'] || conn['Draft Locked'] || false;
-            
+
             return {
                 connection_id: conn.connection_id || conn['connection_id'] || conn['Connection ID'],
                 from_user_id: conn.from_user_id || conn['from_user_id'] || conn['From User ID'],
                 to_user_id: conn.to_user_id || conn['to_user_id'] || conn['To User ID'],
-                deal_id: conn.deal_id || conn['deal_id'] || conn['Deal ID'],
+                deal_id: dealId,
+                deal_name: dealName, // Include deal_name in response
                 connection_type: conn.connection_type || conn['connection_type'] || conn['Connection Type'],
                 status: conn.status || conn['status'] || conn['Status'],
                 requested_at: conn.requested_at || conn['requested_at'] || conn['Requested At'],
@@ -88,7 +116,7 @@ export async function GET(request) {
                 client_goals: conn.client_goals || conn['client_goals'] || conn['Client Goals'] || '',
                 related_signal_id: conn.related_signal_id || conn['related_signal_id'] || conn['Related Signal ID'] || '',
                 // Other user's info
-                other_user_name: isFromUser 
+                other_user_name: isFromUser
                     ? (conn.to_user_name || conn['to_user_name'] || conn['To User Name'])
                     : (conn.from_user_name || conn['from_user_name'] || conn['From User Name']),
                 other_user_linkedin: isFromUser
