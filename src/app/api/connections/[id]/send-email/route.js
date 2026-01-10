@@ -121,10 +121,24 @@ export async function POST(request, { params }) {
     let refreshToken;
 
     try {
-      accessToken = decrypt(encryptedAccessToken);
-      refreshToken = decrypt(encryptedRefreshToken);
+      // Handle JSON stringified encrypted tokens
+      const accessTokenData = typeof encryptedAccessToken === 'string'
+        ? (encryptedAccessToken.startsWith('{') ? JSON.parse(encryptedAccessToken) : encryptedAccessToken)
+        : encryptedAccessToken;
+      const refreshTokenData = typeof encryptedRefreshToken === 'string'
+        ? (encryptedRefreshToken.startsWith('{') ? JSON.parse(encryptedRefreshToken) : encryptedRefreshToken)
+        : encryptedRefreshToken;
+
+      accessToken = decrypt(accessTokenData);
+      refreshToken = decrypt(refreshTokenData);
+      console.log('✅ Tokens decrypted successfully');
     } catch (decryptError) {
-      console.error('Token decryption error:', decryptError);
+      console.error('❌ Token decryption error:', {
+        error: decryptError.message,
+        accessTokenType: typeof encryptedAccessToken,
+        refreshTokenType: typeof encryptedRefreshToken,
+        accessTokenPreview: typeof encryptedAccessToken === 'string' ? encryptedAccessToken.substring(0, 50) : 'not string'
+      });
       return NextResponse.json(
         { error: "Failed to decrypt Gmail tokens. Please reconnect your Gmail account." },
         { status: 500 }
@@ -151,9 +165,10 @@ export async function POST(request, { params }) {
       if (!tokenInfo.token) {
         throw new Error('Token is invalid');
       }
+      console.log('✅ Access token is valid');
     } catch (error) {
       // Token expired, refresh it
-      console.log('Access token expired, refreshing...');
+      console.log('⚠️ Access token expired or invalid, refreshing...', error.message);
       try {
         accessToken = await refreshAccessToken(refreshToken);
         oauth2Client.setCredentials({
@@ -161,10 +176,14 @@ export async function POST(request, { params }) {
           refresh_token: refreshToken,
         });
         tokenRefreshed = true;
+        console.log('✅ Access token refreshed successfully');
       } catch (refreshError) {
-        console.error('Token refresh error:', refreshError);
+        console.error('❌ Token refresh error:', {
+          error: refreshError.message,
+          response: refreshError.response?.data
+        });
         return NextResponse.json(
-          { error: "Gmail token expired. Please reconnect your Gmail account." },
+          { error: "Gmail token expired. Please reconnect your Gmail account.", details: refreshError.message },
           { status: 401 }
         );
       }
@@ -177,10 +196,32 @@ export async function POST(request, { params }) {
     try {
       const userProfile = await gmail.users.getProfile({ userId: 'me' });
       fromEmail = userProfile.data.emailAddress;
+      console.log('✅ Gmail profile retrieved successfully:', fromEmail);
     } catch (error) {
-      console.error('Error getting Gmail profile:', error);
+      console.error('❌ Error getting Gmail profile:', {
+        error: error.message,
+        code: error.code,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+
+      // More specific error messages
+      if (error.code === 401 || error.response?.status === 401) {
+        return NextResponse.json(
+          { error: "Gmail authentication expired. Please reconnect your Gmail account." },
+          { status: 401 }
+        );
+      }
+
+      if (error.code === 403 || error.response?.status === 403) {
+        return NextResponse.json(
+          { error: "Gmail API access denied. Please check your OAuth permissions." },
+          { status: 403 }
+        );
+      }
+
       return NextResponse.json(
-        { error: "Failed to get Gmail profile. Please reconnect your Gmail account." },
+        { error: "Failed to get Gmail profile. Please reconnect your Gmail account.", details: error.message },
         { status: 500 }
       );
     }
