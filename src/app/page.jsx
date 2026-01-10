@@ -113,6 +113,22 @@ export default function Home() {
                 >
                   Kolos Website
                 </a>
+                <a 
+                  href="/privacy" 
+                  className="text-sm sm:text-base hover:opacity-70 transition-opacity px-2 sm:px-3 py-2.5 sm:py-3 min-h-[44px] flex items-center" 
+                  style={{ color: '#000000' }}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Privacy Policy
+                </a>
+                <a 
+                  href="/terms" 
+                  className="text-sm sm:text-base hover:opacity-70 transition-opacity px-2 sm:px-3 py-2.5 sm:py-3 min-h-[44px] flex items-center" 
+                  style={{ color: '#000000' }}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Terms of Service
+                </a>
               </div>
             </div>
           )}
@@ -203,6 +219,12 @@ export default function Home() {
               </a>
               <a href="https://kolos.network" target="_blank" rel="noopener noreferrer" className="text-white text-sm sm:text-base hover:opacity-70 transition-opacity min-h-[44px] flex items-center justify-center px-3">
                 Kolos Website
+              </a>
+              <a href="/privacy" className="text-white text-sm sm:text-base hover:opacity-70 transition-opacity min-h-[44px] flex items-center justify-center px-3">
+                Privacy Policy
+              </a>
+              <a href="/terms" className="text-white text-sm sm:text-base hover:opacity-70 transition-opacity min-h-[44px] flex items-center justify-center px-3">
+                Terms of Service
               </a>
             </div>
 
