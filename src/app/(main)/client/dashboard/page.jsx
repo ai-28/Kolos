@@ -65,6 +65,7 @@ function ClientDashboardContent() {
   const [sendingEmail, setSendingEmail] = useState(false)
   const [emailSubject, setEmailSubject] = useState('')
   const [showGmailConnectModal, setShowGmailConnectModal] = useState(false)
+  const [editableDraftMessage, setEditableDraftMessage] = useState('')
 
   // Fetch client data - define FIRST before useEffect
   const fetchClientData = async () => {
@@ -236,13 +237,15 @@ function ClientDashboardContent() {
       setGmailConnected(isConnected)
       
       // Debug log
-      if (gmailConnectedStatus !== undefined) {
-        console.log('Gmail connection status updated:', {
-          raw: gmailConnectedStatus,
-          type: typeof gmailConnectedStatus,
-          isConnected: isConnected
-        })
-      }
+      console.log('Gmail connection status updated:', {
+        raw: gmailConnectedStatus,
+        type: typeof gmailConnectedStatus,
+        isConnected: isConnected,
+        clientId: client.id || client.ID || client.profile_id
+      })
+    } else {
+      // Reset if client is null
+      setGmailConnected(false)
     }
   }, [client])
 
@@ -539,7 +542,7 @@ function ClientDashboardContent() {
         body: JSON.stringify({
           to_email: toEmail,
           subject: subject,
-          draft_message: selectedConnection.draft_message,
+          draft_message: editableDraftMessage,
           deal_id: selectedDealForModal?.deal_id || selectedDealForModal?.id,
         }),
       })
@@ -3945,6 +3948,7 @@ console.log("client",client)
                                 setSelectedDecisionMaker({ name: primaryName, email: primaryEmail })
                                 setSelectedConnection(connection)
                                 setEmailSubject(`Connection Request - ${selectedDealForModal?.deal_name || selectedDealForModal?.['deal_name'] || ''}`)
+                                setEditableDraftMessage(connection.draft_message || '')
                                 setShowDraftMessageModal(true)
                               }}
                             >
@@ -4081,10 +4085,11 @@ console.log("client",client)
                                 return
                               }
                               
-                              setSelectedDecisionMaker(dm)
-                              setSelectedConnection(connection)
-                              setEmailSubject(`Connection Request - ${selectedDealForModal?.deal_name || selectedDealForModal?.['deal_name'] || ''}`)
-                              setShowDraftMessageModal(true)
+                                setSelectedDecisionMaker(dm)
+                                setSelectedConnection(connection)
+                                setEmailSubject(`Connection Request - ${selectedDealForModal?.deal_name || selectedDealForModal?.['deal_name'] || ''}`)
+                                setEditableDraftMessage(connection.draft_message || '')
+                                setShowDraftMessageModal(true)
                             }}
                           >
                             <div className="flex items-start justify-between gap-3">
@@ -4167,6 +4172,7 @@ console.log("client",client)
                       setSelectedDecisionMaker(null)
                       setSelectedConnection(null)
                       setEmailSubject('')
+                      setEditableDraftMessage('')
                     }}
                     className="min-w-[44px] min-h-[44px]"
                   >
@@ -4184,7 +4190,7 @@ console.log("client",client)
                         </p>
                       </div>
                       <p className="text-xs text-yellow-700 mb-2">
-                        You need to connect your Gmail account to send emails.
+                        You need to connect your Gmail account to send emails. Current status: {client?.gmail_connected || client?.['gmail_connected'] || 'unknown'}
                       </p>
                       <Button
                         onClick={() => {
@@ -4226,12 +4232,12 @@ console.log("client",client)
                       Message:
                     </label>
                     <textarea
-                      value={selectedConnection.draft_message || ""}
-                      readOnly
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[200px] bg-gray-50"
+                      value={editableDraftMessage}
+                      onChange={(e) => setEditableDraftMessage(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[200px] bg-white"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      This draft has been approved and locked. It cannot be edited.
+                      You can edit the message before sending.
                     </p>
                   </div>
 
@@ -4260,6 +4266,7 @@ console.log("client",client)
                         setSelectedDecisionMaker(null)
                         setSelectedConnection(null)
                         setEmailSubject('')
+                        setEditableDraftMessage('')
                       }}
                       disabled={sendingEmail}
                     >
