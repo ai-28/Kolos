@@ -2494,6 +2494,53 @@ console.log("client",client)
                         const isUpdating = updatingStage === dealId
                         const isDeleting = deletingDeal === dealId
                         
+                        // Helper function to check if LinkedIn data exists
+                        const hasLinkedInData = () => {
+                          try {
+                            const allDecisionMakersField = deal.all_decision_makers || deal["all_decision_makers"]
+                            if (allDecisionMakersField) {
+                              const allDecisionMakers = typeof allDecisionMakersField === 'string' 
+                                ? JSON.parse(allDecisionMakersField) 
+                                : allDecisionMakersField
+                              if (Array.isArray(allDecisionMakers) && allDecisionMakers.length > 0) {
+                                return allDecisionMakers.some(dm => 
+                                  (dm.linkedin_url || dm["linkedin_url"]) && 
+                                  (dm.linkedin_url || dm["linkedin_url"]).trim() !== ''
+                                )
+                              }
+                            }
+                          } catch (e) {
+                            // Ignore parse errors
+                          }
+                          const primaryLinkedIn = deal.decision_maker_linkedin_url || deal["decision_maker_linkedin_url"]
+                          return !!(primaryLinkedIn && primaryLinkedIn.trim() !== '')
+                        }
+
+                        // Helper function to check if Email data exists
+                        const hasEmailData = () => {
+                          try {
+                            const allDecisionMakersField = deal.all_decision_makers || deal["all_decision_makers"]
+                            if (allDecisionMakersField) {
+                              const allDecisionMakers = typeof allDecisionMakersField === 'string' 
+                                ? JSON.parse(allDecisionMakersField) 
+                                : allDecisionMakersField
+                              if (Array.isArray(allDecisionMakers) && allDecisionMakers.length > 0) {
+                                return allDecisionMakers.some(dm => 
+                                  (dm.email || dm["email"]) && 
+                                  (dm.email || dm["email"]).trim() !== ''
+                                )
+                              }
+                            }
+                          } catch (e) {
+                            // Ignore parse errors
+                          }
+                          const primaryEmail = deal.decision_maker_email || deal["decision_maker_email"]
+                          return !!(primaryEmail && primaryEmail.trim() !== '')
+                        }
+
+                        const linkedInExists = hasLinkedInData()
+                        const emailExists = hasEmailData()
+                        
                         return (
                           <div key={index} className="border border-gray-200 rounded-lg p-3 space-y-2.5 bg-white">
                             {/* Deal Name & Actions */}
@@ -2502,6 +2549,40 @@ console.log("client",client)
                                 {deal.deal_name || deal["deal_name"] || "-"}
                               </h3>
                               <div className="flex items-center gap-1 flex-shrink-0">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedDealForModal(deal)
+                                    setShowLinkedInModal(true)
+                                  }}
+                                  disabled={!dealId}
+                                  className={`min-h-[44px] min-w-[44px] p-0 ${
+                                    linkedInExists 
+                                      ? 'text-blue-600 hover:text-blue-700 hover:bg-blue-50' 
+                                      : 'text-gray-400 hover:text-gray-500 hover:bg-gray-50'
+                                  }`}
+                                  title={linkedInExists ? "LinkedIn found - View LinkedIn URLs" : "LinkedIn missing - No LinkedIn data available"}
+                                >
+                                  <Linkedin className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedDealForModal(deal)
+                                    setShowEmailModal(true)
+                                  }}
+                                  disabled={!dealId}
+                                  className={`min-h-[44px] min-w-[44px] p-0 ${
+                                    emailExists 
+                                      ? 'text-green-600 hover:text-green-700 hover:bg-green-50' 
+                                      : 'text-gray-400 hover:text-gray-500 hover:bg-gray-50'
+                                  }`}
+                                  title={emailExists ? "Email found - View Email Addresses" : "Email missing - No email data available"}
+                                >
+                                  <Mail className="w-4 h-4" />
+                                </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -2714,6 +2795,93 @@ console.log("client",client)
                                         "Connection Request"
                                       )}
                                     </Button>
+                                    {(() => {
+                                      // Helper function to check if LinkedIn data exists
+                                      const hasLinkedInData = () => {
+                                        try {
+                                          const allDecisionMakersField = deal.all_decision_makers || deal["all_decision_makers"]
+                                          if (allDecisionMakersField) {
+                                            const allDecisionMakers = typeof allDecisionMakersField === 'string' 
+                                              ? JSON.parse(allDecisionMakersField) 
+                                              : allDecisionMakersField
+                                            if (Array.isArray(allDecisionMakers) && allDecisionMakers.length > 0) {
+                                              return allDecisionMakers.some(dm => 
+                                                (dm.linkedin_url || dm["linkedin_url"]) && 
+                                                (dm.linkedin_url || dm["linkedin_url"]).trim() !== ''
+                                              )
+                                            }
+                                          }
+                                        } catch (e) {
+                                          // Ignore parse errors
+                                        }
+                                        const primaryLinkedIn = deal.decision_maker_linkedin_url || deal["decision_maker_linkedin_url"]
+                                        return !!(primaryLinkedIn && primaryLinkedIn.trim() !== '')
+                                      }
+
+                                      // Helper function to check if Email data exists
+                                      const hasEmailData = () => {
+                                        try {
+                                          const allDecisionMakersField = deal.all_decision_makers || deal["all_decision_makers"]
+                                          if (allDecisionMakersField) {
+                                            const allDecisionMakers = typeof allDecisionMakersField === 'string' 
+                                              ? JSON.parse(allDecisionMakersField) 
+                                              : allDecisionMakersField
+                                            if (Array.isArray(allDecisionMakers) && allDecisionMakers.length > 0) {
+                                              return allDecisionMakers.some(dm => 
+                                                (dm.email || dm["email"]) && 
+                                                (dm.email || dm["email"]).trim() !== ''
+                                              )
+                                            }
+                                          }
+                                        } catch (e) {
+                                          // Ignore parse errors
+                                        }
+                                        const primaryEmail = deal.decision_maker_email || deal["decision_maker_email"]
+                                        return !!(primaryEmail && primaryEmail.trim() !== '')
+                                      }
+
+                                      const linkedInExists = hasLinkedInData()
+                                      const emailExists = hasEmailData()
+
+                                      return (
+                                        <>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => {
+                                              setSelectedDealForModal(deal)
+                                              setShowLinkedInModal(true)
+                                            }}
+                                            disabled={!dealId}
+                                            className={`min-h-[44px] min-w-[44px] ${
+                                              linkedInExists 
+                                                ? 'text-blue-600 hover:text-blue-700 hover:bg-blue-50' 
+                                                : 'text-gray-400 hover:text-gray-500 hover:bg-gray-50'
+                                            }`}
+                                            title={linkedInExists ? "LinkedIn found - View LinkedIn URLs" : "LinkedIn missing - No LinkedIn data available"}
+                                          >
+                                            <Linkedin className="w-4 h-4" />
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => {
+                                              setSelectedDealForModal(deal)
+                                              setShowEmailModal(true)
+                                            }}
+                                            disabled={!dealId}
+                                            className={`min-h-[44px] min-w-[44px] ${
+                                              emailExists 
+                                                ? 'text-green-600 hover:text-green-700 hover:bg-green-50' 
+                                                : 'text-gray-400 hover:text-gray-500 hover:bg-gray-50'
+                                            }`}
+                                            title={emailExists ? "Email found - View Email Addresses" : "Email missing - No email data available"}
+                                          >
+                                            <Mail className="w-4 h-4" />
+                                          </Button>
+                                        </>
+                                      )
+                                    })()}
                                     <Button
                                       variant="ghost"
                                       size="sm"
@@ -3200,7 +3368,7 @@ console.log("client",client)
 
         {/* LinkedIn Modal */}
         {showLinkedInModal && selectedDealForModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
             <Card className="w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
               <CardContent className="p-4 md:p-6">
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
@@ -3223,13 +3391,57 @@ console.log("client",client)
                 <div className="space-y-3">
                   {(() => {
                     try {
-                      const allDecisionMakers = selectedDealForModal.all_decision_makers 
-                        ? (typeof selectedDealForModal.all_decision_makers === 'string' 
-                            ? JSON.parse(selectedDealForModal.all_decision_makers) 
-                            : selectedDealForModal.all_decision_makers)
+                      const allDecisionMakersField = selectedDealForModal.all_decision_makers 
+                        || selectedDealForModal["all_decision_makers"]
+                        || null
+                      
+                      const allDecisionMakers = allDecisionMakersField
+                        ? (typeof allDecisionMakersField === 'string' 
+                            ? JSON.parse(allDecisionMakersField) 
+                            : allDecisionMakersField)
                         : []
                       
+                      const primaryName = selectedDealForModal.decision_maker_name 
+                        || selectedDealForModal["decision_maker_name"]
+                        || ""
+                      
                       if (!Array.isArray(allDecisionMakers) || allDecisionMakers.length === 0) {
+                        const primaryLinkedIn = selectedDealForModal.decision_maker_linkedin_url 
+                          || selectedDealForModal["decision_maker_linkedin_url"]
+                          || ""
+                        
+                        if (primaryName || primaryLinkedIn) {
+                          return (
+                            <div className="border rounded-lg p-4 bg-blue-50 border-blue-300 shadow-md">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <h3 className="font-semibold text-blue-700 text-lg">
+                                      {primaryName || "Unknown"}
+                                    </h3>
+                                    <Badge className="bg-blue-600 text-white text-xs">
+                                      Primary
+                                    </Badge>
+                                  </div>
+                                  {primaryLinkedIn ? (
+                                    <a
+                                      href={primaryLinkedIn}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-600 hover:text-blue-700 hover:underline text-sm flex items-center gap-1"
+                                    >
+                                      <Linkedin className="w-4 h-4" />
+                                      {primaryLinkedIn}
+                                    </a>
+                                  ) : (
+                                    <p className="text-sm text-gray-400 italic">No LinkedIn URL available</p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        }
+                        
                         return (
                           <div className="text-center py-8 text-gray-500">
                             <p>No decision makers found for this deal.</p>
@@ -3238,18 +3450,38 @@ console.log("client",client)
                       }
 
                       return allDecisionMakers.map((dm, index) => {
-                        const linkedinUrl = dm.linkedin_url || dm["linkedin_url"] || ""
+                        const isPrimary = dm.name === primaryName
+                        let linkedinUrl = dm.linkedin_url || dm["linkedin_url"] || ""
+                        
+                        if (!linkedinUrl && isPrimary) {
+                          linkedinUrl = selectedDealForModal.decision_maker_linkedin_url 
+                            || selectedDealForModal["decision_maker_linkedin_url"]
+                            || ""
+                        }
                         
                         return (
                           <div
                             key={index}
-                            className="border rounded-lg p-4 bg-white border-gray-200"
+                            className={`border rounded-lg p-4 ${
+                              isPrimary 
+                                ? 'bg-blue-50 border-blue-300 shadow-md' 
+                                : 'bg-white border-gray-200'
+                            }`}
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex-1">
-                                <h3 className="font-semibold text-gray-900 mb-2">
-                                  {dm.name || "Unknown"}
-                                </h3>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <h3 className={`font-semibold ${
+                                    isPrimary ? 'text-blue-700 text-lg' : 'text-gray-900'
+                                  }`}>
+                                    {dm.name || "Unknown"}
+                                  </h3>
+                                  {isPrimary && (
+                                    <Badge className="bg-blue-600 text-white text-xs">
+                                      Primary
+                                    </Badge>
+                                  )}
+                                </div>
                                 {dm.role && (
                                   <p className="text-sm text-gray-600 mb-2">{dm.role}</p>
                                 )}
@@ -3379,7 +3611,7 @@ console.log("client",client)
 
         {/* Email Modal */}
         {showEmailModal && selectedDealForModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
             <Card className="w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
               <CardContent className="p-4 md:p-6">
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
@@ -3402,13 +3634,55 @@ console.log("client",client)
                 <div className="space-y-3">
                   {(() => {
                     try {
-                      const allDecisionMakers = selectedDealForModal.all_decision_makers 
-                        ? (typeof selectedDealForModal.all_decision_makers === 'string' 
-                            ? JSON.parse(selectedDealForModal.all_decision_makers) 
-                            : selectedDealForModal.all_decision_makers)
+                      const allDecisionMakersField = selectedDealForModal.all_decision_makers 
+                        || selectedDealForModal["all_decision_makers"]
+                        || null
+                      
+                      const allDecisionMakers = allDecisionMakersField
+                        ? (typeof allDecisionMakersField === 'string' 
+                            ? JSON.parse(allDecisionMakersField) 
+                            : allDecisionMakersField)
                         : []
                       
+                      const primaryName = selectedDealForModal.decision_maker_name 
+                        || selectedDealForModal["decision_maker_name"]
+                        || ""
+                      
                       if (!Array.isArray(allDecisionMakers) || allDecisionMakers.length === 0) {
+                        const primaryEmail = selectedDealForModal.decision_maker_email 
+                          || selectedDealForModal["decision_maker_email"]
+                          || ""
+                        
+                        if (primaryName || primaryEmail) {
+                          return (
+                            <div className="border rounded-lg p-4 bg-green-50 border-green-300 shadow-md">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <h3 className="font-semibold text-green-700 text-lg">
+                                      {primaryName || "Unknown"}
+                                    </h3>
+                                    <Badge className="bg-green-600 text-white text-xs">
+                                      Primary
+                                    </Badge>
+                                  </div>
+                                  {primaryEmail ? (
+                                    <a
+                                      href={`mailto:${primaryEmail}`}
+                                      className="text-green-600 hover:text-green-700 hover:underline text-sm flex items-center gap-1"
+                                    >
+                                      <Mail className="w-4 h-4" />
+                                      {primaryEmail}
+                                    </a>
+                                  ) : (
+                                    <p className="text-sm text-gray-400 italic">No email address available</p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        }
+                        
                         return (
                           <div className="text-center py-8 text-gray-500">
                             <p>No decision makers found for this deal.</p>
@@ -3417,25 +3691,49 @@ console.log("client",client)
                       }
 
                       return allDecisionMakers.map((dm, index) => {
-                        const email = dm.email || dm["email"] || ""
+                        const isPrimary = dm.name === primaryName
+                        let email = dm.email || dm["email"] || ""
+                        
+                        if (!email && isPrimary) {
+                          email = selectedDealForModal.decision_maker_email 
+                            || selectedDealForModal["decision_maker_email"]
+                            || ""
+                        }
                         
                         return (
                           <div
                             key={index}
-                            className="border rounded-lg p-4 bg-white border-gray-200"
+                            className={`border rounded-lg p-4 ${
+                              isPrimary 
+                                ? 'bg-green-50 border-green-300 shadow-md' 
+                                : 'bg-white border-gray-200'
+                            }`}
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex-1">
-                                <h3 className="font-semibold text-gray-900 mb-2">
-                                  {dm.name || "Unknown"}
-                                </h3>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <h3 className={`font-semibold ${
+                                    isPrimary ? 'text-green-700 text-lg' : 'text-gray-900'
+                                  }`}>
+                                    {dm.name || "Unknown"}
+                                  </h3>
+                                  {isPrimary && (
+                                    <Badge className="bg-green-600 text-white text-xs">
+                                      Primary
+                                    </Badge>
+                                  )}
+                                </div>
                                 {dm.role && (
                                   <p className="text-sm text-gray-600 mb-2">{dm.role}</p>
                                 )}
                                 {email ? (
                                   <a
                                     href={`mailto:${email}`}
-                                    className="text-blue-600 hover:text-blue-700 hover:underline text-sm flex items-center gap-1"
+                                    className={`${
+                                      isPrimary 
+                                        ? 'text-green-600 hover:text-green-700' 
+                                        : 'text-blue-600 hover:text-blue-700'
+                                    } hover:underline text-sm flex items-center gap-1`}
                                   >
                                     <Mail className="w-4 h-4" />
                                     {email}
