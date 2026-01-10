@@ -156,6 +156,7 @@ function ClientDashboardContent() {
       constraints_notes: client?.constraints_notes || client?.["constraints_notes"] || client?.constraints || client?.["constraints"] || "",
       active_deal: client?.active_deal || client?.["active_deal"] || "",
       travel_cities: client?.travel_cities || client?.["travel_cities"] || client?.city || client?.["city"] || "",
+      linkedin_url: client?.linkedin_url || client?.["linkedin_url"] || "",
     })
     setIsEditing(true)
   }
@@ -1111,7 +1112,20 @@ console.log("client",client)
                   </div>
                 )}
               </div>
-              <h1 className="text-[32px] sm:text-[48px] font-medium text-center text-[#532418] text-[#0a3d3d] break-words sm:truncate flex-1 min-w-0 w-full sm:w-auto" style={{ fontFamily: 'var(--font-marcellus), serif' }}>{clientName}</h1>
+              <div className="flex items-center justify-center gap-2 sm:gap-3 flex-1 min-w-0 w-full sm:w-auto">
+                <h1 className="text-[32px] sm:text-[48px] font-medium text-center text-[#532418] text-[#0a3d3d] break-words sm:truncate flex-1 min-w-0" style={{ fontFamily: 'var(--font-marcellus), serif' }}>{clientName}</h1>
+                {(client?.linkedin_url || client?.["linkedin_url"]) && (
+                  <a
+                    href={client?.linkedin_url || client?.["linkedin_url"]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-shrink-0 text-[#0a3d3d] hover:text-[#0a6b6b] transition-colors"
+                    aria-label="LinkedIn Profile"
+                  >
+                    <Linkedin className="w-5 h-5 sm:w-6 sm:h-6" />
+                  </a>
+                )}
+              </div>
             </div>
 
             <div className="flex items-center gap-2 lg:gap-3 flex-shrink-0 w-full sm:w-auto">
@@ -1198,6 +1212,17 @@ console.log("client",client)
                         className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-sm sm:text-base min-h-[44px]"
                         placeholder="your.email@example.com"
                       />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">LinkedIn Profile URL</label>
+                      <input
+                        type="url"
+                        value={editData.linkedin_url || ""}
+                        onChange={(e) => setEditData({...editData, linkedin_url: e.target.value})}
+                        className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-sm sm:text-base min-h-[44px]"
+                        placeholder="https://linkedin.com/in/yourprofile"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">LinkedIn profile URL for networking</p>
                     </div>
                     <div className="sm:col-span-2">
                       <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Role</label>
