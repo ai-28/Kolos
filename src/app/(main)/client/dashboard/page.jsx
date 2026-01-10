@@ -1133,7 +1133,8 @@ console.log("client",client)
                   </div>
                 )}
               </div>
-              <div className="flex items-center justify-center gap-2 sm:gap-3 flex-1 min-w-0 w-full sm:w-auto">
+              <div className="flex-1">
+                <div className="flex items-center justify-center gap-2 sm:gap-3 min-w-0 w-full sm:w-auto">
                 <h1 className="text-[32px] sm:text-[48px] font-medium text-center text-[#532418] text-[#0a3d3d] break-words sm:truncate flex-1 min-w-0" style={{ fontFamily: 'var(--font-marcellus), serif' }}>{clientName}</h1>
                 {(client?.linkedin_url || client?.["linkedin_url"]) && (
                   <a
@@ -1146,6 +1147,8 @@ console.log("client",client)
                     <Linkedin className="w-5 h-5 sm:w-6 sm:h-6" />
                   </a>
                 )}
+                </div>
+
               </div>
               
             </div>
