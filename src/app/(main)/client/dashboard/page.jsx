@@ -137,10 +137,6 @@ function ClientDashboardContent() {
       const clientData = data.client
       setClient(clientData)
       
-      // Check Gmail connection status
-      const gmailConnectedStatus = clientData.gmail_connected || clientData['gmail_connected']
-      setGmailConnected(gmailConnectedStatus === 'true' || gmailConnectedStatus === true)
-      
       // Set default role from client profile and normalize it
       const clientRole = clientData.role || clientData.Role || clientData["role"] || clientData["Role"] || "Investor"
       const normalizedRole = normalizeRole(clientRole)
@@ -226,6 +222,30 @@ function ClientDashboardContent() {
     }
   }, [client, fetchConnections])
 
+  // Update Gmail connection status when client data changes
+  useEffect(() => {
+    if (client) {
+      const gmailConnectedStatus = client.gmail_connected || client['gmail_connected']
+      // Handle various formats: 'true', 'TRUE', 'True', true, '1', 1
+      const isConnected = gmailConnectedStatus === 'true' || 
+                         gmailConnectedStatus === 'TRUE' || 
+                         gmailConnectedStatus === 'True' ||
+                         gmailConnectedStatus === true ||
+                         gmailConnectedStatus === '1' ||
+                         gmailConnectedStatus === 1
+      setGmailConnected(isConnected)
+      
+      // Debug log
+      if (gmailConnectedStatus !== undefined) {
+        console.log('Gmail connection status updated:', {
+          raw: gmailConnectedStatus,
+          type: typeof gmailConnectedStatus,
+          isConnected: isConnected
+        })
+      }
+    }
+  }, [client])
+
   // Handle Gmail connection status from URL params
   useEffect(() => {
     const gmailConnected = searchParams.get('gmail_connected')
@@ -233,12 +253,11 @@ function ClientDashboardContent() {
 
     if (gmailConnected === 'true') {
       toast.success('Gmail account connected successfully!')
-      setGmailConnected(true)
       setConnectingGmail(false)
       // Refresh client data to get updated Gmail status
       setTimeout(() => {
         fetchClientData()
-      }, 500) // Small delay to ensure Google Sheets has updated
+      }, 1000) // Delay to ensure Google Sheets has updated
       // Clean URL
       router.replace('/client/dashboard', { scroll: false })
     }
