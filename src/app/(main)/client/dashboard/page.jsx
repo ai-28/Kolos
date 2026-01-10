@@ -3867,20 +3867,41 @@ console.log("client",client)
                           || selectedDealForModal["decision_maker_email"]
                           || ""
                         
-                        // Find connection for primary decision maker
+                        // Find connection for this deal (match by deal_id only)
                         const dealId = selectedDealForModal.deal_id || selectedDealForModal["deal_id"] || selectedDealForModal.id || selectedDealForModal["id"]
-                        const connection = primaryEmail ? connections.find(conn => {
+                        const connection = connections.find(conn => {
                           const connDealId = conn.deal_id || conn['deal_id']
-                          const connEmail = conn.to_user_email || conn['to_user_email']
-                          return connDealId && String(connDealId).trim() === String(dealId).trim() &&
-                                 connEmail && String(connEmail).trim().toLowerCase() === String(primaryEmail).trim().toLowerCase()
-                        }) : null
+                          return connDealId && String(connDealId).trim() === String(dealId).trim()
+                        }) || null
+                        
+                        // Helper function to check if value is truthy (handles true, 'true', 'TRUE', '1', etc.)
+                        const isTruthy = (value) => {
+                          if (value === true || value === 1) return true
+                          if (typeof value === 'string') {
+                            const lower = value.toLowerCase().trim()
+                            return lower === 'true' || lower === '1' || lower === 'yes'
+                          }
+                          return false
+                        }
                         
                         const hasApprovedLockedDraft = connection && 
                           connection.draft_message && 
                           connection.draft_message.trim() !== '' &&
-                          connection.client_approved && 
-                          connection.draft_locked
+                          isTruthy(connection.client_approved || connection['client_approved']) &&
+                          isTruthy(connection.draft_locked || connection['draft_locked'])
+                        
+                        // Debug logging
+                        if (primaryEmail && connection) {
+                          console.log('Connection check for primary decision maker:', {
+                            email: primaryEmail,
+                            dealId,
+                            hasConnection: !!connection,
+                            hasDraftMessage: !!(connection.draft_message && connection.draft_message.trim() !== ''),
+                            clientApproved: connection.client_approved || connection['client_approved'],
+                            draftLocked: connection.draft_locked || connection['draft_locked'],
+                            hasApprovedLockedDraft
+                          })
+                        }
                         
                         if (primaryName || primaryEmail) {
                           return (
@@ -3889,16 +3910,42 @@ console.log("client",client)
                                 hasApprovedLockedDraft && primaryEmail ? 'cursor-pointer hover:bg-green-100' : ''
                               }`}
                               onClick={() => {
-                                if (primaryEmail && hasApprovedLockedDraft) {
-                                  if (!gmailConnected) {
-                                    setShowGmailConnectModal(true)
-                                    return
-                                  }
-                                  setSelectedDecisionMaker({ name: primaryName, email: primaryEmail })
-                                  setSelectedConnection(connection)
-                                  setEmailSubject(`Connection Request - ${selectedDealForModal?.deal_name || selectedDealForModal?.['deal_name'] || ''}`)
-                                  setShowDraftMessageModal(true)
+                                if (!primaryEmail) {
+                                  return
                                 }
+                                
+                                if (!connection) {
+                                  toast.info('No connection request found for this decision maker. Please create a connection request first.')
+                                  return
+                                }
+                                
+                                if (!connection.draft_message || connection.draft_message.trim() === '') {
+                                  toast.info('Draft message not yet generated. Please wait for admin to create the draft.')
+                                  return
+                                }
+                                
+                                const isApproved = isTruthy(connection.client_approved || connection['client_approved'])
+                                const isLocked = isTruthy(connection.draft_locked || connection['draft_locked'])
+                                
+                                if (!isApproved) {
+                                  toast.info('Draft message must be approved before sending. Please approve the draft first.')
+                                  return
+                                }
+                                
+                                if (!isLocked) {
+                                  toast.info('Draft message must be locked by admin before sending.')
+                                  return
+                                }
+                                
+                                if (!gmailConnected) {
+                                  setShowGmailConnectModal(true)
+                                  return
+                                }
+                                
+                                setSelectedDecisionMaker({ name: primaryName, email: primaryEmail })
+                                setSelectedConnection(connection)
+                                setEmailSubject(`Connection Request - ${selectedDealForModal?.deal_name || selectedDealForModal?.['deal_name'] || ''}`)
+                                setShowDraftMessageModal(true)
                               }}
                             >
                               <div className="flex items-start justify-between gap-3">
@@ -3956,20 +4003,42 @@ console.log("client",client)
                             || ""
                         }
                         
-                        // Find connection for this decision maker and deal
+                        // Find connection for this deal (match by deal_id only)
                         const dealId = selectedDealForModal.deal_id || selectedDealForModal["deal_id"] || selectedDealForModal.id || selectedDealForModal["id"]
                         const connection = connections.find(conn => {
                           const connDealId = conn.deal_id || conn['deal_id']
-                          const connEmail = conn.to_user_email || conn['to_user_email']
-                          return connDealId && String(connDealId).trim() === String(dealId).trim() &&
-                                 connEmail && String(connEmail).trim().toLowerCase() === String(email).trim().toLowerCase()
+                          return connDealId && String(connDealId).trim() === String(dealId).trim()
                         })
+                        
+                        // Helper function to check if value is truthy (handles true, 'true', 'TRUE', '1', etc.)
+                        const isTruthy = (value) => {
+                          if (value === true || value === 1) return true
+                          if (typeof value === 'string') {
+                            const lower = value.toLowerCase().trim()
+                            return lower === 'true' || lower === '1' || lower === 'yes'
+                          }
+                          return false
+                        }
                         
                         const hasApprovedLockedDraft = connection && 
                           connection.draft_message && 
                           connection.draft_message.trim() !== '' &&
-                          connection.client_approved && 
-                          connection.draft_locked
+                          isTruthy(connection.client_approved || connection['client_approved']) &&
+                          isTruthy(connection.draft_locked || connection['draft_locked'])
+                        
+                        // Debug logging
+                        if (email && connection) {
+                          console.log('Connection check for decision maker:', {
+                            name: dm.name,
+                            email,
+                            dealId,
+                            hasConnection: !!connection,
+                            hasDraftMessage: !!(connection.draft_message && connection.draft_message.trim() !== ''),
+                            clientApproved: connection.client_approved || connection['client_approved'],
+                            draftLocked: connection.draft_locked || connection['draft_locked'],
+                            hasApprovedLockedDraft
+                          })
+                        }
                         
                         return (
                           <div
@@ -3978,18 +4047,44 @@ console.log("client",client)
                               isPrimary 
                                 ? 'bg-green-50 border-green-300 shadow-md' 
                                 : 'bg-white border-gray-200'
-                            } ${hasApprovedLockedDraft && email ? 'cursor-pointer hover:bg-green-100' : ''}`}
+                            } ${hasApprovedLockedDraft && email ? 'cursor-pointer hover:bg-green-100' : email ? 'cursor-pointer hover:bg-gray-50' : ''}`}
                             onClick={() => {
-                              if (email && hasApprovedLockedDraft) {
-                                if (!gmailConnected) {
-                                  setShowGmailConnectModal(true)
-                                  return
-                                }
-                                setSelectedDecisionMaker(dm)
-                                setSelectedConnection(connection)
-                                setEmailSubject(`Connection Request - ${selectedDealForModal?.deal_name || selectedDealForModal?.['deal_name'] || ''}`)
-                                setShowDraftMessageModal(true)
+                              if (!email) {
+                                return
                               }
+                              
+                              if (!connection) {
+                                toast.info('No connection request found for this decision maker. Please create a connection request first.')
+                                return
+                              }
+                              
+                              if (!connection.draft_message || connection.draft_message.trim() === '') {
+                                toast.info('Draft message not yet generated. Please wait for admin to create the draft.')
+                                return
+                              }
+                              
+                              const isApproved = isTruthy(connection.client_approved || connection['client_approved'])
+                              const isLocked = isTruthy(connection.draft_locked || connection['draft_locked'])
+                              
+                              if (!isApproved) {
+                                toast.info('Draft message must be approved before sending. Please approve the draft first.')
+                                return
+                              }
+                              
+                              if (!isLocked) {
+                                toast.info('Draft message must be locked by admin before sending.')
+                                return
+                              }
+                              
+                              if (!gmailConnected) {
+                                setShowGmailConnectModal(true)
+                                return
+                              }
+                              
+                              setSelectedDecisionMaker(dm)
+                              setSelectedConnection(connection)
+                              setEmailSubject(`Connection Request - ${selectedDealForModal?.deal_name || selectedDealForModal?.['deal_name'] || ''}`)
+                              setShowDraftMessageModal(true)
                             }}
                           >
                             <div className="flex items-start justify-between gap-3">
