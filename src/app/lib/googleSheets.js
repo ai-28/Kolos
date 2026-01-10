@@ -722,5 +722,95 @@ export async function getAllConnections() {
     }
 }
 
+/**
+ * Update profile row by profile ID
+ */
+export async function updateProfile(profileId, updates) {
+    try {
+        if (!SPREADSHEET_ID) {
+            throw new Error('GOOGLE_SHEET_ID environment variable is not set');
+        }
+
+        const sheets = getSheetsClient();
+        const profiles = await getSheetData(SHEETS.PROFILES);
+
+        // Find profile by ID
+        const profileIndex = profiles.findIndex(profile => {
+            const id = profile.id || profile.ID || profile['id'] || profile['ID'] || profile.profile_id || profile['profile_id'];
+            return id && String(id).trim() === String(profileId).trim();
+        });
+
+        if (profileIndex === -1) {
+            throw new Error(`Profile not found: ${profileId}`);
+        }
+
+        // Get headers
+        const headersResponse = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${SHEETS.PROFILES}!1:1`,
+        });
+        const headers = headersResponse.data.values?.[0] || [];
+
+        // Helper function to convert column index to letter
+        const getColumnLetter = (index) => {
+            let result = '';
+            while (index >= 0) {
+                result = String.fromCharCode(65 + (index % 26)) + result;
+                index = Math.floor(index / 26) - 1;
+            }
+            return result;
+        };
+
+        // Map updates to column indices
+        const updateRequests = [];
+        for (const [field, value] of Object.entries(updates)) {
+            const columnIndex = headers.findIndex(
+                h => h && h.toLowerCase() === field.toLowerCase()
+            );
+
+            if (columnIndex !== -1) {
+                const rowNumber = profileIndex + 2; // +2 because: 1 for header, 1 for 0-based index
+                const columnLetter = getColumnLetter(columnIndex);
+
+                updateRequests.push({
+                    range: `${SHEETS.PROFILES}!${columnLetter}${rowNumber}`,
+                    values: [[value !== null && value !== undefined ? value : '']],
+                });
+            } else {
+                // Column doesn't exist, we'll need to add it
+                // For now, just log a warning
+                console.warn(`Column "${field}" not found in Profiles sheet. Skipping update.`);
+            }
+        }
+
+        if (updateRequests.length === 0) {
+            throw new Error('No valid fields to update');
+        }
+
+        // Batch update
+        await sheets.spreadsheets.values.batchUpdate({
+            spreadsheetId: SPREADSHEET_ID,
+            resource: {
+                valueInputOption: 'USER_ENTERED',
+                data: updateRequests,
+            },
+        });
+
+        console.log(`✅ Updated profile ${profileId} with ${updateRequests.length} fields`);
+
+        // Fetch and return updated profile
+        const updatedProfiles = await getSheetData(SHEETS.PROFILES);
+        const updatedProfile = updatedProfiles.find(profile => {
+            const id = profile.id || profile.ID || profile['id'] || profile['ID'] || profile.profile_id || profile['profile_id'];
+            return id && String(id).trim() === String(profileId).trim();
+        });
+
+        return updatedProfile;
+    } catch (error) {
+        console.error('Error updating profile:', error);
+        throw error;
+    }
+}
+
 export { SHEETS };
 

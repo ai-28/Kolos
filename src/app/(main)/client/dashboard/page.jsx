@@ -7,7 +7,7 @@ import { Button } from "@/app/components/ui/button"
 import { Card, CardContent } from "@/app/components/ui/card"
 import {KolosLogo} from "@/app/components/svg"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, Loader2, Edit2, Save, X, Trash2, Menu, Linkedin, Mail, FileText, Check, Lock, Copy, CheckCircle, ChevronDown, ChevronUp } from "lucide-react"
+import { ArrowLeft, Loader2, Edit2, Save, X, Trash2, Menu, Linkedin, Mail, FileText, Check, Lock, Copy, CheckCircle, ChevronDown, ChevronUp, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
 import { useConnectionEvents } from "@/app/hooks/useConnectionEvents"
 import { DashboardIcon, BusinessGoalsIcon,SignalsIcon, IndustryFocusIcon, BusinessMatchIcon, BusinessRequestsIcon,TravelPlanIcon, UpcomingEventIcon } from "@/app/components/svg"
@@ -57,6 +57,14 @@ function ClientDashboardContent() {
   const [draftEditText, setDraftEditText] = useState("")
   const [copiedConnectionId, setCopiedConnectionId] = useState(null)
   const [expandedDrafts, setExpandedDrafts] = useState(new Set())
+  const [gmailConnected, setGmailConnected] = useState(false)
+  const [connectingGmail, setConnectingGmail] = useState(false)
+  const [showDraftMessageModal, setShowDraftMessageModal] = useState(false)
+  const [selectedDecisionMaker, setSelectedDecisionMaker] = useState(null)
+  const [selectedConnection, setSelectedConnection] = useState(null)
+  const [sendingEmail, setSendingEmail] = useState(false)
+  const [emailSubject, setEmailSubject] = useState('')
+  const [showGmailConnectModal, setShowGmailConnectModal] = useState(false)
 
   // Fetch client data - define FIRST before useEffect
   const fetchClientData = async () => {
@@ -128,6 +136,10 @@ function ClientDashboardContent() {
 
       const clientData = data.client
       setClient(clientData)
+      
+      // Check Gmail connection status
+      const gmailConnectedStatus = clientData.gmail_connected || clientData['gmail_connected']
+      setGmailConnected(gmailConnectedStatus === 'true' || gmailConnectedStatus === true)
       
       // Set default role from client profile and normalize it
       const clientRole = clientData.role || clientData.Role || clientData["role"] || clientData["Role"] || "Investor"
@@ -213,6 +225,28 @@ function ClientDashboardContent() {
       fetchConnections()
     }
   }, [client, fetchConnections])
+
+  // Handle Gmail connection status from URL params
+  useEffect(() => {
+    const gmailConnected = searchParams.get('gmail_connected')
+    const gmailError = searchParams.get('gmail_error')
+
+    if (gmailConnected === 'true') {
+      toast.success('Gmail account connected successfully!')
+      setGmailConnected(true)
+      // Refresh client data to get updated Gmail status
+      fetchClientData()
+      // Clean URL
+      router.replace('/client/dashboard', { scroll: false })
+    }
+
+    if (gmailError) {
+      toast.error(`Gmail connection failed: ${decodeURIComponent(gmailError)}`)
+      setConnectingGmail(false)
+      // Clean URL
+      router.replace('/client/dashboard', { scroll: false })
+    }
+  }, [searchParams, router])
 
   // Helper function to check if connection exists for a deal
   const hasConnectionForDeal = (dealId) => {
@@ -405,6 +439,109 @@ function ClientDashboardContent() {
   const handleCancelEditDraft = () => {
     setEditingDraft(null)
     setDraftEditText("")
+  }
+
+  // Handle Gmail connection
+  const handleConnectGmail = async () => {
+    setConnectingGmail(true)
+    try {
+      // Get OAuth URL from API
+      const response = await fetch('/api/auth/gmail/oauth-url')
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to get OAuth URL')
+      }
+      
+      if (data.authUrl) {
+        window.location.href = data.authUrl
+      } else {
+        throw new Error('OAuth URL not provided')
+      }
+    } catch (error) {
+      console.error('Error getting OAuth URL:', error)
+      toast.error('Gmail OAuth not configured. Please contact support.')
+      setConnectingGmail(false)
+    }
+  }
+
+  // Handle Gmail disconnect
+  const handleDisconnectGmail = async () => {
+    if (!confirm('Are you sure you want to disconnect your Gmail account? You will need to reconnect to send emails.')) {
+      return
+    }
+
+    try {
+      const response = await fetch('/api/auth/gmail/disconnect', {
+        method: 'POST',
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to disconnect Gmail')
+      }
+
+      setGmailConnected(false)
+      toast.success('Gmail account disconnected successfully')
+      
+      // Refresh client data
+      fetchClientData()
+    } catch (error) {
+      console.error('Error disconnecting Gmail:', error)
+      toast.error(error.message || 'Failed to disconnect Gmail')
+    }
+  }
+
+  // Handle send draft email
+  const handleSendDraftEmail = async () => {
+    if (!selectedConnection || !selectedDecisionMaker) return
+
+    setSendingEmail(true)
+    try {
+      const toEmail = selectedDecisionMaker.email || selectedDecisionMaker["email"] || selectedConnection.to_user_email || ""
+      
+      if (!toEmail) {
+        toast.error("No email address found for this decision maker")
+        return
+      }
+
+      const dealName = selectedDealForModal?.deal_name || selectedDealForModal?.['deal_name'] || ''
+      const subject = emailSubject || `Connection Request - ${dealName}`
+
+      const response = await fetch(`/api/connections/${selectedConnection.connection_id}/send-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to_email: toEmail,
+          subject: subject,
+          draft_message: selectedConnection.draft_message,
+          deal_id: selectedDealForModal?.deal_id || selectedDealForModal?.id,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send email')
+      }
+
+      toast.success('Email sent successfully!')
+      setShowDraftMessageModal(false)
+      setSelectedDecisionMaker(null)
+      setSelectedConnection(null)
+      setEmailSubject('')
+      
+      // Refresh connections to update status
+      fetchConnections()
+    } catch (error) {
+      console.error('Error sending email:', error)
+      toast.error(error.message || 'Failed to send email')
+    } finally {
+      setSendingEmail(false)
+    }
   }
 
   const handleCopyDraft = async (draftText, connectionId) => {
@@ -1212,6 +1349,61 @@ console.log("client",client)
 
           {/* Content Area */}
           <div className="p-3 sm:p-4 md:p-6 lg:p-8 pt-3 sm:pt-4">
+          {/* Gmail Connection Section */}
+          {!isEditing && (
+            <section className="mb-4 sm:mb-6 md:mb-8">
+              <Card className="bg-[#fffff4] border-none !shadow-none">
+                <CardContent className="p-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+                    <div className="flex-1">
+                      <h3 className="text-base sm:text-lg font-semibold text-[#0a3d3d] mb-1">
+                        Email Account
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        {gmailConnected 
+                          ? `Connected: ${client?.email || 'Your Gmail account'}`
+                          : 'Connect your Gmail account to send emails directly from your dashboard'
+                        }
+                      </p>
+                    </div>
+                    {gmailConnected ? (
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Badge className="bg-green-600 text-white">
+                          Connected
+                        </Badge>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleDisconnectGmail}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                        >
+                          Disconnect
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        onClick={handleConnectGmail}
+                        disabled={connectingGmail}
+                        className="bg-[#0a3d3d] hover:bg-[#083030] text-white flex-shrink-0 min-h-[44px]"
+                      >
+                        {connectingGmail ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Connecting...
+                          </>
+                        ) : (
+                          <>
+                            <Mail className="w-4 h-4 mr-2" />
+                            Connect Gmail
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </section>
+          )}
           {/* Basic Information */}
           {isEditing && (
             <section className="mb-6 sm:mb-8">
@@ -3368,7 +3560,7 @@ console.log("client",client)
 
         {/* LinkedIn Modal */}
         {showLinkedInModal && selectedDealForModal && (
-          <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+            <div className="fixed inset-0 bg-gray-50/80 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
             <Card className="w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
               <CardContent className="p-4 md:p-6">
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
@@ -3611,7 +3803,7 @@ console.log("client",client)
 
         {/* Email Modal */}
         {showEmailModal && selectedDealForModal && (
-          <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="fixed inset-0 bg-gray-50/80 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
             <Card className="w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
               <CardContent className="p-4 md:p-6">
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
@@ -3653,9 +3845,40 @@ console.log("client",client)
                           || selectedDealForModal["decision_maker_email"]
                           || ""
                         
+                        // Find connection for primary decision maker
+                        const dealId = selectedDealForModal.deal_id || selectedDealForModal["deal_id"] || selectedDealForModal.id || selectedDealForModal["id"]
+                        const connection = primaryEmail ? connections.find(conn => {
+                          const connDealId = conn.deal_id || conn['deal_id']
+                          const connEmail = conn.to_user_email || conn['to_user_email']
+                          return connDealId && String(connDealId).trim() === String(dealId).trim() &&
+                                 connEmail && String(connEmail).trim().toLowerCase() === String(primaryEmail).trim().toLowerCase()
+                        }) : null
+                        
+                        const hasApprovedLockedDraft = connection && 
+                          connection.draft_message && 
+                          connection.draft_message.trim() !== '' &&
+                          connection.client_approved && 
+                          connection.draft_locked
+                        
                         if (primaryName || primaryEmail) {
                           return (
-                            <div className="border rounded-lg p-4 bg-green-50 border-green-300 shadow-md">
+                            <div 
+                              className={`border rounded-lg p-4 bg-green-50 border-green-300 shadow-md transition-colors ${
+                                hasApprovedLockedDraft && primaryEmail ? 'cursor-pointer hover:bg-green-100' : ''
+                              }`}
+                              onClick={() => {
+                                if (primaryEmail && hasApprovedLockedDraft) {
+                                  if (!gmailConnected) {
+                                    setShowGmailConnectModal(true)
+                                    return
+                                  }
+                                  setSelectedDecisionMaker({ name: primaryName, email: primaryEmail })
+                                  setSelectedConnection(connection)
+                                  setEmailSubject(`Connection Request - ${selectedDealForModal?.deal_name || selectedDealForModal?.['deal_name'] || ''}`)
+                                  setShowDraftMessageModal(true)
+                                }
+                              }}
+                            >
                               <div className="flex items-start justify-between gap-3">
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2 mb-2">
@@ -3665,15 +3888,26 @@ console.log("client",client)
                                     <Badge className="bg-green-600 text-white text-xs">
                                       Primary
                                     </Badge>
+                                    {hasApprovedLockedDraft && primaryEmail && (
+                                      <Badge className="bg-blue-600 text-white text-xs">
+                                        Ready to Send
+                                      </Badge>
+                                    )}
                                   </div>
                                   {primaryEmail ? (
-                                    <a
-                                      href={`mailto:${primaryEmail}`}
-                                      className="text-green-600 hover:text-green-700 hover:underline text-sm flex items-center gap-1"
-                                    >
-                                      <Mail className="w-4 h-4" />
-                                      {primaryEmail}
-                                    </a>
+                                    <div className="flex items-center gap-2">
+                                      <a
+                                        href={`mailto:${primaryEmail}`}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="text-green-600 hover:text-green-700 hover:underline text-sm flex items-center gap-1"
+                                      >
+                                        <Mail className="w-4 h-4" />
+                                        {primaryEmail}
+                                      </a>
+                                      {hasApprovedLockedDraft && (
+                                        <span className="text-xs text-blue-600">(Click to send draft)</span>
+                                      )}
+                                    </div>
                                   ) : (
                                     <p className="text-sm text-gray-400 italic">No email address available</p>
                                   )}
@@ -3700,14 +3934,41 @@ console.log("client",client)
                             || ""
                         }
                         
+                        // Find connection for this decision maker and deal
+                        const dealId = selectedDealForModal.deal_id || selectedDealForModal["deal_id"] || selectedDealForModal.id || selectedDealForModal["id"]
+                        const connection = connections.find(conn => {
+                          const connDealId = conn.deal_id || conn['deal_id']
+                          const connEmail = conn.to_user_email || conn['to_user_email']
+                          return connDealId && String(connDealId).trim() === String(dealId).trim() &&
+                                 connEmail && String(connEmail).trim().toLowerCase() === String(email).trim().toLowerCase()
+                        })
+                        
+                        const hasApprovedLockedDraft = connection && 
+                          connection.draft_message && 
+                          connection.draft_message.trim() !== '' &&
+                          connection.client_approved && 
+                          connection.draft_locked
+                        
                         return (
                           <div
                             key={index}
-                            className={`border rounded-lg p-4 ${
+                            className={`border rounded-lg p-4 transition-colors ${
                               isPrimary 
                                 ? 'bg-green-50 border-green-300 shadow-md' 
                                 : 'bg-white border-gray-200'
-                            }`}
+                            } ${hasApprovedLockedDraft && email ? 'cursor-pointer hover:bg-green-100' : ''}`}
+                            onClick={() => {
+                              if (email && hasApprovedLockedDraft) {
+                                if (!gmailConnected) {
+                                  setShowGmailConnectModal(true)
+                                  return
+                                }
+                                setSelectedDecisionMaker(dm)
+                                setSelectedConnection(connection)
+                                setEmailSubject(`Connection Request - ${selectedDealForModal?.deal_name || selectedDealForModal?.['deal_name'] || ''}`)
+                                setShowDraftMessageModal(true)
+                              }
+                            }}
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex-1">
@@ -3722,22 +3983,33 @@ console.log("client",client)
                                       Primary
                                     </Badge>
                                   )}
+                                  {hasApprovedLockedDraft && email && (
+                                    <Badge className="bg-blue-600 text-white text-xs">
+                                      Ready to Send
+                                    </Badge>
+                                  )}
                                 </div>
                                 {dm.role && (
                                   <p className="text-sm text-gray-600 mb-2">{dm.role}</p>
                                 )}
                                 {email ? (
-                                  <a
-                                    href={`mailto:${email}`}
-                                    className={`${
-                                      isPrimary 
-                                        ? 'text-green-600 hover:text-green-700' 
-                                        : 'text-blue-600 hover:text-blue-700'
-                                    } hover:underline text-sm flex items-center gap-1`}
-                                  >
-                                    <Mail className="w-4 h-4" />
-                                    {email}
-                                  </a>
+                                  <div className="flex items-center gap-2">
+                                    <a
+                                      href={`mailto:${email}`}
+                                      onClick={(e) => e.stopPropagation()}
+                                      className={`${
+                                        isPrimary 
+                                          ? 'text-green-600 hover:text-green-700' 
+                                          : 'text-blue-600 hover:text-blue-700'
+                                      } hover:underline text-sm flex items-center gap-1`}
+                                    >
+                                      <Mail className="w-4 h-4" />
+                                      {email}
+                                    </a>
+                                    {hasApprovedLockedDraft && (
+                                      <span className="text-xs text-blue-600">(Click to send draft)</span>
+                                    )}
+                                  </div>
                                 ) : (
                                   <p className="text-sm text-gray-400 italic">No email address available</p>
                                 )}
@@ -3755,6 +4027,176 @@ console.log("client",client)
                       )
                     }
                   })()}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Draft Message Send Modal */}
+        {showDraftMessageModal && selectedDecisionMaker && selectedConnection && (
+          <div className="fixed inset-0 bg-gray-50/80 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+            <Card className="w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+              <CardContent className="p-4 md:p-6">
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-montserrat text-[#0a3d3d]">
+                    Send Email to {selectedDecisionMaker.name || "Decision Maker"}
+                  </h2>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setShowDraftMessageModal(false)
+                      setSelectedDecisionMaker(null)
+                      setSelectedConnection(null)
+                      setEmailSubject('')
+                    }}
+                    className="min-w-[44px] min-h-[44px]"
+                  >
+                    <X className="w-5 h-5" />
+                  </Button>
+                </div>
+
+                <div className="space-y-4">
+                  {!gmailConnected && (
+                    <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertCircle className="w-5 h-5 text-yellow-600" />
+                        <p className="text-sm font-medium text-yellow-800">
+                          Gmail account not connected
+                        </p>
+                      </div>
+                      <p className="text-xs text-yellow-700 mb-2">
+                        You need to connect your Gmail account to send emails.
+                      </p>
+                      <Button
+                        onClick={() => {
+                          setShowDraftMessageModal(false)
+                          handleConnectGmail()
+                        }}
+                        size="sm"
+                        className="bg-yellow-600 hover:bg-yellow-700 text-white"
+                      >
+                        Connect Gmail Now
+                      </Button>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      To:
+                    </label>
+                    <p className="text-sm text-gray-900">
+                      {selectedDecisionMaker.email || selectedDecisionMaker["email"] || selectedConnection.to_user_email || ""}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Subject:
+                    </label>
+                    <input
+                      type="text"
+                      value={emailSubject}
+                      onChange={(e) => setEmailSubject(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                      placeholder="Email subject"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Message:
+                    </label>
+                    <textarea
+                      value={selectedConnection.draft_message || ""}
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[200px] bg-gray-50"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      This draft has been approved and locked. It cannot be edited.
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      onClick={handleSendDraftEmail}
+                      disabled={sendingEmail || !gmailConnected}
+                      className="flex-1 bg-[#0a3d3d] hover:bg-[#083030] text-white"
+                    >
+                      {sendingEmail ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="w-4 h-4 mr-2" />
+                          Send Email
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowDraftMessageModal(false)
+                        setSelectedDecisionMaker(null)
+                        setSelectedConnection(null)
+                        setEmailSubject('')
+                      }}
+                      disabled={sendingEmail}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Gmail Connect Prompt Modal */}
+        {showGmailConnectModal && (
+          <div className="fixed inset-0 bg-gray-50/80 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+            <Card className="w-full max-w-md">
+              <CardContent className="p-4 md:p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg sm:text-xl font-montserrat text-[#0a3d3d]">
+                    Gmail Account Required
+                  </h2>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowGmailConnectModal(false)}
+                    className="min-w-[44px] min-h-[44px]"
+                  >
+                    <X className="w-5 h-5" />
+                  </Button>
+                </div>
+
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-600">
+                    You need to connect your Gmail account to send emails. This allows you to send emails directly from your own Gmail account.
+                  </p>
+
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      onClick={() => {
+                        setShowGmailConnectModal(false)
+                        handleConnectGmail()
+                      }}
+                      className="flex-1 bg-[#0a3d3d] hover:bg-[#083030] text-white"
+                    >
+                      <Mail className="w-4 h-4 mr-2" />
+                      Connect Gmail
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowGmailConnectModal(false)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
