@@ -107,6 +107,7 @@ For each travel plan:
 - travel_plans: Route(s) separated by \\n if multiple
 - date: Future date range(s) after run_date, separated by \\n if multiple
 - Format: "Month DD - DD, YYYY" (must be valid calendar dates)
+- how_they_can_help: A brief explanation (1-2 sentences) of how this connection can help the client based on their profile, goals, industries, or partner_types. Explain the value proposition or potential collaboration opportunity.
 
 Focus on: In-person networking, regional alignment, industry events, strategic partnerships
 
@@ -124,6 +125,7 @@ For each event:
 - location: "Virtual" or "City, State"
 - event_date: Future date after run_date, include time if virtual
 - Format: "Month DD, YYYY" or "Month DD - DD, YYYY" with optional time (e.g., "March 8, 2025 (11 AM ET)")
+- why_it_matters: A brief explanation (1-2 sentences) of why this event matters for the client based on their profile, goals, industries, regions, or business objectives. Explain the relevance and potential value.
 
 Focus on: Real verified events, matching primary industries, in client's regions (or virtual), providing networking/learning opportunities
 
@@ -171,7 +173,8 @@ Required structure:
       "customer": "Vit Goncharuk/AI",
       "opm_number": "OPM62",
       "travel_plans": "Washington → Miami\\nWashington → Finland",
-      "date": "February 21 - 23, 2025\\nFebruary 27 - March 5, 2025"
+      "date": "February 21 - 23, 2025\\nFebruary 27 - March 5, 2025",
+      "how_they_can_help": "This connection can facilitate introductions to AI industry leaders in Miami and European tech hubs, aligning with your focus on AI partnerships and international expansion."
     }
   ],
   "upcoming_industry_events": [
@@ -179,7 +182,8 @@ Required structure:
       "event_name": "Ken Hersh Private Equity & Sports",
       "industry": "💼 Finance & Private Equity",
       "location": "Virtual",
-      "event_date": "March 8, 2025 (11 AM ET)"
+      "event_date": "March 8, 2025 (11 AM ET)",
+      "why_it_matters": "This event connects private equity professionals and could provide networking opportunities for fundraising or deal sourcing in the sports and finance sectors."
     }
   ]
 }

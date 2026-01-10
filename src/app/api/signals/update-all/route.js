@@ -488,6 +488,10 @@ For each travel plan, include:
   - Format: "Month DD - DD, YYYY" or "Month DD - Month DD, YYYY" for multi-month spans
   - If multiple date ranges, separate with newline character (\n)
   - Verify dates are valid (e.g., February has 28/29 days, months have correct number of days)
+- how_they_can_help:
+  - A brief explanation (1-2 sentences) of how this connection can help the client based on their profile, goals, industries, or partner_types
+  - Explain the value proposition or potential collaboration opportunity
+  - Should be specific to the client's needs and the travel plan's relevance
 
 Focus on travel that could enable:
 - In-person networking opportunities
@@ -528,6 +532,10 @@ For each event, include:
   - Format: "Month DD, YYYY" or "Month DD - DD, YYYY" with optional time (e.g., "March 8, 2025 (11 AM ET)")
   - Verify dates are valid (e.g., February has 28/29 days, months have correct number of days)
   - Only use dates from verified event listings found through web search
+- why_it_matters:
+  - A brief explanation (1-2 sentences) of why this event matters for the client based on their profile, goals, industries, regions, or business objectives
+  - Explain the relevance and potential value (networking, learning, business development opportunities)
+  - Should be specific to the client's needs and the event's relevance
 
 Focus on events that:
 - Are REAL events found through web search - verify the event exists and has the stated date
@@ -581,7 +589,8 @@ Required structure:
       "customer": "Vit Goncharuk/AI",
       "opm_number": "OPM62",
       "travel_plans": "Washington → Miami\nWashington → Finland",
-      "date": "February 21 - 23, 2025\nFebruary 27 - March 5, 2025"
+      "date": "February 21 - 23, 2025\nFebruary 27 - March 5, 2025",
+      "how_they_can_help": "This connection can facilitate introductions to AI industry leaders in Miami and European tech hubs, aligning with your focus on AI partnerships and international expansion."
     }
   ],
   "upcoming_industry_events": [
@@ -589,7 +598,8 @@ Required structure:
       "event_name": "Ken Hersh Private Equity & Sports",
       "industry": "💼 Finance & Private Equity",
       "location": "Virtual",
-      "event_date": "March 8, 2025 (11 AM ET)"
+      "event_date": "March 8, 2025 (11 AM ET)",
+      "why_it_matters": "This event connects private equity professionals and could provide networking opportunities for fundraising or deal sourcing in the sports and finance sectors."
     }
   ]
 }
