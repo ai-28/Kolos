@@ -234,8 +234,11 @@ function ClientDashboardContent() {
     if (gmailConnected === 'true') {
       toast.success('Gmail account connected successfully!')
       setGmailConnected(true)
+      setConnectingGmail(false)
       // Refresh client data to get updated Gmail status
-      fetchClientData()
+      setTimeout(() => {
+        fetchClientData()
+      }, 500) // Small delay to ensure Google Sheets has updated
       // Clean URL
       router.replace('/client/dashboard', { scroll: false })
     }

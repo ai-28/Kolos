@@ -70,12 +70,26 @@ export async function GET(request) {
     }
 
     // Update profile with Gmail connection info
-    await updateProfile(profileId, {
-      gmail_access_token: JSON.stringify(encryptedAccessToken),
-      gmail_refresh_token: JSON.stringify(encryptedRefreshToken),
-      gmail_connected: 'true',
-      gmail_connected_at: new Date().toISOString(),
-    });
+    try {
+      const updateResult = await updateProfile(profileId, {
+        gmail_access_token: JSON.stringify(encryptedAccessToken),
+        gmail_refresh_token: JSON.stringify(encryptedRefreshToken),
+        gmail_connected: 'true',
+        gmail_connected_at: new Date().toISOString(),
+      });
+
+      console.log('✅ Profile updated successfully:', {
+        profileId,
+        gmail_connected: updateResult?.gmail_connected || updateResult?.['gmail_connected'],
+        hasAccessToken: !!updateResult?.gmail_access_token || !!updateResult?.['gmail_access_token'],
+      });
+    } catch (updateError) {
+      console.error('❌ Error updating profile:', updateError);
+      // Still redirect but with error
+      return NextResponse.redirect(
+        `${redirectUrl}?gmail_error=${encodeURIComponent(updateError.message || 'Failed to update profile')}`
+      );
+    }
 
     return NextResponse.redirect(
       `${redirectUrl}?gmail_connected=true`

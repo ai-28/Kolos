@@ -763,6 +763,8 @@ export async function updateProfile(profileId, updates) {
 
         // Map updates to column indices
         const updateRequests = [];
+        const missingColumns = [];
+
         for (const [field, value] of Object.entries(updates)) {
             const columnIndex = headers.findIndex(
                 h => h && h.toLowerCase() === field.toLowerCase()
@@ -777,14 +779,19 @@ export async function updateProfile(profileId, updates) {
                     values: [[value !== null && value !== undefined ? value : '']],
                 });
             } else {
-                // Column doesn't exist, we'll need to add it
-                // For now, just log a warning
-                console.warn(`Column "${field}" not found in Profiles sheet. Skipping update.`);
+                // Column doesn't exist
+                missingColumns.push(field);
+                console.warn(`Column "${field}" not found in Profiles sheet. Available columns:`, headers.slice(0, 20).join(', '));
             }
         }
 
         if (updateRequests.length === 0) {
-            throw new Error('No valid fields to update');
+            const availableColumns = headers.slice(0, 20).join(', ');
+            throw new Error(`No valid fields to update. Missing columns: ${missingColumns.join(', ')}. Available columns (first 20): ${availableColumns}...`);
+        }
+
+        if (missingColumns.length > 0) {
+            console.warn(`⚠️ Some columns were not found and will be skipped: ${missingColumns.join(', ')}`);
         }
 
         // Batch update
