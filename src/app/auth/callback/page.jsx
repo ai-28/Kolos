@@ -18,16 +18,54 @@ function AuthCallbackContent() {
           return
         }
 
-        // Wait a moment for hash fragment to be available (important for admin.generateLink magic links)
-        // The hash fragment might not be immediately available when page loads from redirect
-        await new Promise(resolve => setTimeout(resolve, 100))
+        // Let Supabase process the hash fragment automatically first
+        // Wait a bit for Supabase to initialize and process any hash fragments
+        await new Promise(resolve => setTimeout(resolve, 300))
+
+        // Check for session multiple times - Supabase processes hash fragments automatically
+        // This is especially important for admin.generateLink (implicit flow)
+        let session = null
+        for (let attempt = 0; attempt < 5; attempt++) {
+          const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
+          if (currentSession?.user?.email && !sessionError) {
+            session = currentSession
+            console.log(`✅ Found session on attempt ${attempt + 1}`)
+            break
+          }
+          if (attempt < 4) {
+            await new Promise(resolve => setTimeout(resolve, 200))
+          }
+        }
+
+        if (session?.user?.email) {
+          console.log('Found existing session, completing auth...')
+          await completeAuth(session.user.email)
+          return
+        }
+
+        // Fallback: Try to manually parse hash fragment (for admin.generateLink implicit flow)
+        // This handles cases where Supabase hasn't processed it yet
+        let hashParams = null
+        let hashString = ''
+        
+        for (let i = 0; i < 5; i++) {
+          hashString = window.location.hash.substring(1)
+          if (hashString) {
+            try {
+              hashParams = new URLSearchParams(hashString)
+              break
+            } catch (e) {
+              console.warn('Error parsing hash params:', e)
+            }
+          }
+          await new Promise(resolve => setTimeout(resolve, 100))
+        }
 
         // Get tokens from hash fragment (implicit flow - used by admin.generateLink)
-        const hashParams = new URLSearchParams(window.location.hash.substring(1))
-        const accessToken = hashParams.get('access_token')
-        const refreshToken = hashParams.get('refresh_token')
-        const errorHash = hashParams.get('error')
-        const errorDescriptionHash = hashParams.get('error_description')
+        const accessToken = hashParams?.get('access_token')
+        const refreshToken = hashParams?.get('refresh_token')
+        const errorHash = hashParams?.get('error')
+        const errorDescriptionHash = hashParams?.get('error_description')
 
         // Handle errors from hash fragment first
         if (errorHash) {
@@ -60,6 +98,7 @@ function AuthCallbackContent() {
         }
 
         // Try to get code parameter (PKCE flow - used by signInWithOtp with flowType: 'pkce')
+        // This is the client-side EmailModal flow
         const code = searchParams.get('code')
         if (code) {
           console.log('Found code parameter (PKCE flow)')
@@ -87,8 +126,17 @@ function AuthCallbackContent() {
           return
         }
         
-        // No tokens found - log for debugging
-        console.error('No authentication tokens found. Hash:', window.location.hash.substring(0, 50), 'Query:', window.location.search)
+        // No tokens found - log comprehensive debugging info
+        console.error('No authentication tokens found.', {
+          hash: hashString || window.location.hash,
+          hashLength: hashString.length || window.location.hash.length,
+          search: window.location.search,
+          searchLength: window.location.search.length,
+          fullUrl: window.location.href,
+          pathname: window.location.pathname,
+          hasSession: !!session,
+          sessionUser: session?.user?.email || null
+        })
         router.push('/?error=no_token')
       } catch (error) {
         console.error('Error in auth callback:', error)
