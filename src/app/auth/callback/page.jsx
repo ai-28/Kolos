@@ -14,23 +14,64 @@ function AuthCallbackContent() {
     const handleAuth = async () => {
       try {
         if (!supabase) {
+          console.error('Supabase client not initialized')
           router.push('/?error=config_error')
           return
         }
 
-        // Let Supabase process the hash fragment automatically first
+        // Step 1: Check for errors in URL first (both query params and hash)
+        const errorParam = searchParams.get('error')
+        const errorDescription = searchParams.get('error_description')
+        if (errorParam) {
+          console.error('Auth error from query params:', errorParam, errorDescription)
+          router.push(`/?error=${errorParam}${errorDescription ? '&error_description=' + encodeURIComponent(errorDescription) : ''}`)
+          return
+        }
+
+        // Step 2: Try PKCE flow first (client-side EmailModal - most common)
+        // This uses code parameter in query string
+        const code = searchParams.get('code')
+        if (code) {
+          console.log('🔵 Processing PKCE flow (client-side)')
+          try {
+            const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+            if (error) {
+              console.error('Error exchanging code for session:', error)
+              if (error.message?.includes('expired') || error.message?.includes('invalid')) {
+                router.push('/?error=otp_expired&error_description=' + encodeURIComponent(error.message))
+                return
+              }
+              throw error
+            }
+            if (data?.user?.email) {
+              console.log('✅ PKCE flow successful')
+              await completeAuth(data.user.email)
+              return
+            }
+          } catch (error) {
+            console.error('PKCE flow failed:', error)
+            router.push('/?error=auth_failed')
+            return
+          }
+        }
+
+        // Step 3: Let Supabase process hash fragments automatically (for admin.generateLink)
         // Wait a bit for Supabase to initialize and process any hash fragments
         await new Promise(resolve => setTimeout(resolve, 300))
 
-        // Check for session multiple times - Supabase processes hash fragments automatically
-        // This is especially important for admin.generateLink (implicit flow)
+        // Step 4: Check for session multiple times - Supabase processes hash fragments automatically
+        // This handles both PKCE (if Supabase auto-processed) and implicit flow
         let session = null
         for (let attempt = 0; attempt < 5; attempt++) {
-          const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
-          if (currentSession?.user?.email && !sessionError) {
-            session = currentSession
-            console.log(`✅ Found session on attempt ${attempt + 1}`)
-            break
+          try {
+            const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
+            if (currentSession?.user?.email && !sessionError) {
+              session = currentSession
+              console.log(`✅ Found session on attempt ${attempt + 1} (auto-processed)`)
+              break
+            }
+          } catch (error) {
+            console.warn(`Session check attempt ${attempt + 1} failed:`, error)
           }
           if (attempt < 4) {
             await new Promise(resolve => setTimeout(resolve, 200))
@@ -38,12 +79,12 @@ function AuthCallbackContent() {
         }
 
         if (session?.user?.email) {
-          console.log('Found existing session, completing auth...')
+          console.log('✅ Using auto-processed session')
           await completeAuth(session.user.email)
           return
         }
 
-        // Fallback: Try to manually parse hash fragment (for admin.generateLink implicit flow)
+        // Step 5: Fallback - manually parse hash fragment (for admin.generateLink implicit flow)
         // This handles cases where Supabase hasn't processed it yet
         let hashParams = null
         let hashString = ''
@@ -67,7 +108,7 @@ function AuthCallbackContent() {
         const errorHash = hashParams?.get('error')
         const errorDescriptionHash = hashParams?.get('error_description')
 
-        // Handle errors from hash fragment first
+        // Handle errors from hash fragment
         if (errorHash) {
           console.error('Auth error from hash fragment:', errorHash, errorDescriptionHash)
           router.push(`/?error=${errorHash}${errorDescriptionHash ? '&error_description=' + encodeURIComponent(errorDescriptionHash) : ''}`)
@@ -76,58 +117,37 @@ function AuthCallbackContent() {
 
         // If we have tokens in hash fragment (implicit flow from admin.generateLink)
         if (accessToken) {
-          console.log('Found access token in hash fragment (implicit flow)')
-          const { data: { user }, error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken || '',
-          })
+          console.log('🟢 Processing implicit flow (admin-generated link)')
+          try {
+            const { data: { user }, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken || '',
+            })
 
-          if (error) {
-            console.error('Auth error setting session:', error)
+            if (error) {
+              console.error('Auth error setting session:', error)
+              router.push('/?error=auth_failed')
+              return
+            }
+
+            if (!user?.email) {
+              console.error('No email in user object')
+              router.push('/?error=no_email')
+              return
+            }
+
+            console.log('✅ Implicit flow successful')
+            await completeAuth(user.email)
+            return
+          } catch (error) {
+            console.error('Implicit flow failed:', error)
             router.push('/?error=auth_failed')
             return
           }
-
-          if (!user?.email) {
-            router.push('/?error=no_email')
-            return
-          }
-
-          await completeAuth(user.email)
-          return
-        }
-
-        // Try to get code parameter (PKCE flow - used by signInWithOtp with flowType: 'pkce')
-        // This is the client-side EmailModal flow
-        const code = searchParams.get('code')
-        if (code) {
-          console.log('Found code parameter (PKCE flow)')
-          const { data, error } = await supabase.auth.exchangeCodeForSession(code)
-          if (error) {
-            console.error('Error exchanging code for session:', error)
-            if (error.message?.includes('expired') || error.message?.includes('invalid')) {
-              router.push('/?error=otp_expired&error_description=' + encodeURIComponent(error.message))
-              return
-            }
-            throw error
-          }
-          if (data?.user?.email) {
-            await completeAuth(data.user.email)
-            return
-          }
         }
         
-        // Check for error parameters in URL query (from Supabase redirect)
-        const errorParam = searchParams.get('error')
-        const errorDescription = searchParams.get('error_description')
-        if (errorParam) {
-          console.error('Auth error from query params:', errorParam, errorDescription)
-          router.push(`/?error=${errorParam}${errorDescription ? '&error_description=' + encodeURIComponent(errorDescription) : ''}`)
-          return
-        }
-        
-        // No tokens found - log comprehensive debugging info
-        console.error('No authentication tokens found.', {
+        // Step 6: No tokens found - log comprehensive debugging info
+        console.error('❌ No authentication tokens found.', {
           hash: hashString || window.location.hash,
           hashLength: hashString.length || window.location.hash.length,
           search: window.location.search,
@@ -135,23 +155,42 @@ function AuthCallbackContent() {
           fullUrl: window.location.href,
           pathname: window.location.pathname,
           hasSession: !!session,
-          sessionUser: session?.user?.email || null
+          sessionUser: session?.user?.email || null,
+          hasCode: !!code
         })
         router.push('/?error=no_token')
       } catch (error) {
-        console.error('Error in auth callback:', error)
+        console.error('❌ Error in auth callback:', error)
         router.push('/?error=callback_error')
       }
     }
 
     const completeAuth = async (email) => {
       try {
+        if (!email) {
+          console.error('No email provided to completeAuth')
+          router.push('/?error=no_email')
+          return
+        }
+
         console.log('Completing auth for email:', email)
+        
         // Look up user in Users sheet via API
         const response = await fetch(`/api/auth/complete-login?email=${encodeURIComponent(email)}`)
+        
+        if (!response.ok) {
+          console.error('Complete login API error:', {
+            status: response.status,
+            statusText: response.statusText,
+            email: email
+          })
+          router.push('/?error=login_failed')
+          return
+        }
+
         const data = await response.json()
 
-        if (!response.ok || !data.success) {
+        if (!data.success) {
           console.error('Complete login failed:', {
             status: response.status,
             error: data.error,
@@ -164,6 +203,12 @@ function AuthCallbackContent() {
           } else {
             router.push(`/?error=${errorCode}`)
           }
+          return
+        }
+
+        if (!data.email) {
+          console.error('No email in response data')
+          router.push('/?error=login_failed')
           return
         }
 
@@ -180,7 +225,7 @@ function AuthCallbackContent() {
         // This helps middleware detect the session correctly
         await new Promise(resolve => setTimeout(resolve, 200))
         
-        // Simple redirect - no signal activation logic
+        // Redirect based on role - safe for both client and admin
         if (normalizedRole === 'Admin') {
           console.log('🔄 Redirecting to admin dashboard')
           router.push('/admin/dashboard')
@@ -189,7 +234,7 @@ function AuthCallbackContent() {
           router.push('/client/dashboard')
         }
       } catch (error) {
-        console.error('Error completing login:', error)
+        console.error('❌ Error completing login:', error)
         router.push('/?error=login_failed')
       }
     }
