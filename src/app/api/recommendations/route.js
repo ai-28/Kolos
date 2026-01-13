@@ -211,72 +211,128 @@ FINAL REQUIREMENTS:
 REMEMBER: Your response must be ONLY valid JSON starting with { and ending with }. No other text whatsoever.
 `;
 
-    // Use Responses API with web search tool
-    const completion = await client.responses.create({
-      model: "gpt-5.1",
-      input: prompt,
-      tools: [
-        { type: "web_search" }
-      ],
-      temperature: 0.3
-    });
-
-    // Responses API returns content in output_text field
-    const responseContent = completion.output_text;
-
-    console.log(`📝 Response preview (first 500 chars): ${responseContent?.substring(0, 500) || 'No content'}`);
-
-    // Parse the JSON string from OpenAI response
+    // Generate signals with retry logic to ensure signals are always generated
     let parsedData;
-    try {
-      // If responseContent is already an object, use it directly
-      if (typeof responseContent === 'object') {
-        parsedData = responseContent;
-      } else {
-        let jsonString = responseContent.trim();
+    let signals = [];
+    let opmTravelPlans = [];
+    let upcomingIndustryEvents = [];
+    const maxRetries = 3;
 
-        // Remove markdown code blocks if present (gpt-5.2 might add them)
-        if (jsonString.startsWith('```json')) {
-          jsonString = jsonString.replace(/^```json\s*/i, '').replace(/\s*```\s*$/i, '');
-        } else if (jsonString.startsWith('```')) {
-          jsonString = jsonString.replace(/^```\s*/i, '').replace(/\s*```\s*$/i, '');
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`🔄 Attempt ${attempt}/${maxRetries} to generate signals...`);
+
+        // Use Responses API with web search tool
+        const completion = await client.responses.create({
+          model: "gpt-5.1",
+          input: prompt,
+          tools: [
+            { type: "web_search" }
+          ],
+          temperature: 0.3
+        });
+
+        // Responses API returns content in output_text field
+        const responseContent = completion.output_text;
+
+        console.log(`📝 Response preview (first 500 chars): ${responseContent?.substring(0, 500) || 'No content'}`);
+
+        // Parse the JSON string from OpenAI response
+        try {
+          // If responseContent is already an object, use it directly
+          if (typeof responseContent === 'object') {
+            parsedData = responseContent;
+          } else {
+            let jsonString = responseContent.trim();
+
+            // Remove markdown code blocks if present (gpt-5.2 might add them)
+            if (jsonString.startsWith('```json')) {
+              jsonString = jsonString.replace(/^```json\s*/i, '').replace(/\s*```\s*$/i, '');
+            } else if (jsonString.startsWith('```')) {
+              jsonString = jsonString.replace(/^```\s*/i, '').replace(/\s*```\s*$/i, '');
+            }
+
+            // Extract JSON object (find first { and last })
+            const firstBrace = jsonString.indexOf('{');
+            const lastBrace = jsonString.lastIndexOf('}');
+
+            if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+              jsonString = jsonString.substring(firstBrace, lastBrace + 1);
+            }
+
+            jsonString = jsonString.trim();
+
+            parsedData = JSON.parse(jsonString);
+          }
+        } catch (parseError) {
+          console.error("❌ Error parsing JSON response:", parseError);
+          if (attempt === maxRetries) {
+            return NextResponse.json(
+              { error: "Failed to parse OpenAI response", details: parseError.message },
+              { status: 500 }
+            );
+          }
+          // Retry on parse error
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+          continue;
         }
 
-        // Extract JSON object (find first { and last })
-        const firstBrace = jsonString.indexOf('{');
-        const lastBrace = jsonString.lastIndexOf('}');
-
-        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-          jsonString = jsonString.substring(firstBrace, lastBrace + 1);
+        // Validate response structure
+        if (!parsedData || typeof parsedData !== 'object') {
+          if (attempt === maxRetries) {
+            return NextResponse.json(
+              { error: "Invalid response structure from OpenAI" },
+              { status: 500 }
+            );
+          }
+          // Retry on invalid structure
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+          continue;
         }
 
-        jsonString = jsonString.trim();
+        // Ensure arrays exist (can be empty)
+        signals = Array.isArray(parsedData.signals) ? parsedData.signals : [];
+        opmTravelPlans = Array.isArray(parsedData.opm_travel_plans) ? parsedData.opm_travel_plans : [];
+        upcomingIndustryEvents = Array.isArray(parsedData.upcoming_industry_events) ? parsedData.upcoming_industry_events : [];
 
-        parsedData = JSON.parse(jsonString);
+        console.log(`✅ Parsed ${signals.length} signals, ${opmTravelPlans.length} travel plans, ${upcomingIndustryEvents.length} events`);
 
+        // Check if we got signals - if yes, break out of retry loop
+        if (signals.length > 0) {
+          console.log(`✅ Successfully generated ${signals.length} signals on attempt ${attempt}`);
+          break;
+        } else {
+          console.warn(`⚠️ Attempt ${attempt}: LLM returned 0 signals. Retrying...`);
+          if (attempt < maxRetries) {
+            // Wait before retrying
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+          }
+        }
+      } catch (apiError) {
+        console.error(`❌ Error on attempt ${attempt}:`, apiError);
+        if (attempt === maxRetries) {
+          return NextResponse.json(
+            {
+              error: "Failed to generate signals after retries",
+              details: apiError.message,
+              suggestion: "The LLM was unable to generate signals. Please check the profile data and try again."
+            },
+            { status: 500 }
+          );
+        }
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
       }
-    } catch (parseError) {
-      console.error("❌ Error parsing JSON response:", parseError);
-      return NextResponse.json(
-        { error: "Failed to parse OpenAI response", details: parseError.message },
-        { status: 500 }
-      );
     }
 
-    // Validate response structure
-    if (!parsedData || typeof parsedData !== 'object') {
-      return NextResponse.json(
-        { error: "Invalid response structure from OpenAI" },
-        { status: 500 }
-      );
+    // Final check - if still no signals after retries, log warning but continue
+    if (signals.length === 0) {
+      console.warn(`⚠️ WARNING: LLM returned 0 signals after ${maxRetries} attempts. This may indicate:`);
+      console.warn(`   - Insufficient profile data provided`);
+      console.warn(`   - LLM could not find relevant signals`);
+      console.warn(`   - Web search returned no results`);
+      console.warn(`   Profile data sent to LLM:`, JSON.stringify(safeProfile, null, 2).substring(0, 500));
     }
-
-    // Ensure arrays exist (can be empty)
-    const signals = Array.isArray(parsedData.signals) ? parsedData.signals : [];
-    const opmTravelPlans = Array.isArray(parsedData.opm_travel_plans) ? parsedData.opm_travel_plans : [];
-    const upcomingIndustryEvents = Array.isArray(parsedData.upcoming_industry_events) ? parsedData.upcoming_industry_events : [];
-
-    console.log(`✅ Parsed ${signals.length} signals, ${opmTravelPlans.length} travel plans, ${upcomingIndustryEvents.length} events`);
 
     // Save profile and signals to Google Sheets
     const { SHEETS, appendToSheet } = await import("@/app/lib/googleSheets");
@@ -340,8 +396,18 @@ REMEMBER: Your response must be ONLY valid JSON starting with { and ending with 
     // Save signals
     if (signals.length > 0) {
       let signalsSaved = 0;
+      let signalsFailed = 0;
+      const failedSignals = [];
 
       for (const signal of signals) {
+        // Validate signal has required fields
+        if (!signal.headline_source && !signal.url) {
+          console.warn(`⚠️ Skipping invalid signal (missing headline_source and url):`, signal);
+          signalsFailed++;
+          failedSignals.push({ signal, reason: 'Missing headline_source and url' });
+          continue;
+        }
+
         // Prefix date with apostrophe to force Google Sheets to store as text (prevents serial number conversion)
         const dateValue = signal.date ? `'${signal.date}` : '';
         const signalRow = [
@@ -354,6 +420,7 @@ REMEMBER: Your response must be ONLY valid JSON starting with { and ending with 
           signal.overall || '',
           signal.next_step || '',
           signal.estimated_target_value_USD || '',
+          'Draft', // Default status to Draft - matches /api/signals/update format (10th column)
         ];
 
         try {
@@ -361,9 +428,35 @@ REMEMBER: Your response must be ONLY valid JSON starting with { and ending with 
           signalsSaved++;
         } catch (error) {
           console.error('❌ Error saving signal to Google Sheets:', error);
+          console.error('Signal data that failed to save:', signalRow);
+          console.error('Error details:', {
+            message: error.message,
+            code: error.code,
+            response: error.response?.data,
+          });
+          signalsFailed++;
+          failedSignals.push({ signal, error: error.message });
         }
       }
-      console.log(`✅ ${signalsSaved} signals saved to Google Sheets`);
+
+      // Log results
+      if (signalsSaved > 0) {
+        console.log(`✅ ${signalsSaved} signals saved to Google Sheets`);
+      }
+      if (signalsFailed > 0) {
+        console.error(`⚠️ ${signalsFailed} signals failed to save to Google Sheets`);
+        console.error('Failed signals details:', failedSignals);
+      }
+
+      // Warn if no signals were saved despite having signals to save
+      if (signalsSaved === 0 && signals.length > 0) {
+        console.error(`❌ CRITICAL: All ${signals.length} signals failed to save!`);
+        console.error('This indicates a problem with Google Sheets connection or signal data format.');
+      }
+    } else {
+      console.warn(`⚠️ No signals to save (signals array is empty)`);
+      console.warn(`   Profile ID: ${profileId}`);
+      console.warn(`   This may be due to LLM returning no signals or empty array`);
     }
 
     return NextResponse.json({
