@@ -169,7 +169,7 @@ export function buildSignalsEmailHTML({ clientName, magicLink, signals }) {
                 ${activateLink ? `
                 <tr>
                   <td style="padding: 16px 0 0 0;">
-                    <a href="${activateLink}" style="display: inline-block; padding: 12px 24px; background-color: #0a3d3d; color: #ffffff; text-decoration: none; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px; font-weight: 600;">Add to Deals →</a>
+                    <a href="${activateLink}" style="display: inline-block; padding: 12px 24px; background-color: #0a3d3d; color: #ffffff; text-decoration: none; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px; font-weight: 600;">Add to Pipeline →</a>
                   </td>
                 </tr>
                 ` : ''}

@@ -164,7 +164,7 @@ export async function POST(req) {
             deal.owner || '',
             deal.target || '',
             deal.source || '',
-            deal.stage || 'list',
+            deal.stage || 'selected',
             deal.target_deal_size || '',
             deal.next_step || '',
             // Apollo enriched fields (primary decision maker for backward compatibility)

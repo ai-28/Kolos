@@ -33,7 +33,7 @@ function ClientDashboardContent() {
     deal_name: '',
     target: '',
     source: '',
-    stage: 'list',
+    stage: 'selected',
     target_deal_size: '',
     next_step: ''
   })
@@ -356,7 +356,7 @@ function ClientDashboardContent() {
         deal_name: '',
         target: '',
         source: '',
-        stage: 'list',
+        stage: 'selected',
         target_deal_size: '',
         next_step: ''
       })
@@ -404,7 +404,7 @@ function ClientDashboardContent() {
       deal_name: deal.deal_name || deal["deal_name"] || '',
       target: deal.target || deal["target"] || '',
       source: deal.source || deal["source"] || '',
-      stage: deal.stage || deal["stage"] || 'list',
+      stage: deal.stage || deal["stage"] || 'selected',
       target_deal_size: deal.target_deal_size || deal["target_deal_size"] || '',
       next_step: deal.next_step || deal["next_step"] || ''
     })
@@ -463,7 +463,7 @@ function ClientDashboardContent() {
         deal_name: '',
         target: '',
         source: '',
-        stage: 'list',
+        stage: 'selected',
         target_deal_size: '',
         next_step: ''
       })
@@ -2190,7 +2190,7 @@ console.log("client",client)
                                   deal_name: signal.headline_source || '',
                                   target: '',
                                   source: signal.url || '',
-                                  stage: 'list',
+                                  stage: 'selected',
                                   target_deal_size: '',
                                   next_step: signal.next_step || ''
                                 })
@@ -2198,7 +2198,7 @@ console.log("client",client)
                               }}
                               className="bg-[#0a3d3d] hover:bg-[#0a3d3d]/90 text-white w-full sm:w-auto min-h-[44px] text-sm sm:text-base"
                             >
-                              Add to Deals
+                              Add to Pipeline
                             </Button>
                           </div>
                             </div>
@@ -2232,7 +2232,7 @@ console.log("client",client)
                     <div className="md:hidden space-y-3 max-h-[600px] overflow-y-auto">
                       {deals.map((deal, index) => {
                         const dealId = deal.deal_id || deal["deal_id"] || deal.id || deal["id"]
-                        const currentStage = deal.stage || deal["stage"] || "list"
+                        const currentStage = deal.stage || deal["stage"] || "selected"
                         const isUpdating = updatingStage === dealId
                         const isDeleting = deletingDeal === dealId
                         
@@ -2368,15 +2368,15 @@ console.log("client",client)
                                     ? "bg-yellow-100 text-yellow-800 border-yellow-300"
                                     : currentStage === "NDA signed"
                                     ? "bg-blue-100 text-blue-800 border-blue-300"
-                                    : currentStage === "intro"
+                                    : currentStage === "intro requested"
                                     ? "bg-purple-100 text-purple-800 border-purple-300"
                                     : currentStage === "first call"
                                     ? "bg-orange-100 text-orange-800 border-orange-300"
                                     : "bg-gray-100 text-gray-800 border-gray-300"
                                 } ${isUpdating ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
                               >
-                                <option value="list" style={{ backgroundColor: '#f3f4f6', color: '#1f2937' }}>list</option>
-                                <option value="intro" style={{ backgroundColor: '#f3e8ff', color: '#6b21a8' }}>intro</option>
+                                <option value="selected" style={{ backgroundColor: '#f3f4f6', color: '#1f2937' }}>selected</option>
+                                <option value="intro requested" style={{ backgroundColor: '#f3e8ff', color: '#6b21a8' }}>intro requested</option>
                                 <option value="first call" style={{ backgroundColor: '#fff7ed', color: '#9a3412' }}>first call</option>
                                 <option value="NDA signed" style={{ backgroundColor: '#dbeafe', color: '#1e40af' }}>NDA signed</option>
                                 <option value="in negotiation" style={{ backgroundColor: '#fef3c7', color: '#92400e' }}>in negotiation</option>
@@ -2453,7 +2453,7 @@ console.log("client",client)
                         <tbody>
                           {deals.map((deal, index) => {
                             const dealId = deal.deal_id || deal["deal_id"] || deal.id || deal["id"]
-                            const currentStage = deal.stage || deal["stage"] || "list"
+                            const currentStage = deal.stage || deal["stage"] || "selected"
                             const isUpdating = updatingStage === dealId
                             const isDeleting = deletingDeal === dealId
                             
@@ -2499,15 +2499,15 @@ console.log("client",client)
                                         ? "bg-yellow-100 text-yellow-800 border-yellow-300"
                                         : currentStage === "NDA signed"
                                         ? "bg-blue-100 text-blue-800 border-blue-300"
-                                        : currentStage === "intro"
+                                        : currentStage === "intro requested"
                                         ? "bg-purple-100 text-purple-800 border-purple-300"
                                         : currentStage === "first call"
                                         ? "bg-orange-100 text-orange-800 border-orange-300"
                                         : "bg-gray-100 text-gray-800 border-gray-300"
                                     } ${isUpdating ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:border-[#0a3d3d]"}`}
                                   >
-                                    <option value="list" style={{ backgroundColor: '#f3f4f6', color: '#1f2937' }}>list</option>
-                                    <option value="intro" style={{ backgroundColor: '#f3e8ff', color: '#6b21a8' }}>intro</option>
+                                    <option value="selected" style={{ backgroundColor: '#f3f4f6', color: '#1f2937' }}>selected</option>
+                                    <option value="intro requested" style={{ backgroundColor: '#f3e8ff', color: '#6b21a8' }}>intro requested</option>
                                     <option value="first call" style={{ backgroundColor: '#fff7ed', color: '#9a3412' }}>first call</option>
                                     <option value="NDA signed" style={{ backgroundColor: '#dbeafe', color: '#1e40af' }}>NDA signed</option>
                                     <option value="in negotiation" style={{ backgroundColor: '#fef3c7', color: '#92400e' }}>in negotiation</option>
@@ -2947,7 +2947,7 @@ console.log("client",client)
                         deal_name: '',
                         target: '',
                         source: '',
-                        stage: 'list',
+                        stage: 'selected',
                         target_deal_size: '',
                         next_step: ''
                       })
@@ -3018,8 +3018,8 @@ console.log("client",client)
                       onChange={(e) => setDealFormData({...dealFormData, stage: e.target.value})}
                       className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] text-sm sm:text-base min-h-[44px]"
                     >
-                      <option value="list">list</option>
-                      <option value="intro">intro</option>
+                      <option value="selected">selected</option>
+                      <option value="intro requested">intro requested</option>
                       <option value="first call">first call</option>
                       <option value="NDA signed">NDA signed</option>
                       <option value="in negotiation">in negotiation</option>
@@ -3077,7 +3077,7 @@ console.log("client",client)
                           deal_name: '',
                           target: '',
                           source: '',
-                          stage: 'list',
+                          stage: 'selected',
                           target_deal_size: '',
                           next_step: ''
                         })
