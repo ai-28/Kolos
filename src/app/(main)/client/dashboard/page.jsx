@@ -1134,6 +1134,19 @@ console.log("client",client)
     return { bg: "bg-[#e8dcc8]", text: "text-[#8b6f3e]", label: category || signalType || "Other" }
   }
 
+  // Format currency value with $ symbol and thousand separators
+  const formatCurrency = (value) => {
+    if (!value || value === '-') return '-'
+    const numValue = typeof value === 'string' ? parseFloat(value.replace(/[^0-9.-]/g, '')) : Number(value)
+    if (isNaN(numValue)) return value
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(numValue)
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -2306,7 +2319,16 @@ console.log("client",client)
                               </div>
                             </div> */}
                             <div>
-                              <div className="text-[#67534F] mb-1">Scores (R,O,A)</div>
+                              <div className="text-[#67534F] mb-1 relative inline-block group cursor-help">
+                                Scores (R,O,A)
+                                <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block z-50 w-64 p-2 bg-gray-900 text-white text-xs rounded shadow-lg">
+                                  <div className="font-semibold mb-1">ROA Scores:</div>
+                                  <div>R = Strategic Relevance</div>
+                                  <div>O = Opportunity Window</div>
+                                  <div>A = Actionability</div>
+                                  <div className="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                                </div>
+                              </div>
                               <div className="font-medium text-[#532418]">
                                 {signal.scores_R_O_A || '-'}
                               </div>
@@ -2320,7 +2342,7 @@ console.log("client",client)
                             <div>
                               <div className="text-[#67534F] mb-1">Estimated target value</div>
                               <div className="font-medium text-[#532418]">
-                                {signal.estimated_target_value_USD || '-'}
+                                {formatCurrency(signal.estimated_target_value_USD)}
                               </div>
                             </div>
                           </div>
