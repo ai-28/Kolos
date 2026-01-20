@@ -1134,17 +1134,43 @@ console.log("client",client)
     return { bg: "bg-[#e8dcc8]", text: "text-[#8b6f3e]", label: category || signalType || "Other" }
   }
 
-  // Format currency value with $ symbol and thousand separators
+  // Format currency with K/M/B abbreviations (e.g., $130K, $5M, $1.2B)
   const formatCurrency = (value) => {
     if (!value || value === '-') return '-'
-    const numValue = typeof value === 'string' ? parseFloat(value.replace(/[^0-9.-]/g, '')) : Number(value)
+    
+    // Extract numeric value from string
+    let numValue = typeof value === 'string' ? parseFloat(value.replace(/[^0-9.-]/g, '')) : Number(value)
     if (isNaN(numValue)) return value
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(numValue)
+    
+    const absValue = Math.abs(numValue)
+    const sign = numValue < 0 ? '-' : ''
+    
+    // Format based on magnitude
+    if (absValue >= 1e9) {
+      return `${sign}$${(absValue / 1e9).toFixed(absValue % 1e9 === 0 ? 0 : 1)}B`
+    } else if (absValue >= 1e6) {
+      return `${sign}$${(absValue / 1e6).toFixed(absValue % 1e6 === 0 ? 0 : 1)}M`
+    } else if (absValue >= 1e3) {
+      return `${sign}$${(absValue / 1e3).toFixed(absValue % 1e3 === 0 ? 0 : 1)}K`
+    }
+    return `${sign}$${absValue.toFixed(0)}`
+  }
+
+  // Format currency range (e.g., "5000000-10000000" → "$5M-10M")
+  const formatCurrencyRange = (value) => {
+    if (!value || value === '-') return '-'
+    
+    // Check if it's a range (contains dash, "to", or " - ")
+    const rangeMatch = value.toString().match(/(\d+(?:\.\d+)?)\s*(?:-|to|–)\s*(\d+(?:\.\d+)?)/i)
+    if (rangeMatch) {
+      const [, min, max] = rangeMatch
+      const formattedMin = formatCurrency(min)
+      const formattedMax = formatCurrency(max).replace('$', '')
+      return `${formattedMin}-${formattedMax}`
+    }
+    
+    // Single value
+    return formatCurrency(value)
   }
 
   if (loading) {
@@ -1213,7 +1239,7 @@ console.log("client",client)
           </a> */}
           <a href="#opm-travel-plans" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2 sm:gap-3 py-2.5 sm:py-3 rounded hover:bg-white/10 transition-colors min-h-[44px]">
             <TravelPlanIcon/>
-            <span>Travel Planning</span>
+            <span>Travel Matches</span>
           </a>
           <a href="#upcoming-industry-events" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2 sm:gap-3 py-2.5 sm:py-3 rounded hover:bg-white/10 transition-colors min-h-[44px]">
             <UpcomingEventIcon/>
@@ -1237,7 +1263,7 @@ console.log("client",client)
         </div> */}
 
         <div className="border-t border-gray-600 pt-3 sm:pt-4 mt-3 sm:mt-4 space-y-2 font-marcellus">
-          <a href="#" onClick={() => setIsMobileMenuOpen(false)} className="block text-xs sm:text-sm hover:text-[#c9a961] transition-colors min-h-[44px] flex items-center">Harvard OPM Group</a>
+          <a href="#" onClick={() => setIsMobileMenuOpen(false)} className="block text-xs sm:text-sm hover:text-[#c9a961] transition-colors min-h-[44px] flex items-center">Kolos Network</a>
           <a href="#" onClick={() => setIsMobileMenuOpen(false)} className="block text-xs sm:text-sm hover:text-[#c9a961] transition-colors min-h-[44px] flex items-center">Updates & FAQ</a>
           <button 
             onClick={async () => {
@@ -1969,7 +1995,7 @@ console.log("client",client)
                             />
                           ) : (
                             <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
-                              {client?.revenue_range || client?.["revenue_range"] || "-"}
+                              {formatCurrencyRange(client?.revenue_range || client?.["revenue_range"])}
                             </div>
                           )}
                         </CardContent>
@@ -2059,7 +2085,7 @@ console.log("client",client)
                             />
                           ) : (
                             <div style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '16px', color: '#67534F' }}>
-                              {client?.deal_size || client?.["deal_size"] || "-"}
+                              {formatCurrencyRange(client?.deal_size || client?.["deal_size"])}
                             </div>
                           )}
                         </CardContent>
@@ -2910,7 +2936,7 @@ console.log("client",client)
                               <div>
                                 <div className="text-xs text-gray-500 mb-1">Target Deal Size</div>
                                 <div className="text-sm text-gray-700">
-                                  {deal.target_deal_size || deal["target_deal_size"]}
+                                  {formatCurrencyRange(deal.target_deal_size || deal["target_deal_size"])}
                                 </div>
                               </div>
                             )}
@@ -3008,7 +3034,7 @@ console.log("client",client)
                                   </select>
                                 </td>
                                 <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-700 hidden lg:table-cell break-words">
-                                  {deal.target_deal_size || deal["target_deal_size"] || "-"}
+                                  {formatCurrencyRange(deal.target_deal_size || deal["target_deal_size"])}
                                 </td>
                                 <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-600 hidden xl:table-cell break-words">
                                   {deal.next_step || deal["next_step"] || "-"}
@@ -3303,10 +3329,9 @@ console.log("client",client)
                   <div className="space-y-3 sm:space-y-4">
                     <div className="hidden sm:grid grid-cols-12 gap-3 sm:gap-4 pb-2 border-b text-xs sm:text-[16px] text-[#67534F] font-bold">
                       <div className="col-span-2">Connection</div>
-                      <div className="col-span-2">OPM #</div>
-                      <div className="col-span-3">Travel Plans</div>
+                      <div className="col-span-4">Travel Plans</div>
                       <div className="col-span-2">Date</div>
-                      <div className="col-span-3">How they can help</div>
+                      <div className="col-span-4">How they can help</div>
                     </div>
 
                     {getOPMTravelPlans().map((plan, index) => {
@@ -3330,12 +3355,7 @@ console.log("client",client)
                             </Avatar>
                             <span className="text-xs sm:text-sm text-[#67534F] break-words">{customerName}</span>
                           </div>
-                          <div className="col-span-1 sm:col-span-2">
-                            <Badge className="bg-[#c9a961] text-[#532418] hover:bg-[#c9a961] text-xs">
-                              {plan.opm_number || ""}
-                            </Badge>
-                          </div>
-                          <div className="col-span-1 sm:col-span-3 text-xs sm:text-sm text-[#67534F] break-words">
+                          <div className="col-span-1 sm:col-span-4 text-xs sm:text-sm text-[#67534F] break-words">
                             {travelPlansList.length > 0 ? (
                               travelPlansList.map((planText, i) => (
                                 <div key={i}>{planText.trim()}</div>
@@ -3353,7 +3373,7 @@ console.log("client",client)
                               <div className="text-[#67534F]">-</div>
                             )}
                           </div>
-                          <div className="col-span-1 sm:col-span-3 text-xs sm:text-sm break-words text-[#67534F]">
+                          <div className="col-span-1 sm:col-span-4 text-xs sm:text-sm break-words text-[#67534F]">
                             {plan.how_they_can_help || plan["how_they_can_help"] || plan["How they can help"] || "-"}
                           </div>
                         </div>
