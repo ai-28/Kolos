@@ -2465,7 +2465,7 @@ console.log("client",client)
                               <div>
                                 <div className="text-xs text-gray-500 mb-1">Target Deal Size</div>
                                 <div className="text-sm text-gray-700">
-                                  {formatCurrencyRange(deal.target_deal_size || deal["target_deal_size"])}
+                                  {deal.target_deal_size || deal["target_deal_size"]}
                                 </div>
                               </div>
                             )}
@@ -2563,7 +2563,7 @@ console.log("client",client)
                                   </select>
                                 </td>
                                 <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-700 hidden lg:table-cell break-words">
-                                  {formatCurrencyRange(deal.target_deal_size || deal["target_deal_size"])}
+                                  {deal.target_deal_size || deal["target_deal_size"]}
                                 </td>
                                 <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-600 hidden xl:table-cell break-words">
                                   {deal.next_step || deal["next_step"] || "-"}
