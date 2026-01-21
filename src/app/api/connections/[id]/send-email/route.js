@@ -191,40 +191,18 @@ export async function POST(request, { params }) {
 
     const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
-    // Get user's email address
-    let fromEmail;
-    try {
-      const userProfile = await gmail.users.getProfile({ userId: 'me' });
-      fromEmail = userProfile.data.emailAddress;
-      console.log('✅ Gmail profile retrieved successfully:', fromEmail);
-    } catch (error) {
-      console.error('❌ Error getting Gmail profile:', {
-        error: error.message,
-        code: error.code,
-        response: error.response?.data,
-        status: error.response?.status
-      });
+    // Get user's email address from profile (more efficient and requires fewer OAuth scopes)
+    const fromEmail = profile.email || profile['email'];
 
-      // More specific error messages
-      if (error.code === 401 || error.response?.status === 401) {
-        return NextResponse.json(
-          { error: "Gmail authentication expired. Please reconnect your Gmail account." },
-          { status: 401 }
-        );
-      }
-
-      if (error.code === 403 || error.response?.status === 403) {
-        return NextResponse.json(
-          { error: "Gmail API access denied. Please check your OAuth permissions." },
-          { status: 403 }
-        );
-      }
-
+    if (!fromEmail) {
+      console.error('❌ No email found in user profile');
       return NextResponse.json(
-        { error: "Failed to get Gmail profile. Please reconnect your Gmail account.", details: error.message },
-        { status: 500 }
+        { error: "User email not found in profile" },
+        { status: 400 }
       );
     }
+
+    console.log('✅ Using email from profile:', fromEmail);
 
     // Create email message
     const emailContent = [
