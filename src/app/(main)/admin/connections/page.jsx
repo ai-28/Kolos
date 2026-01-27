@@ -386,10 +386,10 @@ export default function AdminConnectionsPage() {
                         </div>
                         <p className="text-sm text-gray-600 mb-1">
                           <span className="font-medium">To:</span>{" "}
-                          {conn.to_user_name || conn.deal_name || "Unknown"}
-                          {isDealConnection && (
-                            <span className="text-gray-500"> (Deal Connection)</span>
-                          )}
+                          {isDealConnection 
+                            ? (conn.deal_name || "Unknown Deal")
+                            : (conn.to_user_name || "Unknown")
+                          }
                         </p>
                         <p className="text-xs text-gray-500">
                           Requested: {new Date(conn.requested_at).toLocaleString()}

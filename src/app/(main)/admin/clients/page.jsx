@@ -7,7 +7,7 @@ import { Button } from "@/app/components/ui/button"
 import { Card, CardContent } from "@/app/components/ui/card"
 import {KolosLogo} from "@/app/components/svg"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, Loader2, Edit2, Save, X, Trash2, Menu, Linkedin, Mail, Check } from "lucide-react"
+import { ArrowLeft, Loader2, Edit2, Save, X, Trash2, Menu, Linkedin, Mail, Check, Briefcase } from "lucide-react"
 import { toast } from "sonner"
 import { DashboardIcon, BusinessGoalsIcon,SignalsIcon, IndustryFocusIcon, BusinessMatchIcon, BusinessRequestsIcon,TravelPlanIcon, UpcomingEventIcon } from "@/app/components/svg"
 import Image from "next/image"
@@ -1055,6 +1055,10 @@ console.log("client",client)
           <a href="#signals" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2 sm:gap-3 py-2.5 sm:py-3 rounded hover:bg-white/10 transition-colors min-h-[44px]">
             <SignalsIcon/>
             <span>Signals</span>
+          </a>
+          <a href="#active-deals" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2 sm:gap-3 py-2.5 sm:py-3 rounded hover:bg-white/10 transition-colors min-h-[44px]">
+            <Briefcase className="w-5 h-5" stroke="#C8A953" />
+            <span>Active Deals</span>
           </a>
           <a href="#industry-focus" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2 sm:gap-3 py-2.5 sm:py-3 rounded hover:bg-white/10 transition-colors min-h-[44px]">
             <IndustryFocusIcon/>
