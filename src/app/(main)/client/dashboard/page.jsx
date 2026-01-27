@@ -7,7 +7,7 @@ import { Button } from "@/app/components/ui/button"
 import { Card, CardContent } from "@/app/components/ui/card"
 import {KolosLogo} from "@/app/components/svg"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, Loader2, Edit2, Save, X, Trash2, Menu, Linkedin, Mail, FileText, Check, Lock, Copy, CheckCircle, ChevronDown, ChevronUp, AlertCircle, MoreVertical } from "lucide-react"
+import { ArrowLeft, Loader2, Edit2, Save, X, Trash2, Menu, Linkedin, Mail, FileText, Check, Lock, Copy, CheckCircle, ChevronDown, ChevronUp, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
 import { useConnectionEvents } from "@/app/hooks/useConnectionEvents"
 import { DashboardIcon, BusinessGoalsIcon,SignalsIcon, IndustryFocusIcon, BusinessMatchIcon, BusinessRequestsIcon,TravelPlanIcon, UpcomingEventIcon } from "@/app/components/svg"
@@ -69,7 +69,6 @@ function ClientDashboardContent() {
   const [generatingDraft, setGeneratingDraft] = useState(null)
   const [showGenerateDraftModal, setShowGenerateDraftModal] = useState(false)
   const [connectionForDraft, setConnectionForDraft] = useState(null)
-  const [openActionMenu, setOpenActionMenu] = useState(null) // Track which deal's action menu is open
 
   // Fetch client data - define FIRST before useEffect
   const fetchClientData = async () => {
@@ -2840,94 +2839,62 @@ console.log("client",client)
                                 {deal.deal_name || deal["deal_name"] || "-"}
                               </h3>
                               <div className="flex items-center gap-1 flex-shrink-0">
-                                {/* Actions Dropdown Menu */}
-                                <div className="relative">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      setOpenActionMenu(openActionMenu === dealId ? null : dealId)
-                                    }}
-                                    disabled={!dealId}
-                                    className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 min-h-[44px] min-w-[44px] p-0"
-                                    title="More actions"
-                                  >
-                                    <MoreVertical className="w-4 h-4" />
-                                  </Button>
-                                  
-                                  {openActionMenu === dealId && (
-                                    <>
-                                      {/* Backdrop to close menu */}
-                                      <div
-                                        className="fixed inset-0 z-10"
-                                        onClick={() => setOpenActionMenu(null)}
-                                      />
-                                      {/* Dropdown Menu */}
-                                      <div className="absolute right-0 top-full mt-1 z-20 w-48 bg-white border border-gray-200 rounded-md shadow-lg py-1">
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            setSelectedDealForModal(deal)
-                                            setShowLinkedInModal(true)
-                                            setOpenActionMenu(null)
-                                          }}
-                                          disabled={!dealId || !linkedInExists}
-                                          className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed ${
-                                            linkedInExists ? 'text-blue-600' : 'text-gray-400'
-                                          }`}
-                                        >
-                                          <Linkedin className="w-4 h-4" />
-                                          View LinkedIn
-                                        </button>
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            setSelectedDealForModal(deal)
-                                            setShowEmailModal(true)
-                                            setOpenActionMenu(null)
-                                          }}
-                                          disabled={!dealId || !emailExists}
-                                          className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed ${
-                                            emailExists ? 'text-green-600' : 'text-gray-400'
-                                          }`}
-                                        >
-                                          <Mail className="w-4 h-4" />
-                                          View Email
-                                        </button>
-                                        <div className="border-t border-gray-200 my-1" />
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            handleEditDeal(deal)
-                                            setOpenActionMenu(null)
-                                          }}
-                                          disabled={!dealId}
-                                          className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed text-[#0a3d3d]"
-                                        >
-                                          <Edit2 className="w-4 h-4" />
-                                          Edit Deal
-                                        </button>
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            handleDeleteDeal(dealId)
-                                            setOpenActionMenu(null)
-                                          }}
-                                          disabled={isDeleting || !dealId}
-                                          className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed text-red-600"
-                                        >
-                                          {isDeleting ? (
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                          ) : (
-                                            <Trash2 className="w-4 h-4" />
-                                          )}
-                                          Delete Deal
-                                        </button>
-                                      </div>
-                                    </>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedDealForModal(deal)
+                                    setShowLinkedInModal(true)
+                                  }}
+                                  disabled={!dealId}
+                                  className={`min-h-[44px] min-w-[44px] p-0 ${
+                                    linkedInExists 
+                                      ? 'text-blue-600 hover:text-blue-700 hover:bg-blue-50' 
+                                      : 'text-gray-400 hover:text-gray-500 hover:bg-gray-50'
+                                  }`}
+                                  title={linkedInExists ? "LinkedIn found - View LinkedIn URLs" : "LinkedIn missing - No LinkedIn data available"}
+                                >
+                                  <Linkedin className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedDealForModal(deal)
+                                    setShowEmailModal(true)
+                                  }}
+                                  disabled={!dealId}
+                                  className={`min-h-[44px] min-w-[44px] p-0 ${
+                                    emailExists 
+                                      ? 'text-green-600 hover:text-green-700 hover:bg-green-50' 
+                                      : 'text-gray-400 hover:text-gray-500 hover:bg-gray-50'
+                                  }`}
+                                  title={emailExists ? "Email found - View Email Addresses" : "Email missing - No email data available"}
+                                >
+                                  <Mail className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEditDeal(deal)}
+                                  disabled={!dealId}
+                                  className="text-[#0a3d3d] hover:text-[#0a3d3d]/80 hover:bg-[#0a3d3d]/10 min-h-[44px] min-w-[44px] p-0"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteDeal(dealId)}
+                                  disabled={isDeleting || !dealId}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 flex-shrink-0 min-h-[44px] min-w-[44px] p-0"
+                                >
+                                  {isDeleting ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-4 h-4" />
                                   )}
-                                </div>
+                                </Button>
                               </div>
                             </div>
                             
@@ -3168,8 +3135,8 @@ console.log("client",client)
                                         </>
                                       )
                                     })()}
-                                    {/* Helper functions to check if LinkedIn and Email data exists */}
                                     {(() => {
+                                      // Helper function to check if LinkedIn data exists
                                       const hasLinkedInData = () => {
                                         try {
                                           const allDecisionMakersField = deal.all_decision_makers || deal["all_decision_makers"]
@@ -3191,6 +3158,7 @@ console.log("client",client)
                                         return !!(primaryLinkedIn && primaryLinkedIn.trim() !== '')
                                       }
 
+                                      // Helper function to check if Email data exists
                                       const hasEmailData = () => {
                                         try {
                                           const allDecisionMakersField = deal.all_decision_makers || deal["all_decision_makers"]
@@ -3216,96 +3184,66 @@ console.log("client",client)
                                       const emailExists = hasEmailData()
 
                                       return (
-                                        <div className="relative">
-                                          {/* Actions Dropdown Menu */}
+                                        <>
                                           <Button
                                             variant="ghost"
                                             size="sm"
-                                            onClick={(e) => {
-                                              e.stopPropagation()
-                                              setOpenActionMenu(openActionMenu === dealId ? null : dealId)
+                                            onClick={() => {
+                                              setSelectedDealForModal(deal)
+                                              setShowLinkedInModal(true)
                                             }}
                                             disabled={!dealId}
-                                            className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 min-h-[44px] min-w-[44px]"
-                                            title="More actions"
+                                            className={`min-h-[44px] min-w-[44px] ${
+                                              linkedInExists 
+                                                ? 'text-blue-600 hover:text-blue-700 hover:bg-blue-50' 
+                                                : 'text-gray-400 hover:text-gray-500 hover:bg-gray-50'
+                                            }`}
+                                            title={linkedInExists ? "LinkedIn found - View LinkedIn URLs" : "LinkedIn missing - No LinkedIn data available"}
                                           >
-                                            <MoreVertical className="w-4 h-4" />
+                                            <Linkedin className="w-4 h-4" />
                                           </Button>
-                                          
-                                          {openActionMenu === dealId && (
-                                            <>
-                                              {/* Backdrop to close menu */}
-                                              <div
-                                                className="fixed inset-0 z-10"
-                                                onClick={() => setOpenActionMenu(null)}
-                                              />
-                                              {/* Dropdown Menu */}
-                                              <div className="absolute right-0 top-full mt-1 z-20 w-48 bg-white border border-gray-200 rounded-md shadow-lg py-1">
-                                                <button
-                                                  onClick={(e) => {
-                                                    e.stopPropagation()
-                                                    setSelectedDealForModal(deal)
-                                                    setShowLinkedInModal(true)
-                                                    setOpenActionMenu(null)
-                                                  }}
-                                                  disabled={!dealId || !linkedInExists}
-                                                  className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed ${
-                                                    linkedInExists ? 'text-blue-600' : 'text-gray-400'
-                                                  }`}
-                                                >
-                                                  <Linkedin className="w-4 h-4" />
-                                                  View LinkedIn
-                                                </button>
-                                                <button
-                                                  onClick={(e) => {
-                                                    e.stopPropagation()
-                                                    setSelectedDealForModal(deal)
-                                                    setShowEmailModal(true)
-                                                    setOpenActionMenu(null)
-                                                  }}
-                                                  disabled={!dealId || !emailExists}
-                                                  className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed ${
-                                                    emailExists ? 'text-green-600' : 'text-gray-400'
-                                                  }`}
-                                                >
-                                                  <Mail className="w-4 h-4" />
-                                                  View Email
-                                                </button>
-                                                <div className="border-t border-gray-200 my-1" />
-                                                <button
-                                                  onClick={(e) => {
-                                                    e.stopPropagation()
-                                                    handleEditDeal(deal)
-                                                    setOpenActionMenu(null)
-                                                  }}
-                                                  disabled={!dealId}
-                                                  className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed text-[#0a3d3d]"
-                                                >
-                                                  <Edit2 className="w-4 h-4" />
-                                                  Edit Deal
-                                                </button>
-                                                <button
-                                                  onClick={(e) => {
-                                                    e.stopPropagation()
-                                                    handleDeleteDeal(dealId)
-                                                    setOpenActionMenu(null)
-                                                  }}
-                                                  disabled={isDeleting || !dealId}
-                                                  className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed text-red-600"
-                                                >
-                                                  {isDeleting ? (
-                                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                                  ) : (
-                                                    <Trash2 className="w-4 h-4" />
-                                                  )}
-                                                  Delete Deal
-                                                </button>
-                                              </div>
-                                            </>
-                                          )}
-                                        </div>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => {
+                                              setSelectedDealForModal(deal)
+                                              setShowEmailModal(true)
+                                            }}
+                                            disabled={!dealId}
+                                            className={`min-h-[44px] min-w-[44px] ${
+                                              emailExists 
+                                                ? 'text-green-600 hover:text-green-700 hover:bg-green-50' 
+                                                : 'text-gray-400 hover:text-gray-500 hover:bg-gray-50'
+                                            }`}
+                                            title={emailExists ? "Email found - View Email Addresses" : "Email missing - No email data available"}
+                                          >
+                                            <Mail className="w-4 h-4" />
+                                          </Button>
+                                        </>
                                       )
                                     })()}
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleEditDeal(deal)}
+                                      disabled={!dealId}
+                                      className="text-[#0a3d3d] hover:text-[#0a3d3d]/80 hover:bg-[#0a3d3d]/10 min-h-[44px] min-w-[44px]"
+                                    >
+                                      <Edit2 className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleDeleteDeal(dealId)}
+                                      disabled={isDeleting || !dealId}
+                                      className="text-red-600 hover:text-red-700 hover:bg-red-50 min-h-[44px] min-w-[44px]"
+                                    >
+                                      {isDeleting ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                      ) : (
+                                        <Trash2 className="w-4 h-4" />
+                                      )}
+                                    </Button>
                                   </div>
                                 </td>
                               </tr>
