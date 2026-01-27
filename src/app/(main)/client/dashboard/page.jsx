@@ -607,7 +607,12 @@ function ClientDashboardContent() {
           status: 'draft_generated'
         }
         
-        setConnectionForDraft(updatedConnection)
+        // Ensure connection_id is properly set
+        const connId = connection.connection_id || connection['connection_id'] || connectionId
+        setConnectionForDraft({
+          ...updatedConnection,
+          connection_id: connId
+        })
         setEditableDraftMessage(data.draft_message || '')
         const dealName = connection.deal_name || ''
         setEmailSubject(`Connection Request - ${dealName}`)
@@ -626,24 +631,29 @@ function ClientDashboardContent() {
 
   // Handle save draft from modal
   const handleSaveDraftFromModal = async () => {
-    if (!connectionForDraft) return
+    if (!connectionForDraft || !connectionForDraft.connection_id) {
+      toast.error('Connection information is missing')
+      return
+    }
+
+    const connectionId = connectionForDraft.connection_id
 
     setSendingEmail(true)
     try {
-      const response = await fetch(`/api/connections/${connectionForDraft.connection_id}/draft`, {
+      const response = await fetch(`/api/connections/${connectionId}/draft`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          draft_message: editableDraftMessage,
+          draft_message: editableDraftMessage.trim(),
         }),
       })
 
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to save draft')
+        throw new Error(data.error || data.details || 'Failed to save draft')
       }
 
       toast.success('Draft saved successfully!')
@@ -662,29 +672,35 @@ function ClientDashboardContent() {
 
   // Handle submit for approval
   const handleSubmitForApproval = async () => {
-    if (!connectionForDraft) return
+    if (!connectionForDraft || !connectionForDraft.connection_id) {
+      toast.error('Connection information is missing')
+      return
+    }
+
+    const connectionId = connectionForDraft.connection_id
 
     // First save the draft
     setSendingEmail(true)
     try {
       // Save draft first
-      const saveResponse = await fetch(`/api/connections/${connectionForDraft.connection_id}/draft`, {
+      const saveResponse = await fetch(`/api/connections/${connectionId}/draft`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          draft_message: editableDraftMessage,
+          draft_message: editableDraftMessage.trim(),
         }),
       })
 
+      const saveData = await saveResponse.json()
+
       if (!saveResponse.ok) {
-        const saveData = await saveResponse.json()
-        throw new Error(saveData.error || 'Failed to save draft')
+        throw new Error(saveData.error || saveData.details || 'Failed to save draft')
       }
 
       // Then approve it (which submits for admin approval)
-      const approveResponse = await fetch(`/api/connections/${connectionForDraft.connection_id}/approve-draft`, {
+      const approveResponse = await fetch(`/api/connections/${connectionId}/approve-draft`, {
         method: 'POST',
       })
 
@@ -784,7 +800,16 @@ function ClientDashboardContent() {
           <Button
             size="sm"
             onClick={() => {
-              setConnectionForDraft(connection)
+              // Ensure we have the connection_id in the correct format
+              const connId = connection.connection_id || connection['connection_id']
+              if (!connId) {
+                toast.error('Connection ID not found')
+                return
+              }
+              setConnectionForDraft({
+                ...connection,
+                connection_id: connId
+              })
               setEditableDraftMessage(connection.draft_message || '')
               setEmailSubject(`Connection Request - ${deal?.deal_name || deal?.['deal_name'] || ''}`)
               setShowGenerateDraftModal(true)
@@ -3405,7 +3430,16 @@ console.log("client",client)
                                               variant="ghost"
                                               size="sm"
                                               onClick={() => {
-                                                setConnectionForDraft(connection)
+                                                // Ensure we have the connection_id in the correct format
+                                                const connId = connection.connection_id || connection['connection_id']
+                                                if (!connId) {
+                                                  toast.error('Connection ID not found')
+                                                  return
+                                                }
+                                                setConnectionForDraft({
+                                                  ...connection,
+                                                  connection_id: connId
+                                                })
                                                 setEditableDraftMessage(connection.draft_message || '')
                                                 setEmailSubject(`Connection Request - ${deal.deal_name || deal['deal_name'] || ''}`)
                                                 setShowGenerateDraftModal(true)

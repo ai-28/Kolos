@@ -17,9 +17,24 @@ export async function PATCH(request, { params }) {
         // Get updated draft message from request body
         const { draft_message } = await request.json();
 
-        if (!draft_message || typeof draft_message !== 'string') {
+        if (draft_message === undefined || draft_message === null) {
             return NextResponse.json(
-                { error: "draft_message is required and must be a string" },
+                { error: "draft_message is required" },
+                { status: 400 }
+            );
+        }
+
+        if (typeof draft_message !== 'string') {
+            return NextResponse.json(
+                { error: "draft_message must be a string" },
+                { status: 400 }
+            );
+        }
+
+        const trimmedDraft = draft_message.trim();
+        if (trimmedDraft === '') {
+            return NextResponse.json(
+                { error: "draft_message cannot be empty" },
                 { status: 400 }
             );
         }
@@ -68,9 +83,16 @@ export async function PATCH(request, { params }) {
         }
 
         // Update draft message
-        await updateConnection(connectionId, {
-            draft_message: draft_message.trim(),
-        });
+        try {
+            await updateConnection(connectionId, {
+                draft_message: trimmedDraft,
+            });
+        } catch (updateError) {
+            console.error("Error in updateConnection:", updateError);
+            console.error("Connection ID:", connectionId);
+            console.error("Draft message length:", trimmedDraft.length);
+            throw new Error(`Failed to update connection in Google Sheets: ${updateError.message}`);
+        }
 
         // Fetch and format updated connection with all fields
         const rawUpdatedConnection = await findConnectionById(connectionId);
