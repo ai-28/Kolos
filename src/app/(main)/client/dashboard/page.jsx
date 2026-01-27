@@ -708,6 +708,167 @@ function ClientDashboardContent() {
     }
   }
 
+  // Helper function to check if value is truthy
+  const isTruthy = (value) => {
+    if (value === true || value === 1) return true
+    if (typeof value === 'string') {
+      const lower = value.toLowerCase().trim()
+      return lower === 'true' || lower === '1' || lower === 'yes'
+    }
+    return false
+  }
+
+  // Helper function to get connection status badge
+  const getConnectionStatusBadge = (connection) => {
+    if (!connection) return null
+    
+    const hasDraft = connection.draft_message && connection.draft_message.trim() !== ''
+    const clientApproved = isTruthy(connection.client_approved || connection['client_approved'])
+    const draftLocked = isTruthy(connection.draft_locked || connection['draft_locked'])
+    const status = connection.status || 'pending'
+    
+    if (draftLocked) {
+      return <Badge className="bg-green-600 text-white text-xs">Approved & Locked</Badge>
+    }
+    if (clientApproved) {
+      return <Badge className="bg-blue-600 text-white text-xs">Waiting for Admin</Badge>
+    }
+    if (hasDraft) {
+      return <Badge className="bg-yellow-600 text-white text-xs">Draft Ready</Badge>
+    }
+    if (status === 'admin_approved') {
+      return <Badge className="bg-purple-600 text-white text-xs">Draft Pending</Badge>
+    }
+    return <Badge className="bg-gray-600 text-white text-xs">Pending</Badge>
+  }
+
+  // Helper function to get primary action button for connection
+  const getConnectionPrimaryAction = (connection, deal) => {
+    if (!connection) return null
+    
+    const dealId = deal?.deal_id || deal?.['deal_id'] || deal?.id || deal?.['id']
+    const hasDraft = connection.draft_message && connection.draft_message.trim() !== ''
+    const clientApproved = isTruthy(connection.client_approved || connection['client_approved'])
+    const draftLocked = isTruthy(connection.draft_locked || connection['draft_locked'])
+    const status = connection.status || 'pending'
+    const isProcessing = approvingDraft === connection.connection_id
+    
+    // Step 1: No draft, admin approved - Generate Draft
+    if (!hasDraft && status === 'admin_approved') {
+      return (
+        <Button
+          size="sm"
+          onClick={() => handleGenerateDraft(connection.connection_id)}
+          disabled={generatingDraft === connection.connection_id}
+          className="bg-[#0a3d3d] hover:bg-[#083030] text-white text-xs min-h-[32px]"
+        >
+          {generatingDraft === connection.connection_id ? (
+            <>
+              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+              Generating...
+            </>
+          ) : (
+            <>
+              <FileText className="w-3 h-3 mr-1" />
+              Generate Draft
+            </>
+          )}
+        </Button>
+      )
+    }
+    
+    // Step 2: Has draft, not approved - Review & Approve
+    if (hasDraft && !clientApproved && !draftLocked) {
+      return (
+        <div className="flex gap-1">
+          <Button
+            size="sm"
+            onClick={() => {
+              setConnectionForDraft(connection)
+              setEditableDraftMessage(connection.draft_message || '')
+              setEmailSubject(`Connection Request - ${deal?.deal_name || deal?.['deal_name'] || ''}`)
+              setShowGenerateDraftModal(true)
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white text-xs min-h-[32px] flex-1"
+          >
+            <Edit2 className="w-3 h-3 mr-1" />
+            Review Draft
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => handleApproveDraft(connection.connection_id)}
+            disabled={isProcessing}
+            className="bg-green-600 hover:bg-green-700 text-white text-xs min-h-[32px]"
+          >
+            {isProcessing ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <Check className="w-3 h-3" />
+            )}
+          </Button>
+        </div>
+      )
+    }
+    
+    // Step 3: Approved, waiting for admin lock - Show status
+    if (clientApproved && !draftLocked) {
+      return (
+        <Button
+          size="sm"
+          disabled
+          className="bg-gray-400 text-white text-xs min-h-[32px] cursor-not-allowed"
+        >
+          Waiting for Admin
+        </Button>
+      )
+    }
+    
+    // Step 4: Locked and ready - Send Email
+    if (draftLocked && clientApproved) {
+      // Check if there's a decision maker with email
+      const hasEmail = deal?.decision_maker_email || deal?.['decision_maker_email']
+      if (hasEmail) {
+        return (
+          <Button
+            size="sm"
+            onClick={() => {
+              setSelectedDealForModal(deal)
+              setShowEmailModal(true)
+            }}
+            className="bg-green-600 hover:bg-green-700 text-white text-xs min-h-[32px]"
+          >
+            <Mail className="w-3 h-3 mr-1" />
+            Send Email
+          </Button>
+        )
+      }
+      return (
+        <Button
+          size="sm"
+          disabled
+          className="bg-gray-400 text-white text-xs min-h-[32px] cursor-not-allowed"
+        >
+          Ready to Send
+        </Button>
+      )
+    }
+    
+    // Default: Pending admin approval
+    if (status === 'pending') {
+      return (
+        <Button
+          size="sm"
+          disabled
+          className="bg-gray-400 text-white text-xs min-h-[32px] cursor-not-allowed"
+        >
+          Pending Approval
+        </Button>
+      )
+    }
+    
+    return null
+  }
+
   const handleCopyDraft = async (draftText, connectionId) => {
     try {
       await navigator.clipboard.writeText(draftText)
@@ -3197,26 +3358,67 @@ console.log("client",client)
                                   {deal.next_step || deal["next_step"] || "-"}
                                 </td>
                                 <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm">
-                                  <div className="flex items-center gap-1">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleDealConnectionRequest(deal)}
-                                      disabled={!dealId || requestingConnection === dealId || hasConnectionForDeal(dealId)}
-                                      className={`min-h-[44px] text-xs ${
-                                        hasConnectionForDeal(dealId)
-                                          ? "bg-gray-300 text-gray-600 cursor-not-allowed"
-                                          : "bg-[#0a3d3d] hover:bg-[#083030] text-white"
-                                      }`}
-                                    >
-                                      {requestingConnection === dealId ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                      ) : hasConnectionForDeal(dealId) ? (
-                                        "Requested"
-                                      ) : (
-                                        "Connection Request"
-                                      )}
-                                    </Button>
+                                  <div className="flex flex-col gap-2 min-w-[180px]">
+                                    {(() => {
+                                      // Find connection for this deal
+                                      const connection = connections.find(conn => {
+                                        const connDealId = conn.deal_id || conn['deal_id']
+                                        return connDealId && String(connDealId).trim() === String(dealId).trim()
+                                      })
+                                      
+                                      // If no connection exists, show connection request button
+                                      if (!connection) {
+                                        return (
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handleDealConnectionRequest(deal)}
+                                            disabled={!dealId || requestingConnection === dealId}
+                                            className="bg-[#0a3d3d] hover:bg-[#083030] text-white text-xs min-h-[32px]"
+                                          >
+                                            {requestingConnection === dealId ? (
+                                              <>
+                                                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                                Requesting...
+                                              </>
+                                            ) : (
+                                              "Connection Request"
+                                            )}
+                                          </Button>
+                                        )
+                                      }
+                                      
+                                      // Connection exists - show workflow status and actions
+                                      return (
+                                        <>
+                                          {/* Status Badge */}
+                                          <div className="flex items-center justify-start">
+                                            {getConnectionStatusBadge(connection)}
+                                          </div>
+                                          
+                                          {/* Primary Action Button */}
+                                          {getConnectionPrimaryAction(connection, deal)}
+                                          
+                                          {/* Draft Preview Link (if draft exists) */}
+                                          {connection.draft_message && connection.draft_message.trim() !== '' && (
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => {
+                                                setConnectionForDraft(connection)
+                                                setEditableDraftMessage(connection.draft_message || '')
+                                                setEmailSubject(`Connection Request - ${deal.deal_name || deal['deal_name'] || ''}`)
+                                                setShowGenerateDraftModal(true)
+                                              }}
+                                              className="text-xs h-6 p-0 text-blue-600 hover:text-blue-700 hover:bg-transparent"
+                                            >
+                                              <FileText className="w-3 h-3 mr-1" />
+                                              View Draft
+                                            </Button>
+                                          )}
+                                        </>
+                                      )
+                                    })()}
                                     {(() => {
                                       // Helper function to check if LinkedIn data exists
                                       const hasLinkedInData = () => {
