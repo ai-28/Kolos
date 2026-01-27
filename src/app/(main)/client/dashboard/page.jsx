@@ -3018,7 +3018,7 @@ console.log("client",client)
                                         return connDealId && String(connDealId).trim() === String(dealId).trim()
                                       })
                                       return connection ? (
-                                        <div className="flex-shrink-0">
+                                        <div className="flex-shrink-0 -ml-1">
                                           {getConnectionStatusBadge(connection)}
                                         </div>
                                       ) : null
