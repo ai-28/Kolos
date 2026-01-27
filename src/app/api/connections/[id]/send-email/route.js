@@ -251,10 +251,12 @@ export async function POST(request, { params }) {
       }
     }
 
-    // Update connection status
+    // Update connection status and store last sent message
     await updateConnection(connectionId, {
       status: 'email_sent',
       email_sent_at: new Date().toISOString(),
+      last_sent_message: draft_message,
+      email_status: 'sent', // sent, delivered (can be updated later via webhook or polling)
     });
 
     return NextResponse.json({

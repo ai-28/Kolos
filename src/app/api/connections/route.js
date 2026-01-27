@@ -115,6 +115,10 @@ export async function GET(request) {
                 draft_locked: toBoolean(rawDraftLocked),
                 client_goals: conn.client_goals || conn['client_goals'] || conn['Client Goals'] || '',
                 related_signal_id: conn.related_signal_id || conn['related_signal_id'] || conn['Related Signal ID'] || '',
+                // Email tracking fields
+                email_status: conn.email_status || conn['email_status'] || conn['Email Status'] || '',
+                email_sent_at: conn.email_sent_at || conn['email_sent_at'] || conn['Email Sent At'] || '',
+                last_sent_message: conn.last_sent_message || conn['last_sent_message'] || conn['Last Sent Message'] || '',
                 // Other user's info
                 other_user_name: isFromUser
                     ? (conn.to_user_name || conn['to_user_name'] || conn['To User Name'])
