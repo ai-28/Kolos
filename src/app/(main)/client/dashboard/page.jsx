@@ -49,7 +49,7 @@ function ClientDashboardContent() {
   const [connectionType, setConnectionType] = useState('linkedin')
   const [connectionMessage, setConnectionMessage] = useState('')
   const [expandedNextSteps, setExpandedNextSteps] = useState(new Set())
-  const [requestingConnection, setRequestingConnection] = useState(false)
+  const [requestingConnection, setRequestingConnection] = useState(null) // Track which deal ID is requesting
   const [connections, setConnections] = useState([])
   const [loadingConnections, setLoadingConnections] = useState(false)
   const [approvingDraft, setApprovingDraft] = useState(null)
@@ -359,14 +359,15 @@ function ClientDashboardContent() {
 
   // Handle deal connection request
   const handleDealConnectionRequest = async (deal) => {
-    setRequestingConnection(true)
-    try {
-      const dealId = deal.deal_id || deal['deal_id'] || deal.id || deal['id']
-      
-      if (!dealId) {
-        throw new Error('Deal ID not found')
-      }
+    const dealId = deal.deal_id || deal['deal_id'] || deal.id || deal['id']
+    
+    if (!dealId) {
+      toast.error('Deal ID not found')
+      return
+    }
 
+    setRequestingConnection(dealId)
+    try {
       const response = await fetch('/api/connections/request', {
         method: 'POST',
         headers: {
@@ -390,7 +391,7 @@ function ClientDashboardContent() {
       console.error('Error creating connection request:', error)
       toast.error(error.message || 'Failed to create connection request')
     } finally {
-      setRequestingConnection(false)
+      setRequestingConnection(null)
     }
   }
 
@@ -398,10 +399,15 @@ function ClientDashboardContent() {
   const handleSubmitConnection = async () => {
     if (!selectedDealForConnection) return
 
-    setRequestingConnection(true)
+    const dealId = selectedDealForConnection.deal_id || selectedDealForConnection['deal_id'] || selectedDealForConnection.id || selectedDealForConnection['id']
+    
+    if (!dealId) {
+      toast.error('Deal ID not found')
+      return
+    }
+
+    setRequestingConnection(dealId)
     try {
-      const dealId = selectedDealForConnection.deal_id || selectedDealForConnection['deal_id'] || selectedDealForConnection.id || selectedDealForConnection['id']
-      
       const response = await fetch(`/api/deals/${dealId}/connect`, {
         method: 'POST',
         headers: {
@@ -425,11 +431,13 @@ function ClientDashboardContent() {
       setSelectedDealForConnection(null)
       setConnectionMessage('')
       setConnectionType('linkedin')
+      // Refresh connections to show new request
+      fetchConnections()
     } catch (error) {
       console.error('Error creating connection:', error)
       toast.error(error.message || 'Failed to create connection request')
     } finally {
-      setRequestingConnection(false)
+      setRequestingConnection(null)
     }
   }
 
@@ -3194,14 +3202,14 @@ console.log("client",client)
                                       variant="outline"
                                       size="sm"
                                       onClick={() => handleDealConnectionRequest(deal)}
-                                      disabled={!dealId || requestingConnection || hasConnectionForDeal(dealId)}
+                                      disabled={!dealId || requestingConnection === dealId || hasConnectionForDeal(dealId)}
                                       className={`min-h-[44px] text-xs ${
                                         hasConnectionForDeal(dealId)
                                           ? "bg-gray-300 text-gray-600 cursor-not-allowed"
                                           : "bg-[#0a3d3d] hover:bg-[#083030] text-white"
                                       }`}
                                     >
-                                      {requestingConnection ? (
+                                      {requestingConnection === dealId ? (
                                         <Loader2 className="w-4 h-4 animate-spin" />
                                       ) : hasConnectionForDeal(dealId) ? (
                                         "Requested"
@@ -3987,7 +3995,7 @@ console.log("client",client)
                   <div className="flex gap-2 pt-2">
                     <Button
                       onClick={handleSubmitConnection}
-                      disabled={requestingConnection}
+                      disabled={!!requestingConnection}
                       className="flex-1 bg-[#0a3d3d] hover:bg-[#083030] text-white"
                     >
                       {requestingConnection ? (
@@ -4006,7 +4014,7 @@ console.log("client",client)
                         setSelectedDealForConnection(null)
                         setConnectionMessage('')
                       }}
-                      disabled={requestingConnection}
+                      disabled={!!requestingConnection}
                     >
                       Cancel
                     </Button>
