@@ -13,7 +13,6 @@ import { useConnectionEvents } from "@/app/hooks/useConnectionEvents"
 import { DashboardIcon, BusinessGoalsIcon,SignalsIcon, IndustryFocusIcon, BusinessMatchIcon, BusinessRequestsIcon,TravelPlanIcon, UpcomingEventIcon } from "@/app/components/svg"
 import Image from "next/image"
 import { normalizeRole } from "@/app/lib/roleUtils"
-import { ConnectionWorkflowStepper } from "@/app/components/ConnectionWorkflowStepper"
 
 function ClientDashboardContent() {
   const router = useRouter()
@@ -2640,6 +2639,22 @@ console.log("client",client)
                       return 'Unknown'
                     }
                     
+                    const getStatusBadge = () => {
+                      if (draftLocked) {
+                        return <Badge className="bg-green-600 text-white">Approved & Locked</Badge>
+                      }
+                      if (clientApproved) {
+                        return <Badge className="bg-blue-600 text-white">Waiting for Admin</Badge>
+                      }
+                      if (hasDraft) {
+                        return <Badge className="bg-yellow-600 text-white">Draft Ready</Badge>
+                      }
+                      if (status === 'admin_approved') {
+                        return <Badge className="bg-purple-600 text-white">Draft Pending</Badge>
+                      }
+                      return <Badge className="bg-gray-600 text-white">Pending</Badge>
+                    }
+                    
                     return (
                       <Card key={conn.connection_id} className="bg-[#fffff4] border border-[#ffe0ccff] !shadow-none">
                         <CardContent className="p-4">
@@ -2655,59 +2670,10 @@ console.log("client",client)
                                 Requested: {conn.requested_at ? new Date(conn.requested_at).toLocaleString() : 'N/A'}
                               </p>
                             </div>
+                            {getStatusBadge()}
                           </div>
                           
-                          {/* Workflow Stepper */}
-                          <div className="mb-4 pt-3 border-t border-gray-200">
-                            <ConnectionWorkflowStepper
-                              connection={conn}
-                              onGenerateDraft={() => handleGenerateDraft(conn.connection_id)}
-                              onReviewDraft={() => {
-                                setConnectionForDraft(conn)
-                                setEditableDraftMessage(conn.draft_message || '')
-                                const dealName = conn.deal_name || ''
-                                setEmailSubject(`Connection Request - ${dealName}`)
-                                setShowGenerateDraftModal(true)
-                              }}
-                              onApproveDraft={() => handleApproveDraft(conn.connection_id)}
-                              onSendEmail={() => {
-                                // Find decision maker for this connection
-                                if (conn.deal_id) {
-                                  const deal = deals.find(d => {
-                                    const dId = d.deal_id || d['deal_id'] || d.id || d['id']
-                                    return dId && String(dId).trim() === String(conn.deal_id).trim()
-                                  })
-                                  if (deal) {
-                                    const primaryEmail = deal.decision_maker_email || deal['decision_maker_email'] || ''
-                                    const primaryName = deal.decision_maker_name || deal['decision_maker_name'] || ''
-                                    if (primaryEmail) {
-                                      setSelectedDecisionMaker({ name: primaryName, email: primaryEmail })
-                                      setSelectedConnection(conn)
-                                      setEmailSubject(`Connection Request - ${deal.deal_name || deal['deal_name'] || ''}`)
-                                      setEditableDraftMessage(conn.draft_message || '')
-                                      setShowDraftMessageModal(true)
-                                    }
-                                  }
-                                } else {
-                                  // User connection
-                                  const toEmail = conn.to_user_email || conn['to_user_email'] || ''
-                                  const toName = conn.to_user_name || conn['to_user_name'] || ''
-                                  if (toEmail) {
-                                    setSelectedDecisionMaker({ name: toName, email: toEmail })
-                                    setSelectedConnection(conn)
-                                    setEmailSubject(`Connection Request`)
-                                    setEditableDraftMessage(conn.draft_message || '')
-                                    setShowDraftMessageModal(true)
-                                  }
-                                }
-                              }}
-                              generatingDraft={generatingDraft === conn.connection_id}
-                              processing={isProcessing}
-                              gmailConnected={gmailConnected}
-                            />
-                          </div>
-                          
-                          {/* Draft Message Preview */}
+                          {/* Draft Message */}
                           {hasDraft && (
                             <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                               <div className="flex items-center justify-between mb-2">
@@ -2852,8 +2818,69 @@ console.log("client",client)
                                       Generated: {new Date(conn.draft_generated_at).toLocaleString()}
                                     </p>
                                   )}
+                                  {!clientApproved && !draftLocked && (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleApproveDraft(conn.connection_id)}
+                                      disabled={isProcessing}
+                                      className="bg-green-600 hover:bg-green-700 text-white"
+                                    >
+                                      {isProcessing ? (
+                                        <>
+                                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                          Approving...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Check className="w-4 h-4 mr-2" />
+                                          Approve Draft
+                                        </>
+                                      )}
+                                    </Button>
+                                  )}
+                                  {clientApproved && conn.client_approved_at && (
+                                    <p className="text-xs text-green-600 mt-2">
+                                      ✓ Approved on {new Date(conn.client_approved_at).toLocaleString()}
+                                    </p>
+                                  )}
+                                  {draftLocked && (
+                                    <p className="text-xs text-green-600 mt-2">
+                                      🔒 Draft locked and finalized
+                                    </p>
+                                  )}
                                 </>
                               )}
+                            </div>
+                          )}
+                          
+                          {/* Status message for pending */}
+                          {!hasDraft && status === 'pending' && (
+                            <p className="text-sm text-gray-600 italic">
+                              Waiting for admin approval...
+                            </p>
+                          )}
+                          
+                          {/* Generate Draft Button - show when no draft exists and admin approved */}
+                          {!hasDraft && status === 'admin_approved' && (
+                            <div className="mt-3">
+                              <Button
+                                size="sm"
+                                onClick={() => handleGenerateDraft(conn.connection_id)}
+                                disabled={generatingDraft === conn.connection_id}
+                                className="bg-[#0a3d3d] hover:bg-[#083030] text-white"
+                              >
+                                {generatingDraft === conn.connection_id ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Generating...
+                                  </>
+                                ) : (
+                                  <>
+                                    <FileText className="w-4 h-4 mr-2" />
+                                    Generate Draft
+                                  </>
+                                )}
+                              </Button>
                             </div>
                           )}
                         </CardContent>
@@ -4072,8 +4099,59 @@ console.log("client",client)
                         
                         if (primaryName || primaryEmail) {
                           return (
-                            <div className="border rounded-lg p-4 bg-green-50 border-green-300 shadow-md">
-                              <div className="flex items-start justify-between gap-3 mb-3">
+                            <div 
+                              className={`border rounded-lg p-4 bg-green-50 border-green-300 shadow-md transition-colors ${
+                                hasApprovedLockedDraft && primaryEmail ? 'cursor-pointer hover:bg-green-100' : ''
+                              }`}
+                              onClick={() => {
+                                if (!primaryEmail) {
+                                  return
+                                }
+                                
+                                if (!connection) {
+                                  toast.info('No connection request found for this decision maker. Please create a connection request first.')
+                                  return
+                                }
+                                
+                                // If no draft exists, offer to generate one
+                                if (!connection.draft_message || connection.draft_message.trim() === '') {
+                                  // Check if admin approved
+                                  const isAdminApproved = isTruthy(connection.admin_approved || connection['admin_approved'])
+                                  if (isAdminApproved) {
+                                    // Offer to generate draft
+                                    handleGenerateDraft(connection.connection_id)
+                                  } else {
+                                    toast.info('Draft message not yet generated. Please wait for admin approval first.')
+                                  }
+                                  return
+                                }
+                                
+                                const isApproved = isTruthy(connection.client_approved || connection['client_approved'])
+                                const isLocked = isTruthy(connection.draft_locked || connection['draft_locked'])
+                                
+                                if (!isApproved) {
+                                  toast.info('Draft message must be approved before sending. Please approve the draft first.')
+                                  return
+                                }
+                                
+                                if (!isLocked) {
+                                  toast.info('Draft message must be locked by admin before sending.')
+                                  return
+                                }
+                                
+                                if (!gmailConnected) {
+                                  setShowGmailConnectModal(true)
+                                  return
+                                }
+                                
+                                setSelectedDecisionMaker({ name: primaryName, email: primaryEmail })
+                                setSelectedConnection(connection)
+                                setEmailSubject(`Connection Request - ${selectedDealForModal?.deal_name || selectedDealForModal?.['deal_name'] || ''}`)
+                                setEditableDraftMessage(connection.draft_message || '')
+                                setShowDraftMessageModal(true)
+                              }}
+                            >
+                              <div className="flex items-start justify-between gap-3">
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2 mb-2">
                                     <h3 className="font-semibold text-green-700 text-lg">
@@ -4082,6 +4160,11 @@ console.log("client",client)
                                     <Badge className="bg-green-600 text-white text-xs">
                                       Primary
                                     </Badge>
+                                    {hasApprovedLockedDraft && primaryEmail && (
+                                      <Badge className="bg-blue-600 text-white text-xs">
+                                        Ready to Send
+                                      </Badge>
+                                    )}
                                   </div>
                                   {primaryEmail ? (
                                     <div className="flex items-center gap-2">
@@ -4093,48 +4176,15 @@ console.log("client",client)
                                         <Mail className="w-4 h-4" />
                                         {primaryEmail}
                                       </a>
+                                      {hasApprovedLockedDraft && (
+                                        <span className="text-xs text-blue-600">(Click to send draft)</span>
+                                      )}
                                     </div>
                                   ) : (
                                     <p className="text-sm text-gray-400 italic">No email address available</p>
                                   )}
                                 </div>
                               </div>
-                              {connection ? (
-                                <div className="pt-3 border-t border-green-200">
-                                  <ConnectionWorkflowStepper
-                                    connection={connection}
-                                    onGenerateDraft={() => handleGenerateDraft(connection.connection_id)}
-                                    onReviewDraft={() => {
-                                      setConnectionForDraft(connection)
-                                      setEditableDraftMessage(connection.draft_message || '')
-                                      const dealName = selectedDealForModal?.deal_name || selectedDealForModal?.['deal_name'] || ''
-                                      setEmailSubject(`Connection Request - ${dealName}`)
-                                      setShowGenerateDraftModal(true)
-                                    }}
-                                    onApproveDraft={() => handleApproveDraft(connection.connection_id)}
-                                    onSendEmail={() => {
-                                      if (!gmailConnected) {
-                                        setShowGmailConnectModal(true)
-                                        return
-                                      }
-                                      setSelectedDecisionMaker({ name: primaryName, email: primaryEmail })
-                                      setSelectedConnection(connection)
-                                      setEmailSubject(`Connection Request - ${selectedDealForModal?.deal_name || selectedDealForModal?.['deal_name'] || ''}`)
-                                      setEditableDraftMessage(connection.draft_message || '')
-                                      setShowDraftMessageModal(true)
-                                    }}
-                                    generatingDraft={generatingDraft === connection.connection_id}
-                                    processing={approvingDraft === connection.connection_id}
-                                    gmailConnected={gmailConnected}
-                                  />
-                                </div>
-                              ) : (
-                                <div className="pt-3 border-t border-green-200">
-                                  <p className="text-xs text-center text-gray-500 italic">
-                                    No connection request found. Create one from the deal above.
-                                  </p>
-                                </div>
-                              )}
                             </div>
                           )
                         }
@@ -4200,9 +4250,56 @@ console.log("client",client)
                               isPrimary 
                                 ? 'bg-green-50 border-green-300 shadow-md' 
                                 : 'bg-white border-gray-200'
-                            }`}
+                            } ${hasApprovedLockedDraft && email ? 'cursor-pointer hover:bg-green-100' : email ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+                            onClick={() => {
+                              if (!email) {
+                                return
+                              }
+                              
+                              if (!connection) {
+                                toast.info('No connection request found for this decision maker. Please create a connection request first.')
+                                return
+                              }
+                              
+                              // If no draft exists, offer to generate one
+                              if (!connection.draft_message || connection.draft_message.trim() === '') {
+                                // Check if admin approved
+                                const isAdminApproved = isTruthy(connection.admin_approved || connection['admin_approved'])
+                                if (isAdminApproved) {
+                                  // Offer to generate draft
+                                  handleGenerateDraft(connection.connection_id)
+                                } else {
+                                  toast.info('Draft message not yet generated. Please wait for admin approval first.')
+                                }
+                                return
+                              }
+                              
+                              const isApproved = isTruthy(connection.client_approved || connection['client_approved'])
+                              const isLocked = isTruthy(connection.draft_locked || connection['draft_locked'])
+                              
+                              if (!isApproved) {
+                                toast.info('Draft message must be approved before sending. Please approve the draft first.')
+                                return
+                              }
+                              
+                              if (!isLocked) {
+                                toast.info('Draft message must be locked by admin before sending.')
+                                return
+                              }
+                              
+                              if (!gmailConnected) {
+                                setShowGmailConnectModal(true)
+                                return
+                              }
+                              
+                                setSelectedDecisionMaker(dm)
+                                setSelectedConnection(connection)
+                                setEmailSubject(`Connection Request - ${selectedDealForModal?.deal_name || selectedDealForModal?.['deal_name'] || ''}`)
+                                setEditableDraftMessage(connection.draft_message || '')
+                                setShowDraftMessageModal(true)
+                            }}
                           >
-                            <div className="flex items-start justify-between gap-3 mb-3">
+                            <div className="flex items-start justify-between gap-3">
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-2">
                                   <h3 className={`font-semibold ${
@@ -4213,6 +4310,11 @@ console.log("client",client)
                                   {isPrimary && (
                                     <Badge className="bg-green-600 text-white text-xs">
                                       Primary
+                                    </Badge>
+                                  )}
+                                  {hasApprovedLockedDraft && email && (
+                                    <Badge className="bg-blue-600 text-white text-xs">
+                                      Ready to Send
                                     </Badge>
                                   )}
                                 </div>
@@ -4233,48 +4335,15 @@ console.log("client",client)
                                       <Mail className="w-4 h-4" />
                                       {email}
                                     </a>
+                                    {hasApprovedLockedDraft && (
+                                      <span className="text-xs text-blue-600">(Click to send draft)</span>
+                                    )}
                                   </div>
                                 ) : (
                                   <p className="text-sm text-gray-400 italic">No email address available</p>
                                 )}
                               </div>
                             </div>
-                            {connection ? (
-                              <div className={`pt-3 border-t ${isPrimary ? 'border-green-200' : 'border-gray-200'}`}>
-                                <ConnectionWorkflowStepper
-                                  connection={connection}
-                                  onGenerateDraft={() => handleGenerateDraft(connection.connection_id)}
-                                  onReviewDraft={() => {
-                                    setConnectionForDraft(connection)
-                                    setEditableDraftMessage(connection.draft_message || '')
-                                    const dealName = selectedDealForModal?.deal_name || selectedDealForModal?.['deal_name'] || ''
-                                    setEmailSubject(`Connection Request - ${dealName}`)
-                                    setShowGenerateDraftModal(true)
-                                  }}
-                                  onApproveDraft={() => handleApproveDraft(connection.connection_id)}
-                                  onSendEmail={() => {
-                                    if (!gmailConnected) {
-                                      setShowGmailConnectModal(true)
-                                      return
-                                    }
-                                    setSelectedDecisionMaker(dm)
-                                    setSelectedConnection(connection)
-                                    setEmailSubject(`Connection Request - ${selectedDealForModal?.deal_name || selectedDealForModal?.['deal_name'] || ''}`)
-                                    setEditableDraftMessage(connection.draft_message || '')
-                                    setShowDraftMessageModal(true)
-                                  }}
-                                  generatingDraft={generatingDraft === connection.connection_id}
-                                  processing={approvingDraft === connection.connection_id}
-                                  gmailConnected={gmailConnected}
-                                />
-                              </div>
-                            ) : (
-                              <div className={`pt-3 border-t ${isPrimary ? 'border-green-200' : 'border-gray-200'}`}>
-                                <p className="text-xs text-center text-gray-500 italic">
-                                  No connection request found. Create one from the deal above.
-                                </p>
-                              </div>
-                            )}
                           </div>
                         )
                       })
