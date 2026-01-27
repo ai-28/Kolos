@@ -345,6 +345,13 @@ export default function AdminConnectionsPage() {
           >
             Finalized
           </Button>
+          <Button
+            variant={filterStatus === "email_sent" ? "default" : "outline"}
+            onClick={() => setFilterStatus("email_sent")}
+            size="sm"
+          >
+            Message Sent
+          </Button>
         </div>
 
         {loading ? (

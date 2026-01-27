@@ -191,8 +191,9 @@ export async function POST(request, { params }) {
 
     const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
-    // Get user's email address from profile (more efficient and requires fewer OAuth scopes)
-    const fromEmail = profile.email || profile['email'];
+    // Get user's email address - prefer gmail_account_email (the actual connected Gmail account)
+    // Fallback to profile.email if gmail_account_email is not available
+    const fromEmail = profile.gmail_account_email || profile['gmail_account_email'] || profile.email || profile['email'];
 
     if (!fromEmail) {
       console.error('❌ No email found in user profile');
@@ -202,7 +203,7 @@ export async function POST(request, { params }) {
       );
     }
 
-    console.log('✅ Using email from profile:', fromEmail);
+    console.log('✅ Using email for sending:', fromEmail);
 
     // Create email message
     const emailContent = [

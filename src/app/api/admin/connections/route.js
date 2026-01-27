@@ -32,10 +32,18 @@ export async function GET(request) {
         // Filter by status if provided
         let filteredConnections = allConnections;
         if (status) {
-            filteredConnections = allConnections.filter(conn => {
-                const connStatus = conn.status || conn['status'] || conn['Status'];
-                return connStatus && connStatus.toLowerCase() === status.toLowerCase();
-            });
+            if (status.toLowerCase() === 'email_sent') {
+                // Filter for connections where email has been sent
+                filteredConnections = allConnections.filter(conn => {
+                    const emailSentAt = conn.email_sent_at || conn['email_sent_at'] || conn['Email Sent At'] || '';
+                    return !!emailSentAt && emailSentAt.trim() !== '';
+                });
+            } else {
+                filteredConnections = allConnections.filter(conn => {
+                    const connStatus = conn.status || conn['status'] || conn['Status'];
+                    return connStatus && connStatus.toLowerCase() === status.toLowerCase();
+                });
+            }
         }
 
         // Filter by type if provided
@@ -123,6 +131,10 @@ export async function GET(request) {
                 draft_locked: toBoolean(rawDraftLocked),
                 client_goals: conn.client_goals || conn['client_goals'] || conn['Client Goals'] || '',
                 related_signal_id: conn.related_signal_id || conn['related_signal_id'] || conn['Related Signal ID'] || '',
+                // Email tracking fields
+                email_status: conn.email_status || conn['email_status'] || conn['Email Status'] || '',
+                email_sent_at: conn.email_sent_at || conn['email_sent_at'] || conn['Email Sent At'] || '',
+                last_sent_message: conn.last_sent_message || conn['last_sent_message'] || conn['Last Sent Message'] || '',
             };
         });
 

@@ -4666,6 +4666,20 @@ console.log("client",client)
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                      From:
+                    </label>
+                    <p className="text-sm text-gray-900 font-medium">
+                      {client?.gmail_account_email || client?.['gmail_account_email'] || client?.email || client?.['email'] || 'Not connected'}
+                    </p>
+                    {gmailConnected && !client?.gmail_account_email && !client?.['gmail_account_email'] && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Using profile email. Reconnect Gmail to update.
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       To:
                     </label>
                     <p className="text-sm text-gray-900">

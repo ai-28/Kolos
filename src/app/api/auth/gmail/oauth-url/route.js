@@ -15,9 +15,8 @@ export async function GET(request) {
                     (request.headers.get('origin') || request.headers.get('referer')?.split('/').slice(0, 3).join('/'));
     
     const redirectUri = `${baseUrl}/api/auth/gmail/callback`;
-    // Using minimal scope (gmail.send) following principle of least privilege
-    // User email is retrieved from profile instead of Gmail API to avoid requiring additional scopes
-    const scope = 'https://www.googleapis.com/auth/gmail.send';
+    // Scopes: gmail.send for sending emails, userinfo.email to get the connected Gmail account email
+    const scope = 'https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/userinfo.email';
     const responseType = 'code';
     const accessType = 'offline';
     const prompt = 'consent';

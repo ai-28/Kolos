@@ -59,6 +59,28 @@ export async function GET(request) {
     const encryptedAccessToken = encrypt(tokens.access_token);
     const encryptedRefreshToken = encrypt(tokens.refresh_token);
 
+    // Get Gmail account email using Google UserInfo API
+    let gmailAccountEmail = null;
+    try {
+      const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: {
+          'Authorization': `Bearer ${tokens.access_token}`
+        }
+      });
+      
+      if (userInfoResponse.ok) {
+        const userInfo = await userInfoResponse.json();
+        gmailAccountEmail = userInfo.email;
+        console.log('✅ Gmail account email retrieved:', gmailAccountEmail);
+      } else {
+        const errorData = await userInfoResponse.json().catch(() => ({}));
+        console.warn('⚠️ Could not fetch user info:', userInfoResponse.status, errorData);
+      }
+    } catch (userInfoError) {
+      console.error('❌ Error fetching user info:', userInfoError);
+      // Continue anyway - we'll use profile.email as fallback
+    }
+
     // Update user profile with encrypted tokens
     const profileId = session.clientId;
     const profile = await findRowById('Profiles', profileId);
@@ -71,12 +93,19 @@ export async function GET(request) {
 
     // Update profile with Gmail connection info
     try {
-      const updateResult = await updateProfile(profileId, {
+      const updateData = {
         gmail_access_token: JSON.stringify(encryptedAccessToken),
         gmail_refresh_token: JSON.stringify(encryptedRefreshToken),
         gmail_connected: 'true',
         gmail_connected_at: new Date().toISOString(),
-      });
+      };
+      
+      // Add Gmail account email if we successfully retrieved it
+      if (gmailAccountEmail) {
+        updateData.gmail_account_email = gmailAccountEmail;
+      }
+      
+      const updateResult = await updateProfile(profileId, updateData);
 
       console.log('✅ Profile updated successfully:', {
         profileId,
