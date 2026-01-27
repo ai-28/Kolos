@@ -3010,7 +3010,7 @@ console.log("client",client)
                             return (
                               <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                                 <td className="py-2 sm:py-3 px-2 sm:px-3 md:px-4 text-xs sm:text-sm text-[#0a3d3d] font-medium break-words">
-                                  <div className="flex items-start gap-2">
+                                  <div className="flex flex-col gap-1.5">
                                     {(() => {
                                       // Find connection for this deal to show status badge
                                       const connection = connections.find(conn => {
@@ -3018,12 +3018,12 @@ console.log("client",client)
                                         return connDealId && String(connDealId).trim() === String(dealId).trim()
                                       })
                                       return connection ? (
-                                        <div className="flex-shrink-0 mt-0.5">
+                                        <div className="flex-shrink-0">
                                           {getConnectionStatusBadge(connection)}
                                         </div>
                                       ) : null
                                     })()}
-                                    <span className="flex-1">{deal.deal_name || deal["deal_name"] || "-"}</span>
+                                    <span className="break-words">{deal.deal_name || deal["deal_name"] || "-"}</span>
                                   </div>
                                 </td>
                                 <td className="py-2 sm:py-3 px-2 sm:px-3 md:px-4 text-xs sm:text-sm text-gray-700 break-words">
