@@ -4820,65 +4820,118 @@ console.log("client",client)
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Message:
                     </label>
-                    <textarea
-                      value={editableDraftMessage}
-                      onChange={(e) => setEditableDraftMessage(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[300px] bg-white"
-                      placeholder="Enter draft message..."
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      You can edit the message before saving or submitting for approval.
-                    </p>
+                    {(() => {
+                      const isLocked = connectionForDraft && isTruthy(
+                        connectionForDraft.draft_locked || connectionForDraft['draft_locked']
+                      )
+                      const isAlreadyApproved = connectionForDraft && isTruthy(
+                        connectionForDraft.client_approved || connectionForDraft['client_approved']
+                      )
+                      
+                      return (
+                        <>
+                          <textarea
+                            value={editableDraftMessage}
+                            onChange={(e) => setEditableDraftMessage(e.target.value)}
+                            disabled={isLocked}
+                            className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[300px] ${
+                              isLocked ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'
+                            }`}
+                            placeholder="Enter draft message..."
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            {isLocked 
+                              ? 'Draft is locked and cannot be edited.'
+                              : isAlreadyApproved
+                              ? 'Draft is already approved. You can still edit and save changes.'
+                              : 'You can edit the message before saving or submitting for approval.'
+                            }
+                          </p>
+                        </>
+                      )
+                    })()}
                   </div>
 
                   <div className="flex gap-2 pt-2">
-                    <Button
-                      onClick={handleSaveDraftFromModal}
-                      disabled={sendingEmail}
-                      variant="outline"
-                      className="flex-1"
-                    >
-                      {sendingEmail ? (
+                    {(() => {
+                      // Check if draft is already approved
+                      const isAlreadyApproved = connectionForDraft && isTruthy(
+                        connectionForDraft.client_approved || connectionForDraft['client_approved']
+                      )
+                      const isLocked = connectionForDraft && isTruthy(
+                        connectionForDraft.draft_locked || connectionForDraft['draft_locked']
+                      )
+                      
+                      return (
                         <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Saving...
+                          {!isLocked && (
+                            <Button
+                              onClick={handleSaveDraftFromModal}
+                              disabled={sendingEmail}
+                              variant="outline"
+                              className="flex-1"
+                            >
+                              {sendingEmail ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Saving...
+                                </>
+                              ) : (
+                                <>
+                                  <Save className="w-4 h-4 mr-2" />
+                                  Save Draft
+                                </>
+                              )}
+                            </Button>
+                          )}
+                          {!isAlreadyApproved && !isLocked && (
+                            <Button
+                              onClick={handleSubmitForApproval}
+                              disabled={sendingEmail}
+                              className="flex-1 bg-[#0a3d3d] hover:bg-[#083030] text-white"
+                            >
+                              {sendingEmail ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Submitting...
+                                </>
+                              ) : (
+                                <>
+                                  <Check className="w-4 h-4 mr-2" />
+                                  Submit for Approval
+                                </>
+                              )}
+                            </Button>
+                          )}
+                          {isAlreadyApproved && !isLocked && (
+                            <div className="flex-1 flex items-center justify-center px-3 py-2 bg-blue-50 border border-blue-200 rounded-md">
+                              <p className="text-sm text-blue-700">
+                                ✓ Already submitted for approval
+                              </p>
+                            </div>
+                          )}
+                          {isLocked && (
+                            <div className="flex-1 flex items-center justify-center px-3 py-2 bg-green-50 border border-green-200 rounded-md">
+                              <p className="text-sm text-green-700">
+                                🔒 Draft locked and finalized
+                              </p>
+                            </div>
+                          )}
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setShowGenerateDraftModal(false)
+                              setConnectionForDraft(null)
+                              setEditableDraftMessage('')
+                              setEmailSubject('')
+                            }}
+                            disabled={sendingEmail}
+                          >
+                            Cancel
+                          </Button>
                         </>
-                      ) : (
-                        <>
-                          <Save className="w-4 h-4 mr-2" />
-                          Save Draft
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      onClick={handleSubmitForApproval}
-                      disabled={sendingEmail}
-                      className="flex-1 bg-[#0a3d3d] hover:bg-[#083030] text-white"
-                    >
-                      {sendingEmail ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Submitting...
-                        </>
-                      ) : (
-                        <>
-                          <Check className="w-4 h-4 mr-2" />
-                          Submit for Approval
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setShowGenerateDraftModal(false)
-                        setConnectionForDraft(null)
-                        setEditableDraftMessage('')
-                        setEmailSubject('')
-                      }}
-                      disabled={sendingEmail}
-                    >
-                      Cancel
-                    </Button>
+                      )
+                    })()}
                   </div>
                 </div>
               </CardContent>
