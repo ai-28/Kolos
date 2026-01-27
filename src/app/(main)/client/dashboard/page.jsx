@@ -66,6 +66,9 @@ function ClientDashboardContent() {
   const [emailSubject, setEmailSubject] = useState('')
   const [showGmailConnectModal, setShowGmailConnectModal] = useState(false)
   const [editableDraftMessage, setEditableDraftMessage] = useState('')
+  const [generatingDraft, setGeneratingDraft] = useState(null)
+  const [showGenerateDraftModal, setShowGenerateDraftModal] = useState(false)
+  const [connectionForDraft, setConnectionForDraft] = useState(null)
 
   // Fetch client data - define FIRST before useEffect
   const fetchClientData = async () => {
@@ -564,6 +567,134 @@ function ClientDashboardContent() {
     } catch (error) {
       console.error('Error sending email:', error)
       toast.error(error.message || 'Failed to send email')
+    } finally {
+      setSendingEmail(false)
+    }
+  }
+
+  // Handle generate draft
+  const handleGenerateDraft = async (connectionId) => {
+    setGeneratingDraft(connectionId)
+    try {
+      const response = await fetch(`/api/connections/${connectionId}/generate-draft`, {
+        method: 'POST',
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to generate draft')
+      }
+
+      toast.success('Draft generated successfully!')
+      
+      // Find the connection to get deal name and other info
+      const connection = connections.find(c => c.connection_id === connectionId)
+      if (connection) {
+        // Create updated connection object with the new draft
+        const updatedConnection = {
+          ...connection,
+          draft_message: data.draft_message || '',
+          draft_generated_at: new Date().toISOString(),
+          status: 'draft_generated'
+        }
+        
+        setConnectionForDraft(updatedConnection)
+        setEditableDraftMessage(data.draft_message || '')
+        const dealName = connection.deal_name || ''
+        setEmailSubject(`Connection Request - ${dealName}`)
+        setShowGenerateDraftModal(true)
+      }
+      
+      // Refresh connections list
+      fetchConnections()
+    } catch (error) {
+      console.error('Error generating draft:', error)
+      toast.error(error.message || 'Failed to generate draft')
+    } finally {
+      setGeneratingDraft(null)
+    }
+  }
+
+  // Handle save draft from modal
+  const handleSaveDraftFromModal = async () => {
+    if (!connectionForDraft) return
+
+    setSendingEmail(true)
+    try {
+      const response = await fetch(`/api/connections/${connectionForDraft.connection_id}/draft`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          draft_message: editableDraftMessage,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save draft')
+      }
+
+      toast.success('Draft saved successfully!')
+      setShowGenerateDraftModal(false)
+      setConnectionForDraft(null)
+      setEditableDraftMessage('')
+      setEmailSubject('')
+      fetchConnections()
+    } catch (error) {
+      console.error('Error saving draft:', error)
+      toast.error(error.message || 'Failed to save draft')
+    } finally {
+      setSendingEmail(false)
+    }
+  }
+
+  // Handle submit for approval
+  const handleSubmitForApproval = async () => {
+    if (!connectionForDraft) return
+
+    // First save the draft
+    setSendingEmail(true)
+    try {
+      // Save draft first
+      const saveResponse = await fetch(`/api/connections/${connectionForDraft.connection_id}/draft`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          draft_message: editableDraftMessage,
+        }),
+      })
+
+      if (!saveResponse.ok) {
+        const saveData = await saveResponse.json()
+        throw new Error(saveData.error || 'Failed to save draft')
+      }
+
+      // Then approve it (which submits for admin approval)
+      const approveResponse = await fetch(`/api/connections/${connectionForDraft.connection_id}/approve-draft`, {
+        method: 'POST',
+      })
+
+      const approveData = await approveResponse.json()
+
+      if (!approveResponse.ok) {
+        throw new Error(approveData.error || 'Failed to submit for approval')
+      }
+
+      toast.success('Draft submitted for approval!')
+      setShowGenerateDraftModal(false)
+      setConnectionForDraft(null)
+      setEditableDraftMessage('')
+      setEmailSubject('')
+      fetchConnections()
+    } catch (error) {
+      console.error('Error submitting for approval:', error)
+      toast.error(error.message || 'Failed to submit for approval')
     } finally {
       setSendingEmail(false)
     }
@@ -2729,10 +2860,28 @@ console.log("client",client)
                             </p>
                           )}
                           
+                          {/* Generate Draft Button - show when no draft exists and admin approved */}
                           {!hasDraft && status === 'admin_approved' && (
-                            <p className="text-sm text-gray-600 italic">
-                              Admin approved. Draft generation in progress...
-                            </p>
+                            <div className="mt-3">
+                              <Button
+                                size="sm"
+                                onClick={() => handleGenerateDraft(conn.connection_id)}
+                                disabled={generatingDraft === conn.connection_id}
+                                className="bg-[#0a3d3d] hover:bg-[#083030] text-white"
+                              >
+                                {generatingDraft === conn.connection_id ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Generating...
+                                  </>
+                                ) : (
+                                  <>
+                                    <FileText className="w-4 h-4 mr-2" />
+                                    Generate Draft
+                                  </>
+                                )}
+                              </Button>
+                            </div>
                           )}
                         </CardContent>
                       </Card>
@@ -3964,8 +4113,16 @@ console.log("client",client)
                                   return
                                 }
                                 
+                                // If no draft exists, offer to generate one
                                 if (!connection.draft_message || connection.draft_message.trim() === '') {
-                                  toast.info('Draft message not yet generated. Please wait for admin to create the draft.')
+                                  // Check if admin approved
+                                  const isAdminApproved = isTruthy(connection.admin_approved || connection['admin_approved'])
+                                  if (isAdminApproved) {
+                                    // Offer to generate draft
+                                    handleGenerateDraft(connection.connection_id)
+                                  } else {
+                                    toast.info('Draft message not yet generated. Please wait for admin approval first.')
+                                  }
                                   return
                                 }
                                 
@@ -4104,8 +4261,16 @@ console.log("client",client)
                                 return
                               }
                               
+                              // If no draft exists, offer to generate one
                               if (!connection.draft_message || connection.draft_message.trim() === '') {
-                                toast.info('Draft message not yet generated. Please wait for admin to create the draft.')
+                                // Check if admin approved
+                                const isAdminApproved = isTruthy(connection.admin_approved || connection['admin_approved'])
+                                if (isAdminApproved) {
+                                  // Offer to generate draft
+                                  handleGenerateDraft(connection.connection_id)
+                                } else {
+                                  toast.info('Draft message not yet generated. Please wait for admin approval first.')
+                                }
                                 return
                               }
                               
@@ -4359,6 +4524,114 @@ console.log("client",client)
                     <Button
                       variant="outline"
                       onClick={() => setShowGmailConnectModal(false)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Generate Draft Modal */}
+        {showGenerateDraftModal && connectionForDraft && (
+          <div className="fixed inset-0 bg-gray-50/80 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+            <Card className="w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+              <CardContent className="p-4 md:p-6">
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-montserrat text-[#0a3d3d]">
+                    Edit Draft Message
+                  </h2>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setShowGenerateDraftModal(false)
+                      setConnectionForDraft(null)
+                      setEditableDraftMessage('')
+                      setEmailSubject('')
+                    }}
+                    className="min-w-[44px] min-h-[44px]"
+                  >
+                    <X className="w-5 h-5" />
+                  </Button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Subject:
+                    </label>
+                    <input
+                      type="text"
+                      value={emailSubject}
+                      onChange={(e) => setEmailSubject(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                      placeholder="Email subject"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Message:
+                    </label>
+                    <textarea
+                      value={editableDraftMessage}
+                      onChange={(e) => setEditableDraftMessage(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[300px] bg-white"
+                      placeholder="Enter draft message..."
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      You can edit the message before saving or submitting for approval.
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      onClick={handleSaveDraftFromModal}
+                      disabled={sendingEmail}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      {sendingEmail ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4 mr-2" />
+                          Save Draft
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      onClick={handleSubmitForApproval}
+                      disabled={sendingEmail}
+                      className="flex-1 bg-[#0a3d3d] hover:bg-[#083030] text-white"
+                    >
+                      {sendingEmail ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-4 h-4 mr-2" />
+                          Submit for Approval
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowGenerateDraftModal(false)
+                        setConnectionForDraft(null)
+                        setEditableDraftMessage('')
+                        setEmailSubject('')
+                      }}
+                      disabled={sendingEmail}
                     >
                       Cancel
                     </Button>
