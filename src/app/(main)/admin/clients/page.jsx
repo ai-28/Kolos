@@ -103,7 +103,6 @@ function ClientDashboardContent() {
       setSelectedRole(normalizedRole)
       
       // Fetch signals from Signals sheet using profile_id
-      const profileId = clientData.id || clientData.ID || clientData["id"] || clientData["ID"]
       if (profileId) {
         try {
           const signalsResponse = await fetch(`/api/signals?profile_id=${encodeURIComponent(profileId)}`)
