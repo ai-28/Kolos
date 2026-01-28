@@ -44,6 +44,8 @@ function ClientDashboardContent() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [updatedContent, setUpdatedContent] = useState("")
   const [updatingSignals, setUpdatingSignals] = useState(false)
+  const [promptHistory, setPromptHistory] = useState([])
+  const [loadingPromptHistory, setLoadingPromptHistory] = useState(false)
   const [showLinkedInModal, setShowLinkedInModal] = useState(false)
   const [showEmailModal, setShowEmailModal] = useState(false)
   const [selectedDealForModal, setSelectedDealForModal] = useState(null)
@@ -73,6 +75,27 @@ function ClientDashboardContent() {
 
       const clientData = data.client
       setClient(clientData)
+
+      // Load prompt history for this profile (best-effort)
+      const profileId = clientData.id || clientData.ID || clientData["id"] || clientData["ID"]
+      if (profileId) {
+        setLoadingPromptHistory(true)
+        try {
+          const histRes = await fetch(`/api/signals/prompt-history?profile_id=${encodeURIComponent(profileId)}&limit=25`)
+          const histData = await histRes.json()
+          if (histRes.ok) {
+            setPromptHistory(histData.prompts || [])
+          } else {
+            setPromptHistory([])
+          }
+        } catch (e) {
+          setPromptHistory([])
+        } finally {
+          setLoadingPromptHistory(false)
+        }
+      } else {
+        setPromptHistory([])
+      }
       
       // Set default role from client profile with robust normalization
       const clientRole = clientData.role || clientData.Role || clientData["role"] || clientData["Role"] || "Investor"
@@ -3150,6 +3173,66 @@ console.log("client",client)
                   Update Signals
                 </h3>
                 <div className="space-y-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-sm text-gray-600">
+                      {loadingPromptHistory ? (
+                        <span>Loading prompt history...</span>
+                      ) : promptHistory.length > 0 ? (
+                        <span>{promptHistory.length} saved prompt{promptHistory.length === 1 ? '' : 's'}</span>
+                      ) : (
+                        <span>No prompt history yet</span>
+                      )}
+                    </div>
+                    {promptHistory.length > 0 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const latest = promptHistory[0]
+                          if (latest?.prompt_text) setUpdatedContent(latest.prompt_text)
+                        }}
+                        className="min-h-[36px]"
+                        title="Use the most recent saved prompt"
+                      >
+                        Use Latest
+                      </Button>
+                    )}
+                  </div>
+
+                  {promptHistory.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Prompt History
+                      </label>
+                      <div className="border border-gray-200 rounded-md divide-y bg-white max-h-[220px] overflow-y-auto">
+                        {promptHistory.slice(0, 10).map((p, idx) => (
+                          <button
+                            key={`${p.created_at || 'na'}-${idx}`}
+                            type="button"
+                            onClick={() => setUpdatedContent(p.prompt_text || '')}
+                            className="w-full text-left px-3 py-2 hover:bg-gray-50"
+                            title="Click to reuse this prompt"
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="text-xs text-gray-500">
+                                {(p.created_at ? new Date(p.created_at).toLocaleString() : 'Unknown date')}
+                                {p.created_by ? ` • ${p.created_by}` : ''}
+                              </div>
+                              <div className="text-xs text-[#0a3d3d] font-medium">Use</div>
+                            </div>
+                            <div className="text-sm text-gray-900 line-clamp-2 mt-1">
+                              {p.prompt_text}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Prompts are saved automatically each time you click “Update Signals”.
+                      </p>
+                    </div>
+                  )}
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Additional Content

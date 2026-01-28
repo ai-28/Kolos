@@ -41,6 +41,35 @@ async function getSheetId(spreadsheetId, sheetName, sheets) {
     return sheet ? sheet.properties.sheetId : null;
 }
 
+async function ensureSheetExists({ spreadsheetId, sheetsClient, sheetName, headerRow }) {
+    try {
+        const spreadsheet = await sheetsClient.spreadsheets.get({ spreadsheetId });
+        const exists = spreadsheet.data.sheets?.some((s) => s.properties?.title === sheetName);
+        if (exists) return true;
+
+        await sheetsClient.spreadsheets.batchUpdate({
+            spreadsheetId,
+            resource: {
+                requests: [{ addSheet: { properties: { title: sheetName } } }],
+            },
+        });
+
+        if (headerRow && Array.isArray(headerRow) && headerRow.length > 0) {
+            await sheetsClient.spreadsheets.values.update({
+                spreadsheetId,
+                range: `${sheetName}!A1`,
+                valueInputOption: 'USER_ENTERED',
+                resource: { values: [headerRow] },
+            });
+        }
+
+        return true;
+    } catch (e) {
+        console.error(`❌ Failed to ensure sheet exists (${sheetName}):`, e);
+        return false;
+    }
+}
+
 // Helper to convert column index to letter
 const getColumnLetter = (index) => {
     let result = '';
@@ -92,6 +121,28 @@ export async function POST(request) {
         }
 
         const sheets = getSheetsClient();
+
+        // Save prompt history (best-effort). Enables reusing prompts in admin UI without retyping.
+        try {
+            const sheetOk = await ensureSheetExists({
+                spreadsheetId: SPREADSHEET_ID,
+                sheetsClient: sheets,
+                sheetName: SHEETS.SIGNAL_PROMPT_HISTORY,
+                headerRow: ['profile_id', 'prompt_text', 'created_at', 'created_by'],
+            });
+
+            if (sheetOk) {
+                await appendToSheet(SHEETS.SIGNAL_PROMPT_HISTORY, [
+                    String(profile_id).trim(),
+                    updated_content.trim(),
+                    new Date().toISOString(),
+                    session.email || '',
+                ]);
+            }
+        } catch (historyError) {
+            // Don't fail signal generation if history write fails
+            console.warn('⚠️ Failed to save signal prompt history:', historyError?.message || historyError);
+        }
 
         // Step 1: Get existing client profile
         const profile = await findRowById(SHEETS.PROFILES, profile_id);

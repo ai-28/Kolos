@@ -71,6 +71,7 @@ const SHEETS = {
     DEALS: 'Deals',
     USERS: 'Users',
     CONNECTIONS: 'Connections',
+    SIGNAL_PROMPT_HISTORY: 'Signal Prompt History',
 };
 
 /**
