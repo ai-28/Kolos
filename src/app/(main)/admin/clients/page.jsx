@@ -335,7 +335,6 @@ function ClientDashboardContent() {
 
       toast.success('Connection request created successfully!')
       // Refresh connections to show new request
-      const profileId = client?.id || client?.ID || client?.["id"] || client?.["ID"]
       if (profileId) {
         await fetchConnections(profileId)
       }
@@ -3528,10 +3527,21 @@ console.log("client",client)
                                                     variant="ghost"
                                                     size="sm"
                                                     onClick={() => {
-                                                      toast.info('View draft from Connections page')
+                                                      const connId = connection.connection_id || connection['connection_id']
+                                                      if (!connId) {
+                                                        toast.error('Connection ID not found')
+                                                        return
+                                                      }
+                                                      setConnectionForDraft({
+                                                        ...connection,
+                                                        connection_id: connId
+                                                      })
+                                                      setEditableDraftMessage(connection.draft_message || '')
+                                                      setEmailSubject(`Connection Request - ${deal.deal_name || deal['deal_name'] || ''}`)
+                                                      setShowGenerateDraftModal(true)
                                                     }}
                                                     className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 min-h-[44px] min-w-[44px] p-0"
-                                                    title="View draft message (available in Connections page)"
+                                                    title="View and edit the draft message"
                                                   >
                                                     <FileText className="w-4 h-4" />
                                                   </Button>
