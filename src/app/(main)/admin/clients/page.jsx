@@ -3205,7 +3205,7 @@ console.log("client",client)
                         Prompt History
                       </label>
                       <div className="border border-gray-200 rounded-md divide-y bg-white max-h-[220px] overflow-y-auto">
-                        {promptHistory.slice(0, 10).map((p, idx) => (
+                        {promptHistory.map((p, idx) => (
                           <button
                             key={`${p.created_at || 'na'}-${idx}`}
                             type="button"
