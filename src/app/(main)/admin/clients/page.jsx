@@ -307,6 +307,13 @@ function ClientDashboardContent() {
       return
     }
 
+    // Get client's profileId to create connection on behalf of client
+    const profileId = client?.id || client?.ID || client?.["id"] || client?.["ID"]
+    if (!profileId) {
+      toast.error('Client profile ID not found')
+      return
+    }
+
     setRequestingConnection(dealId)
     try {
       const response = await fetch('/api/connections/request', {
@@ -316,6 +323,7 @@ function ClientDashboardContent() {
         },
         body: JSON.stringify({
           deal_id: dealId,
+          from_user_id: profileId, // Admin creates connection on behalf of client
         }),
       })
 

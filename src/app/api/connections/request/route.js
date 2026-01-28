@@ -12,9 +12,10 @@ import { formatConnection } from "@/app/lib/formatConnection";
 export async function POST(request) {
     try {
         const session = await requireAuth();
-        const fromUserId = session.clientId;
+        const sessionClientId = session.clientId;
+        const userRole = session.role || '';
 
-        if (!fromUserId) {
+        if (!sessionClientId) {
             return NextResponse.json(
                 { error: "Unauthorized" },
                 { status: 401 }
@@ -25,7 +26,23 @@ export async function POST(request) {
         const {
             to_user_id,
             deal_id,
+            from_user_id, // Allow admin to specify from_user_id when creating on behalf of client
         } = body;
+
+        // Determine fromUserId: admin can specify, otherwise use session clientId
+        const isAdmin = userRole && userRole.toLowerCase().includes('admin');
+        let fromUserId = sessionClientId;
+        
+        if (isAdmin && from_user_id) {
+            // Admin creating connection on behalf of a client
+            fromUserId = from_user_id;
+        } else if (!isAdmin && from_user_id) {
+            // Non-admin cannot specify from_user_id (security)
+            return NextResponse.json(
+                { error: "Forbidden: Only admins can create connections on behalf of others" },
+                { status: 403 }
+            );
+        }
 
         // Validate required fields
         if (!to_user_id && !deal_id) {
