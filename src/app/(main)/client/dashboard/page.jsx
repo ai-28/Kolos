@@ -3223,10 +3223,10 @@ console.log("client",client)
                                               </Button>
                                               
                                               {/* Email Icon */}
-                                              <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => {
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => {
                                                   setSelectedDealForModal(deal)
                                                   setShowEmailModal(true)
                                                 }}
@@ -3237,9 +3237,9 @@ console.log("client",client)
                                                     : 'text-gray-400 hover:text-gray-500 hover:bg-gray-50'
                                                 }`}
                                                 title={emailExists ? "Email found - View Email Addresses" : "Email missing - No email data available"}
-                                              >
+                                            >
                                                 <Mail className="w-4 h-4" />
-                                              </Button>
+                                            </Button>
                                               
                                               {/* Edit Icon */}
                                               <Button
@@ -3322,7 +3322,7 @@ console.log("client",client)
                                       }
                                       const linkedInExists = hasLinkedInData()
                                       const emailExists = hasEmailData()
-                                      
+
                                       return (
                                         <>
                                           {/* Primary Action Button */}
@@ -3335,9 +3335,9 @@ console.log("client",client)
                                                 {formatDate(emailSentAt)}
                                               </span>
                                               {lastSentMessage && (
-                                                <Button
-                                                  variant="ghost"
-                                                  size="sm"
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
                                                   onClick={() => {
                                                     setSelectedConnectionForHistory(connection)
                                                     setShowEmailHistoryModal(true)
@@ -3396,12 +3396,12 @@ console.log("client",client)
                                                       
                                                       {/* LinkedIn */}
                                                       <button
-                                                        onClick={() => {
-                                                          setSelectedDealForModal(deal)
-                                                          setShowLinkedInModal(true)
+                                            onClick={() => {
+                                              setSelectedDealForModal(deal)
+                                              setShowLinkedInModal(true)
                                                           setOpenDropdownDealId(null)
-                                                        }}
-                                                        disabled={!dealId}
+                                            }}
+                                            disabled={!dealId}
                                                         className={`w-full flex items-center gap-2 px-3 py-2 text-sm ${
                                                           linkedInExists 
                                                             ? 'text-blue-600 hover:bg-blue-50' 
@@ -3509,61 +3509,61 @@ console.log("client",client)
                                                   }}
                                                   disabled={!dealId}
                                                   className={`min-h-[44px] min-w-[44px] p-0 ${
-                                                    linkedInExists 
-                                                      ? 'text-blue-600 hover:text-blue-700 hover:bg-blue-50' 
-                                                      : 'text-gray-400 hover:text-gray-500 hover:bg-gray-50'
-                                                  }`}
-                                                  title={linkedInExists ? "LinkedIn found - View LinkedIn URLs" : "LinkedIn missing - No LinkedIn data available"}
-                                                >
-                                                  <Linkedin className="w-4 h-4" />
-                                                </Button>
+                                              linkedInExists 
+                                                ? 'text-blue-600 hover:text-blue-700 hover:bg-blue-50' 
+                                                : 'text-gray-400 hover:text-gray-500 hover:bg-gray-50'
+                                            }`}
+                                            title={linkedInExists ? "LinkedIn found - View LinkedIn URLs" : "LinkedIn missing - No LinkedIn data available"}
+                                          >
+                                            <Linkedin className="w-4 h-4" />
+                                          </Button>
                                                 
                                                 {/* Email Icon */}
-                                                <Button
-                                                  variant="ghost"
-                                                  size="sm"
-                                                  onClick={() => {
-                                                    setSelectedDealForModal(deal)
-                                                    setShowEmailModal(true)
-                                                  }}
-                                                  disabled={!dealId}
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => {
+                                              setSelectedDealForModal(deal)
+                                              setShowEmailModal(true)
+                                            }}
+                                            disabled={!dealId}
                                                   className={`min-h-[44px] min-w-[44px] p-0 ${
-                                                    emailExists 
-                                                      ? 'text-green-600 hover:text-green-700 hover:bg-green-50' 
-                                                      : 'text-gray-400 hover:text-gray-500 hover:bg-gray-50'
-                                                  }`}
-                                                  title={emailExists ? "Email found - View Email Addresses" : "Email missing - No email data available"}
-                                                >
-                                                  <Mail className="w-4 h-4" />
-                                                </Button>
+                                              emailExists 
+                                                ? 'text-green-600 hover:text-green-700 hover:bg-green-50' 
+                                                : 'text-gray-400 hover:text-gray-500 hover:bg-gray-50'
+                                            }`}
+                                            title={emailExists ? "Email found - View Email Addresses" : "Email missing - No email data available"}
+                                          >
+                                            <Mail className="w-4 h-4" />
+                                          </Button>
                                                 
                                                 {/* Edit Icon */}
-                                                <Button
-                                                  variant="ghost"
-                                                  size="sm"
-                                                  onClick={() => handleEditDeal(deal)}
-                                                  disabled={!dealId}
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleEditDeal(deal)}
+                                      disabled={!dealId}
                                                   className="text-[#0a3d3d] hover:text-[#0a3d3d]/80 hover:bg-[#0a3d3d]/10 min-h-[44px] min-w-[44px] p-0"
                                                   title="Edit deal information"
-                                                >
-                                                  <Edit2 className="w-4 h-4" />
-                                                </Button>
+                                    >
+                                      <Edit2 className="w-4 h-4" />
+                                    </Button>
                                                 
                                                 {/* Delete Icon */}
-                                                <Button
-                                                  variant="ghost"
-                                                  size="sm"
-                                                  onClick={() => handleDeleteDeal(dealId)}
-                                                  disabled={isDeleting || !dealId}
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleDeleteDeal(dealId)}
+                                      disabled={isDeleting || !dealId}
                                                   className="text-red-600 hover:text-red-700 hover:bg-red-50 min-h-[44px] min-w-[44px] p-0"
                                                   title={isDeleting ? "Deleting deal..." : "Delete this deal"}
-                                                >
-                                                  {isDeleting ? (
-                                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                                  ) : (
-                                                    <Trash2 className="w-4 h-4" />
-                                                  )}
-                                                </Button>
+                                    >
+                                      {isDeleting ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                      ) : (
+                                        <Trash2 className="w-4 h-4" />
+                                      )}
+                                    </Button>
                                               </div>
                                             </>
                                           )}

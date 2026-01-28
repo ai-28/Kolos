@@ -7,7 +7,7 @@ import { Button } from "@/app/components/ui/button"
 import { Card, CardContent } from "@/app/components/ui/card"
 import {KolosLogo} from "@/app/components/svg"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, Loader2, Edit2, Save, X, Trash2, Menu, Linkedin, Mail, Check, Briefcase } from "lucide-react"
+import { ArrowLeft, Loader2, Edit2, Save, X, Trash2, Menu, Linkedin, Mail, Check, Briefcase, History, MoreVertical, FileText, Clock } from "lucide-react"
 import { toast } from "sonner"
 import { DashboardIcon, BusinessGoalsIcon,SignalsIcon, IndustryFocusIcon, BusinessMatchIcon, BusinessRequestsIcon,TravelPlanIcon, UpcomingEventIcon } from "@/app/components/svg"
 import Image from "next/image"
@@ -53,6 +53,10 @@ function ClientDashboardContent() {
   const [sendingEmail, setSendingEmail] = useState(false)
   const [updatingSignalStatus, setUpdatingSignalStatus] = useState(null)
   const [expandedNextSteps, setExpandedNextSteps] = useState(new Set())
+  const [connections, setConnections] = useState([])
+  const [showEmailHistoryModal, setShowEmailHistoryModal] = useState(false)
+  const [selectedConnectionForHistory, setSelectedConnectionForHistory] = useState(null)
+  const [openDropdownDealId, setOpenDropdownDealId] = useState(null)
   useEffect(() => {
     // Get client ID from URL params and fetch client data
     const clientId = searchParams.get("id")
@@ -62,6 +66,176 @@ function ClientDashboardContent() {
       setLoading(false)
     }
   }, [searchParams])
+
+  // Helper function to check if value is truthy
+  const isTruthy = (value) => {
+    if (value === true || value === false) return value
+    if (typeof value === 'string') {
+      const lower = value.toLowerCase().trim()
+      return lower === 'true' || lower === '1' || lower === 'yes'
+    }
+    return false
+  }
+
+  // Helper function to get email status
+  const getEmailStatus = (connection) => {
+    if (!connection) return { status: 'not_sent', label: 'Not sent', color: 'bg-gray-500' }
+    
+    const emailStatus = connection.email_status || connection['email_status'] || ''
+    const emailSentAt = connection.email_sent_at || connection['email_sent_at'] || ''
+    
+    if (!emailSentAt) {
+      return { status: 'not_sent', label: 'Not sent', color: 'bg-gray-500' }
+    }
+    
+    if (emailStatus === 'delivered') {
+      return { status: 'delivered', label: 'Delivered', color: 'bg-green-500' }
+    }
+    
+    return { status: 'sent', label: 'Sent', color: 'bg-blue-500' }
+  }
+
+  // Helper function to format date
+  const formatDate = (dateString) => {
+    if (!dateString) return ''
+    try {
+      const date = new Date(dateString)
+      return date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    } catch (e) {
+      return dateString
+    }
+  }
+
+  // Helper function to get connection status badge
+  const getConnectionStatusBadge = (connection) => {
+    if (!connection) return null
+    
+    const hasDraft = connection.draft_message && connection.draft_message.trim() !== ''
+    const clientApproved = isTruthy(connection.client_approved || connection['client_approved'])
+    const draftLocked = isTruthy(connection.draft_locked || connection['draft_locked'])
+    const status = connection.status || 'pending'
+    
+    if (draftLocked) {
+      return <Badge className="bg-green-600 text-white text-xs">Approved & Locked</Badge>
+    }
+    if (clientApproved) {
+      return <Badge className="bg-blue-600 text-white text-xs">Waiting for Admin</Badge>
+    }
+    if (hasDraft) {
+      return <Badge className="bg-yellow-600 text-white text-xs">Draft Ready</Badge>
+    }
+    if (status === 'admin_approved') {
+      return <Badge className="bg-purple-600 text-white text-xs">Draft Pending</Badge>
+    }
+    return <Badge className="bg-gray-600 text-white text-xs">Pending</Badge>
+  }
+
+  // Helper function to get primary action button for connection (Admin version - no send email)
+  const getConnectionPrimaryAction = (connection, deal) => {
+    if (!connection) return null
+    
+    const hasDraft = connection.draft_message && connection.draft_message.trim() !== ''
+    const clientApproved = isTruthy(connection.client_approved || connection['client_approved'])
+    const draftLocked = isTruthy(connection.draft_locked || connection['draft_locked'])
+    const status = connection.status || 'pending'
+    
+    // Step 1: No draft, admin approved - Show status (admin can generate draft from connections page)
+    if (!hasDraft && status === 'admin_approved') {
+      return (
+        <Button
+          size="sm"
+          disabled
+          className="bg-gray-400 text-white text-xs min-h-[32px] cursor-not-allowed"
+          title="Draft pending - Admin can generate from Connections page"
+        >
+          Draft Pending
+        </Button>
+      )
+    }
+    
+    // Step 2: Has draft, not approved - Show status
+    if (hasDraft && !clientApproved && !draftLocked) {
+      return (
+        <Button
+          size="sm"
+          disabled
+          className="bg-yellow-400 text-white text-xs min-h-[32px] cursor-not-allowed"
+          title="Draft ready - Waiting for client approval"
+        >
+          Draft Ready
+        </Button>
+      )
+    }
+    
+    // Step 3: Approved, waiting for admin lock - Show status
+    if (clientApproved && !draftLocked) {
+      return (
+        <Button
+          size="sm"
+          disabled
+          className="bg-blue-400 text-white text-xs min-h-[32px] cursor-not-allowed"
+          title="Client approved - Admin can final approve from Connections page"
+        >
+          Client Approved
+        </Button>
+      )
+    }
+    
+    // Step 4: Locked and ready - Show status (admin cannot send - only client can)
+    if (draftLocked && clientApproved) {
+      return (
+        <Button
+          size="sm"
+          disabled
+          className="bg-green-400 text-white text-xs min-h-[32px] cursor-not-allowed"
+          title="Ready to send - Client will send email from their dashboard"
+        >
+          Ready to Send
+        </Button>
+      )
+    }
+    
+    // Default: Pending
+    if (status === 'pending') {
+      return (
+        <Button
+          size="sm"
+          disabled
+          className="bg-gray-400 text-white text-xs min-h-[32px] cursor-not-allowed"
+        >
+          Pending Approval
+        </Button>
+      )
+    }
+    
+    return null
+  }
+
+  // Fetch connections for the client
+  const fetchConnections = async (profileId) => {
+    if (!profileId) return
+    try {
+      const response = await fetch(`/api/admin/connections`)
+      const data = await response.json()
+      if (response.ok && data.connections) {
+        // Filter connections for this specific client's profile_id
+        const clientConnections = data.connections.filter(conn => {
+          const fromUserId = conn.from_user_id || conn['from_user_id']
+          return fromUserId && String(fromUserId).trim() === String(profileId).trim()
+        })
+        setConnections(clientConnections || [])
+      }
+    } catch (error) {
+      console.error('Error fetching connections:', error)
+      setConnections([])
+    }
+  }
 
   const fetchClientData = async (clientId) => {
     try {
@@ -136,10 +310,14 @@ function ClientDashboardContent() {
           console.error("Error fetching deals:", dealError)
           setDeals([])
         }
+
+        // Fetch connections for this client
+        await fetchConnections(profileId)
       } else {
         console.warn("No profile ID found, cannot fetch signals or deals")
         setSignals([])
         setDeals([])
+        setConnections([])
       }
     } catch (error) {
       console.error("Error fetching client data:", error)
@@ -2360,14 +2538,29 @@ console.log("client",client)
 
                         const linkedInExists = hasLinkedInData()
                         const emailExists = hasEmailData()
+                        
+                        // Find connection for this deal
+                        const connection = connections.find(conn => {
+                          const connDealId = conn.deal_id || conn['deal_id']
+                          return connDealId && String(connDealId).trim() === String(dealId).trim()
+                        })
 
                         return (
                           <div key={index} className="border border-gray-200 rounded-lg p-3 space-y-2.5 bg-white">
                             {/* Deal Name & Actions */}
                             <div className="flex items-start justify-between gap-2">
-                              <h3 className="text-sm font-semibold text-[#0a3d3d] flex-1 break-words">
-                                {deal.deal_name || deal["deal_name"] || "-"}
-                              </h3>
+                              <div className="flex-1">
+                                <div className="flex flex-col gap-1.5 mb-1">
+                                  {connection && (
+                                    <div className="flex-shrink-0 -ml-1">
+                                      {getConnectionStatusBadge(connection)}
+                                    </div>
+                                  )}
+                                  <h3 className="text-sm font-semibold text-[#0a3d3d] break-words">
+                                    {deal.deal_name || deal["deal_name"] || "-"}
+                                  </h3>
+                                </div>
+                              </div>
                               <div className="flex items-center gap-1 flex-shrink-0">
                                 <Button
                                   variant="ghost"
@@ -2534,7 +2727,21 @@ console.log("client",client)
                             return (
                               <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                                 <td className="py-2 sm:py-3 px-2 sm:px-3 md:px-4 text-xs sm:text-sm text-[#0a3d3d] font-medium break-words">
-                                  {deal.deal_name || deal["deal_name"] || "-"}
+                                  <div className="flex flex-col gap-1.5">
+                                    {(() => {
+                                      // Find connection for this deal to show status badge
+                                      const connection = connections.find(conn => {
+                                        const connDealId = conn.deal_id || conn['deal_id']
+                                        return connDealId && String(connDealId).trim() === String(dealId).trim()
+                                      })
+                                      return connection ? (
+                                        <div className="flex-shrink-0 -ml-1">
+                                          {getConnectionStatusBadge(connection)}
+                                        </div>
+                                      ) : null
+                                    })()}
+                                    <span className="break-words">{deal.deal_name || deal["deal_name"] || "-"}</span>
+                                  </div>
                                 </td>
                                 <td className="py-2 sm:py-3 px-2 sm:px-3 md:px-4 text-xs sm:text-sm text-gray-700 break-words">
                                   {deal.target || deal["target"] || "-"}
@@ -2595,115 +2802,384 @@ console.log("client",client)
                                   {deal.next_step || deal["next_step"] || "-"}
                                 </td>
                                 <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm">
-                                  {(() => {
-                                    // Helper function to check if LinkedIn data exists
-                                    const hasLinkedInData = () => {
-                                      try {
-                                        const allDecisionMakersField = deal.all_decision_makers || deal["all_decision_makers"]
-                                        if (allDecisionMakersField) {
-                                          const allDecisionMakers = typeof allDecisionMakersField === 'string' 
-                                            ? JSON.parse(allDecisionMakersField) 
-                                            : allDecisionMakersField
-                                          if (Array.isArray(allDecisionMakers) && allDecisionMakers.length > 0) {
-                                            return allDecisionMakers.some(dm => 
-                                              (dm.linkedin_url || dm["linkedin_url"]) && 
-                                              (dm.linkedin_url || dm["linkedin_url"]).trim() !== ''
-                                            )
+                                  <div className="flex flex-col gap-2 min-w-[180px]">
+                                    {(() => {
+                                      // Find connection for this deal
+                                      const connection = connections.find(conn => {
+                                        const connDealId = conn.deal_id || conn['deal_id']
+                                        return connDealId && String(connDealId).trim() === String(dealId).trim()
+                                      })
+                                      
+                                      // If no connection exists, show basic actions
+                                      if (!connection) {
+                                        // Helper functions for LinkedIn and Email
+                                        const hasLinkedInData = () => {
+                                          try {
+                                            const allDecisionMakersField = deal.all_decision_makers || deal["all_decision_makers"]
+                                            if (allDecisionMakersField) {
+                                              const allDecisionMakers = typeof allDecisionMakersField === 'string' 
+                                                ? JSON.parse(allDecisionMakersField) 
+                                                : allDecisionMakersField
+                                              if (Array.isArray(allDecisionMakers) && allDecisionMakers.length > 0) {
+                                                return allDecisionMakers.some(dm => 
+                                                  (dm.linkedin_url || dm["linkedin_url"]) && 
+                                                  (dm.linkedin_url || dm["linkedin_url"]).trim() !== ''
+                                                )
+                                              }
+                                            }
+                                          } catch (e) {
+                                            // Ignore parse errors
                                           }
+                                          const primaryLinkedIn = deal.decision_maker_linkedin_url || deal["decision_maker_linkedin_url"]
+                                          return !!(primaryLinkedIn && primaryLinkedIn.trim() !== '')
                                         }
-                                      } catch (e) {
-                                        // Ignore parse errors
-                                      }
-                                      const primaryLinkedIn = deal.decision_maker_linkedin_url || deal["decision_maker_linkedin_url"]
-                                      return !!(primaryLinkedIn && primaryLinkedIn.trim() !== '')
-                                    }
-
-                                    // Helper function to check if Email data exists
-                                    const hasEmailData = () => {
-                                      try {
-                                        const allDecisionMakersField = deal.all_decision_makers || deal["all_decision_makers"]
-                                        if (allDecisionMakersField) {
-                                          const allDecisionMakers = typeof allDecisionMakersField === 'string' 
-                                            ? JSON.parse(allDecisionMakersField) 
-                                            : allDecisionMakersField
-                                          if (Array.isArray(allDecisionMakers) && allDecisionMakers.length > 0) {
-                                            return allDecisionMakers.some(dm => 
-                                              (dm.email || dm["email"]) && 
-                                              (dm.email || dm["email"]).trim() !== ''
-                                            )
+                                        const hasEmailData = () => {
+                                          try {
+                                            const allDecisionMakersField = deal.all_decision_makers || deal["all_decision_makers"]
+                                            if (allDecisionMakersField) {
+                                              const allDecisionMakers = typeof allDecisionMakersField === 'string' 
+                                                ? JSON.parse(allDecisionMakersField) 
+                                                : allDecisionMakersField
+                                              if (Array.isArray(allDecisionMakers) && allDecisionMakers.length > 0) {
+                                                return allDecisionMakers.some(dm => 
+                                                  (dm.email || dm["email"]) && 
+                                                  (dm.email || dm["email"]).trim() !== ''
+                                                )
+                                              }
+                                            }
+                                          } catch (e) {
+                                            // Ignore parse errors
                                           }
+                                          const primaryEmail = deal.decision_maker_email || deal["decision_maker_email"]
+                                          return !!(primaryEmail && primaryEmail.trim() !== '')
                                         }
-                                      } catch (e) {
-                                        // Ignore parse errors
+                                        const linkedInExists = hasLinkedInData()
+                                        const emailExists = hasEmailData()
+                                        
+                                        return (
+                                          <>
+                                            {/* Icons Row: LinkedIn, Email, Edit, Delete */}
+                                            <div className="flex items-center gap-1 flex-wrap">
+                                              {/* LinkedIn Icon */}
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => {
+                                                  setSelectedDealForModal(deal)
+                                                  setShowLinkedInModal(true)
+                                                }}
+                                                disabled={!dealId}
+                                                className={`min-h-[44px] min-w-[44px] p-0 ${
+                                                  linkedInExists 
+                                                    ? 'text-blue-600 hover:text-blue-700 hover:bg-blue-50' 
+                                                    : 'text-gray-400 hover:text-gray-500 hover:bg-gray-50'
+                                                }`}
+                                                title={linkedInExists ? "LinkedIn found - View LinkedIn URLs" : "LinkedIn missing - No LinkedIn data available"}
+                                              >
+                                                <Linkedin className="w-4 h-4" />
+                                              </Button>
+                                              
+                                              {/* Email Icon */}
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => {
+                                                  setSelectedDealForModal(deal)
+                                                  setShowEmailModal(true)
+                                                }}
+                                                disabled={!dealId}
+                                                className={`min-h-[44px] min-w-[44px] p-0 ${
+                                                  emailExists 
+                                                    ? 'text-green-600 hover:text-green-700 hover:bg-green-50' 
+                                                    : 'text-gray-400 hover:text-gray-500 hover:bg-gray-50'
+                                                }`}
+                                                title={emailExists ? "Email found - View Email Addresses" : "Email missing - No email data available"}
+                                              >
+                                                <Mail className="w-4 h-4" />
+                                              </Button>
+                                              
+                                              {/* Edit Icon */}
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => handleEditDeal(deal)}
+                                                disabled={!dealId}
+                                                className="text-[#0a3d3d] hover:text-[#0a3d3d]/80 hover:bg-[#0a3d3d]/10 min-h-[44px] min-w-[44px] p-0"
+                                                title="Edit deal information"
+                                              >
+                                                <Edit2 className="w-4 h-4" />
+                                              </Button>
+                                              
+                                              {/* Delete Icon */}
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => handleDeleteDeal(dealId)}
+                                                disabled={isDeleting || !dealId}
+                                                className="text-red-600 hover:text-red-700 hover:bg-red-50 min-h-[44px] min-w-[44px] p-0"
+                                                title={isDeleting ? "Deleting deal..." : "Delete this deal"}
+                                              >
+                                                {isDeleting ? (
+                                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                                ) : (
+                                                  <Trash2 className="w-4 h-4" />
+                                                )}
+                                              </Button>
+                                            </div>
+                                          </>
+                                        )
                                       }
-                                      const primaryEmail = deal.decision_maker_email || deal["decision_maker_email"]
-                                      return !!(primaryEmail && primaryEmail.trim() !== '')
-                                    }
+                                      
+                                      // Connection exists - show workflow status and actions
+                                      const emailStatusInfo = getEmailStatus(connection)
+                                      const emailSentAt = connection.email_sent_at || connection['email_sent_at'] || ''
+                                      const lastSentMessage = connection.last_sent_message || connection['last_sent_message'] || ''
+                                      const hasSentEmail = !!emailSentAt
+                                      
+                                      // Helper functions for LinkedIn and Email
+                                      const hasLinkedInData = () => {
+                                        try {
+                                          const allDecisionMakersField = deal.all_decision_makers || deal["all_decision_makers"]
+                                          if (allDecisionMakersField) {
+                                            const allDecisionMakers = typeof allDecisionMakersField === 'string' 
+                                              ? JSON.parse(allDecisionMakersField) 
+                                              : allDecisionMakersField
+                                            if (Array.isArray(allDecisionMakers) && allDecisionMakers.length > 0) {
+                                              return allDecisionMakers.some(dm => 
+                                                (dm.linkedin_url || dm["linkedin_url"]) && 
+                                                (dm.linkedin_url || dm["linkedin_url"]).trim() !== ''
+                                              )
+                                            }
+                                          }
+                                        } catch (e) {
+                                          // Ignore parse errors
+                                        }
+                                        const primaryLinkedIn = deal.decision_maker_linkedin_url || deal["decision_maker_linkedin_url"]
+                                        return !!(primaryLinkedIn && primaryLinkedIn.trim() !== '')
+                                      }
+                                      const hasEmailData = () => {
+                                        try {
+                                          const allDecisionMakersField = deal.all_decision_makers || deal["all_decision_makers"]
+                                          if (allDecisionMakersField) {
+                                            const allDecisionMakers = typeof allDecisionMakersField === 'string' 
+                                              ? JSON.parse(allDecisionMakersField) 
+                                              : allDecisionMakersField
+                                            if (Array.isArray(allDecisionMakers) && allDecisionMakers.length > 0) {
+                                              return allDecisionMakers.some(dm => 
+                                                (dm.email || dm["email"]) && 
+                                                (dm.email || dm["email"]).trim() !== ''
+                                              )
+                                            }
+                                          }
+                                        } catch (e) {
+                                          // Ignore parse errors
+                                        }
+                                        const primaryEmail = deal.decision_maker_email || deal["decision_maker_email"]
+                                        return !!(primaryEmail && primaryEmail.trim() !== '')
+                                      }
+                                      const linkedInExists = hasLinkedInData()
+                                      const emailExists = hasEmailData()
 
-                                    const linkedInExists = hasLinkedInData()
-                                    const emailExists = hasEmailData()
-
-                                    return (
-                                      <div className="flex items-center gap-1">
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => {
-                                            setSelectedDealForModal(deal)
-                                            setShowLinkedInModal(true)
-                                          }}
-                                          disabled={!dealId}
-                                          className={`min-h-[44px] min-w-[44px] ${
-                                            linkedInExists 
-                                              ? 'text-blue-600 hover:text-blue-700 hover:bg-blue-50' 
-                                              : 'text-gray-400 hover:text-gray-500 hover:bg-gray-50'
-                                          }`}
-                                          title={linkedInExists ? "LinkedIn found - View LinkedIn URLs" : "LinkedIn missing - No LinkedIn data available"}
-                                        >
-                                          <Linkedin className="w-4 h-4" />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => {
-                                            setSelectedDealForModal(deal)
-                                            setShowEmailModal(true)
-                                          }}
-                                          disabled={!dealId}
-                                          className={`min-h-[44px] min-w-[44px] ${
-                                            emailExists 
-                                              ? 'text-green-600 hover:text-green-700 hover:bg-green-50' 
-                                              : 'text-gray-400 hover:text-gray-500 hover:bg-gray-50'
-                                          }`}
-                                          title={emailExists ? "Email found - View Email Addresses" : "Email missing - No email data available"}
-                                        >
-                                          <Mail className="w-4 h-4" />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => handleEditDeal(deal)}
-                                          disabled={!dealId}
-                                          className="text-[#0a3d3d] hover:text-[#0a3d3d]/80 hover:bg-[#0a3d3d]/10 min-h-[44px] min-w-[44px]"
-                                        >
-                                          <Edit2 className="w-4 h-4" />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => handleDeleteDeal(dealId)}
-                                          disabled={isDeleting || !dealId}
-                                          className="text-red-600 hover:text-red-700 hover:bg-red-50 min-h-[44px] min-w-[44px]"
-                                        >
-                                          {isDeleting ? (
-                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                      return (
+                                        <>
+                                          {/* Primary Action Button */}
+                                          {getConnectionPrimaryAction(connection, deal)}
+                                          
+                                          {/* For sent emails: Show only date, history icon, and dropdown */}
+                                          {hasSentEmail ? (
+                                            <div className="flex items-center gap-2 text-xs relative">
+                                              <span className="text-gray-500 text-xs">
+                                                {formatDate(emailSentAt)}
+                                              </span>
+                                              {lastSentMessage && (
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onClick={() => {
+                                                    setSelectedConnectionForHistory(connection)
+                                                    setShowEmailHistoryModal(true)
+                                                  }}
+                                                  className="text-gray-600 hover:text-gray-800 hover:bg-gray-50 h-6 w-6 p-0"
+                                                  title="View email history"
+                                                >
+                                                  <History className="w-4 h-4" />
+                                                </Button>
+                                              )}
+                                              {/* More Options Dropdown */}
+                                              <div className="relative">
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onClick={() => setOpenDropdownDealId(openDropdownDealId === dealId ? null : dealId)}
+                                                  className="text-gray-600 hover:text-gray-800 hover:bg-gray-50 h-6 w-6 p-0"
+                                                  title="More options"
+                                                >
+                                                  <MoreVertical className="w-4 h-4" />
+                                                </Button>
+                                                
+                                                {/* Dropdown Menu */}
+                                                {openDropdownDealId === dealId && (
+                                                  <>
+                                                    <div 
+                                                      className="fixed inset-0 z-10" 
+                                                      onClick={() => setOpenDropdownDealId(null)}
+                                                    />
+                                                    <div className="absolute right-0 top-8 z-20 bg-white border border-gray-200 rounded-md shadow-lg py-1 min-w-[160px]">
+                                                      {/* View Draft */}
+                                                      {connection.draft_message && connection.draft_message.trim() !== '' && (
+                                                        <button
+                                                          onClick={() => {
+                                                            toast.info('View draft from Connections page')
+                                                            setOpenDropdownDealId(null)
+                                                          }}
+                                                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                                          title="View draft message (available in Connections page)"
+                                                        >
+                                                          <FileText className="w-4 h-4" />
+                                                          View Draft
+                                                        </button>
+                                                      )}
+                                                      
+                                                      {/* LinkedIn */}
+                                                      <button
+                                                        onClick={() => { setSelectedDealForModal(deal); setShowLinkedInModal(true); setOpenDropdownDealId(null) }}
+                                                        disabled={!dealId}
+                                                        className={`w-full flex items-center gap-2 px-3 py-2 text-sm ${linkedInExists ? 'text-blue-600 hover:bg-blue-50' : 'text-gray-400 hover:bg-gray-50'} ${!dealId ? 'cursor-not-allowed opacity-50' : ''}`}
+                                                        title={linkedInExists ? "LinkedIn found - View LinkedIn URLs" : "LinkedIn missing - No LinkedIn data available"}
+                                                      >
+                                                        <Linkedin className="w-4 h-4" />
+                                                        LinkedIn
+                                                      </button>
+                                                      
+                                                      {/* Email */}
+                                                      <button
+                                                        onClick={() => { setSelectedDealForModal(deal); setShowEmailModal(true); setOpenDropdownDealId(null) }}
+                                                        disabled={!dealId}
+                                                        className={`w-full flex items-center gap-2 px-3 py-2 text-sm ${emailExists ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'} ${!dealId ? 'cursor-not-allowed opacity-50' : ''}`}
+                                                        title={emailExists ? "Email found - View Email Addresses" : "Email missing - No email data available"}
+                                                      >
+                                                        <Mail className="w-4 h-4" />
+                                                        Email
+                                                      </button>
+                                                      
+                                                      {/* Edit */}
+                                                      <button
+                                                        onClick={() => { handleEditDeal(deal); setOpenDropdownDealId(null) }}
+                                                        disabled={!dealId}
+                                                        className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-[#0a3d3d] hover:bg-[#0a3d3d]/10 ${!dealId ? 'cursor-not-allowed opacity-50' : ''}`}
+                                                        title="Edit deal information"
+                                                      >
+                                                        <Edit2 className="w-4 h-4" />
+                                                        Edit
+                                                      </button>
+                                                      
+                                                      {/* Delete */}
+                                                      <button
+                                                        onClick={() => { handleDeleteDeal(dealId); setOpenDropdownDealId(null) }}
+                                                        disabled={isDeleting || !dealId}
+                                                        className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 ${isDeleting || !dealId ? 'cursor-not-allowed opacity-50' : ''}`}
+                                                        title={isDeleting ? "Deleting deal..." : "Delete this deal"}
+                                                      >
+                                                        {isDeleting ? (<Loader2 className="w-4 h-4 animate-spin" />) : (<Trash2 className="w-4 h-4" />)}
+                                                        Delete
+                                                      </button>
+                                                    </div>
+                                                  </>
+                                                )}
+                                              </div>
+                                            </div>
                                           ) : (
-                                            <Trash2 className="w-4 h-4" />
+                                            /* For non-sent emails: Show all icons as before */
+                                            <>
+                                              {/* Icons Row: View Draft, LinkedIn, Email, Edit, Delete */}
+                                              <div className="flex items-center gap-1 flex-wrap">
+                                                {/* View Draft Icon (if draft exists) */}
+                                                {connection.draft_message && connection.draft_message.trim() !== '' && (
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => {
+                                                      toast.info('View draft from Connections page')
+                                                    }}
+                                                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 min-h-[44px] min-w-[44px] p-0"
+                                                    title="View draft message (available in Connections page)"
+                                                  >
+                                                    <FileText className="w-4 h-4" />
+                                                  </Button>
+                                                )}
+                                                
+                                                {/* LinkedIn Icon */}
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onClick={() => {
+                                                    setSelectedDealForModal(deal)
+                                                    setShowLinkedInModal(true)
+                                                  }}
+                                                  disabled={!dealId}
+                                                  className={`min-h-[44px] min-w-[44px] p-0 ${
+                                                    linkedInExists 
+                                                      ? 'text-blue-600 hover:text-blue-700 hover:bg-blue-50' 
+                                                      : 'text-gray-400 hover:text-gray-500 hover:bg-gray-50'
+                                                  }`}
+                                                  title={linkedInExists ? "LinkedIn found - View LinkedIn URLs" : "LinkedIn missing - No LinkedIn data available"}
+                                                >
+                                                  <Linkedin className="w-4 h-4" />
+                                                </Button>
+                                                
+                                                {/* Email Icon */}
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onClick={() => {
+                                                    setSelectedDealForModal(deal)
+                                                    setShowEmailModal(true)
+                                                  }}
+                                                  disabled={!dealId}
+                                                  className={`min-h-[44px] min-w-[44px] p-0 ${
+                                                    emailExists 
+                                                      ? 'text-green-600 hover:text-green-700 hover:bg-green-50' 
+                                                      : 'text-gray-400 hover:text-gray-500 hover:bg-gray-50'
+                                                  }`}
+                                                  title={emailExists ? "Email found - View Email Addresses" : "Email missing - No email data available"}
+                                                >
+                                                  <Mail className="w-4 h-4" />
+                                                </Button>
+                                                
+                                                {/* Edit Icon */}
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onClick={() => handleEditDeal(deal)}
+                                                  disabled={!dealId}
+                                                  className="text-[#0a3d3d] hover:text-[#0a3d3d]/80 hover:bg-[#0a3d3d]/10 min-h-[44px] min-w-[44px] p-0"
+                                                  title="Edit deal information"
+                                                >
+                                                  <Edit2 className="w-4 h-4" />
+                                                </Button>
+                                                
+                                                {/* Delete Icon */}
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onClick={() => handleDeleteDeal(dealId)}
+                                                  disabled={isDeleting || !dealId}
+                                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 min-h-[44px] min-w-[44px] p-0"
+                                                  title={isDeleting ? "Deleting deal..." : "Delete this deal"}
+                                                >
+                                                  {isDeleting ? (
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                  ) : (
+                                                    <Trash2 className="w-4 h-4" />
+                                                  )}
+                                                </Button>
+                                              </div>
+                                            </>
                                           )}
-                                        </Button>
-                                      </div>
-                                    )
-                                  })()}
+                                        </>
+                                      )
+                                    })()}
+                                  </div>
                                 </td>
                               </tr>
                             )
@@ -3597,6 +4073,81 @@ console.log("client",client)
                     }
                   })()}
                 </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Email History Modal */}
+        {showEmailHistoryModal && selectedConnectionForHistory && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-[#0a3d3d]">Email History</h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowEmailHistoryModal(false)
+                      setSelectedConnectionForHistory(null)
+                    }}
+                    className="h-8 w-8 p-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                
+                {(() => {
+                  const emailStatusInfo = getEmailStatus(selectedConnectionForHistory)
+                  const emailSentAt = selectedConnectionForHistory.email_sent_at || selectedConnectionForHistory['email_sent_at'] || ''
+                  const lastSentMessage = selectedConnectionForHistory.last_sent_message || selectedConnectionForHistory['last_sent_message'] || ''
+                  
+                  return (
+                    <div className="space-y-4">
+                      {/* Status and Date */}
+                      <div className="flex items-center gap-3">
+                        <Badge className={`${emailStatusInfo.color} text-white`}>
+                          {emailStatusInfo.label}
+                        </Badge>
+                        {emailSentAt && (
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <Clock className="w-4 h-4" />
+                            <span>Sent: {formatDate(emailSentAt)}</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Message Content */}
+                      {lastSentMessage ? (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Last Sent Message:
+                          </label>
+                          <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 min-h-[200px] whitespace-pre-wrap">
+                            {lastSentMessage}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          <p>No message history available.</p>
+                        </div>
+                      )}
+                      
+                      <div className="flex justify-end pt-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setShowEmailHistoryModal(false)
+                            setSelectedConnectionForHistory(null)
+                          }}
+                        >
+                          Close
+                        </Button>
+                      </div>
+                    </div>
+                  )
+                })()}
               </CardContent>
             </Card>
           </div>
