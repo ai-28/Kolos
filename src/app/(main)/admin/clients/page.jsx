@@ -57,6 +57,12 @@ function ClientDashboardContent() {
   const [showEmailHistoryModal, setShowEmailHistoryModal] = useState(false)
   const [selectedConnectionForHistory, setSelectedConnectionForHistory] = useState(null)
   const [openDropdownDealId, setOpenDropdownDealId] = useState(null)
+  const [requestingConnection, setRequestingConnection] = useState(null) // Track which deal ID is requesting
+  const [connectionForDraft, setConnectionForDraft] = useState(null)
+  const [editableDraftMessage, setEditableDraftMessage] = useState('')
+  const [showGenerateDraftModal, setShowGenerateDraftModal] = useState(false)
+  const [emailSubject, setEmailSubject] = useState('')
+  const [loadingConnections, setLoadingConnections] = useState(false)
   useEffect(() => {
     // Get client ID from URL params and fetch client data
     const clientId = searchParams.get("id")
@@ -220,6 +226,7 @@ function ClientDashboardContent() {
   // Fetch connections for the client
   const fetchConnections = async (profileId) => {
     if (!profileId) return
+    setLoadingConnections(true)
     try {
       const response = await fetch(`/api/admin/connections`)
       const data = await response.json()
@@ -234,6 +241,155 @@ function ClientDashboardContent() {
     } catch (error) {
       console.error('Error fetching connections:', error)
       setConnections([])
+    } finally {
+      setLoadingConnections(false)
+    }
+  }
+
+  // Handle deal connection request
+  const handleDealConnectionRequest = async (deal) => {
+    const dealId = deal.deal_id || deal['deal_id'] || deal.id || deal['id']
+    
+    if (!dealId) {
+      toast.error('Deal ID not found')
+      return
+    }
+
+    setRequestingConnection(dealId)
+    try {
+      const response = await fetch('/api/connections/request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          deal_id: dealId,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create connection request')
+      }
+
+      toast.success('Connection request created successfully!')
+      // Refresh connections to show new request
+      const profileId = client?.id || client?.ID || client?.["id"] || client?.["ID"]
+      if (profileId) {
+        await fetchConnections(profileId)
+      }
+    } catch (error) {
+      console.error('Error creating connection request:', error)
+      toast.error(error.message || 'Failed to create connection request')
+    } finally {
+      setRequestingConnection(null)
+    }
+  }
+
+  // Handle save draft from modal
+  const handleSaveDraftFromModal = async () => {
+    if (!connectionForDraft || !connectionForDraft.connection_id) {
+      toast.error('Connection information is missing')
+      return
+    }
+
+    const connectionId = connectionForDraft.connection_id
+
+    setSendingEmail(true)
+    try {
+      const response = await fetch(`/api/connections/${connectionId}/draft`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          draft_message: editableDraftMessage.trim(),
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || data.details || 'Failed to save draft')
+      }
+
+      toast.success('Draft saved successfully!')
+      setShowGenerateDraftModal(false)
+      setConnectionForDraft(null)
+      setEditableDraftMessage('')
+      setEmailSubject('')
+      // Refresh connections
+      const profileId = client?.id || client?.ID || client?.["id"] || client?.["ID"]
+      if (profileId) {
+        await fetchConnections(profileId)
+      }
+    } catch (error) {
+      console.error('Error saving draft:', error)
+      toast.error(error.message || 'Failed to save draft')
+    } finally {
+      setSendingEmail(false)
+    }
+  }
+
+  // Handle submit for approval
+  const handleSubmitForApproval = async () => {
+    if (!connectionForDraft || !connectionForDraft.connection_id) {
+      toast.error('Connection information is missing')
+      return
+    }
+
+    const connectionId = connectionForDraft.connection_id
+
+    // First save the draft
+    setSendingEmail(true)
+    try {
+      // Save draft first
+      const saveResponse = await fetch(`/api/connections/${connectionId}/draft`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          draft_message: editableDraftMessage.trim(),
+        }),
+      })
+
+      const saveData = await saveResponse.json()
+
+      if (!saveResponse.ok) {
+        throw new Error(saveData.error || saveData.details || 'Failed to save draft')
+      }
+
+      // Then approve it (which submits for admin approval)
+      const approveResponse = await fetch(`/api/connections/${connectionId}/approve-draft`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      const approveData = await approveResponse.json()
+
+      if (!approveResponse.ok) {
+        throw new Error(approveData.error || approveData.details || 'Failed to submit for approval')
+      }
+
+      toast.success('Draft submitted for approval successfully!')
+      setShowGenerateDraftModal(false)
+      setConnectionForDraft(null)
+      setEditableDraftMessage('')
+      setEmailSubject('')
+      // Refresh connections
+      const profileId = client?.id || client?.ID || client?.["id"] || client?.["ID"]
+      if (profileId) {
+        await fetchConnections(profileId)
+      }
+    } catch (error) {
+      console.error('Error submitting draft for approval:', error)
+      toast.error(error.message || 'Failed to submit draft for approval')
+    } finally {
+      setSendingEmail(false)
     }
   }
 
@@ -2473,8 +2629,7 @@ console.log("client",client)
           {!isEditing && (
           <section className="mb-4 sm:mb-6 md:mb-8 scroll-mt-38 sm:scroll-mt-24 lg:scroll-mt-28" id="active-deals">
             <h2 className="text-base sm:text-lg md:text-xl font-montserrat text-[#c9a961] mb-2 sm:mb-3 md:mb-4 flex items-center gap-2">
-              <span className="text-[#c9a961]">💼</span>
-              Active Deals
+              <span className="text-[#532418] text-[32px] font-marcellus">Active Deals</span>
             </h2>
             <Card className="bg-[#fffff4] border-none !shadow-none">
               <CardContent className="p-3 sm:p-4 md:p-6">
@@ -2810,7 +2965,7 @@ console.log("client",client)
                                         return connDealId && String(connDealId).trim() === String(dealId).trim()
                                       })
                                       
-                                      // If no connection exists, show basic actions
+                                      // If no connection exists, show connection request button
                                       if (!connection) {
                                         // Helper functions for LinkedIn and Email
                                         const hasLinkedInData = () => {
@@ -2858,6 +3013,24 @@ console.log("client",client)
                                         
                                         return (
                                           <>
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handleDealConnectionRequest(deal)}
+                                            disabled={!dealId || requestingConnection === dealId}
+                                            className="bg-[#0a3d3d] hover:bg-[#083030] text-white text-xs min-h-[32px]"
+                                            title={requestingConnection === dealId ? "Requesting connection..." : "Request connection for this deal"}
+                                          >
+                                            {requestingConnection === dealId ? (
+                                              <>
+                                                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                                Requesting...
+                                              </>
+                                            ) : (
+                                              "Connection Request"
+                                            )}
+                                          </Button>
+                                            
                                             {/* Icons Row: LinkedIn, Email, Edit, Delete */}
                                             <div className="flex items-center gap-1 flex-wrap">
                                               {/* LinkedIn Icon */}
@@ -3029,11 +3202,22 @@ console.log("client",client)
                                                       {connection.draft_message && connection.draft_message.trim() !== '' && (
                                                         <button
                                                           onClick={() => {
-                                                            toast.info('View draft from Connections page')
+                                                            const connId = connection.connection_id || connection['connection_id']
+                                                            if (!connId) {
+                                                              toast.error('Connection ID not found')
+                                                              return
+                                                            }
+                                                            setConnectionForDraft({
+                                                              ...connection,
+                                                              connection_id: connId
+                                                            })
+                                                            setEditableDraftMessage(connection.draft_message || '')
+                                                            setEmailSubject(`Connection Request - ${deal.deal_name || deal['deal_name'] || ''}`)
+                                                            setShowGenerateDraftModal(true)
                                                             setOpenDropdownDealId(null)
                                                           }}
                                                           className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                                          title="View draft message (available in Connections page)"
+                                                          title="View and edit the draft message"
                                                         >
                                                           <FileText className="w-4 h-4" />
                                                           View Draft
@@ -4072,6 +4256,167 @@ console.log("client",client)
                       )
                     }
                   })()}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Draft Generation Modal */}
+        {showGenerateDraftModal && connectionForDraft && (
+          <div className="fixed inset-0 bg-gray-50/80 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+            <Card className="w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+              <CardContent className="p-4 md:p-6">
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-montserrat text-[#0a3d3d]">
+                    Edit Draft Message
+                  </h2>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setShowGenerateDraftModal(false)
+                      setConnectionForDraft(null)
+                      setEditableDraftMessage('')
+                      setEmailSubject('')
+                    }}
+                    className="min-w-[44px] min-h-[44px]"
+                  >
+                    <X className="w-5 h-5" />
+                  </Button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Subject:
+                    </label>
+                    <input
+                      type="text"
+                      value={emailSubject}
+                      onChange={(e) => setEmailSubject(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                      placeholder="Email subject"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Message:
+                    </label>
+                    {(() => {
+                      const isLocked = connectionForDraft && isTruthy(
+                        connectionForDraft.draft_locked || connectionForDraft['draft_locked']
+                      )
+                      const isAlreadyApproved = connectionForDraft && isTruthy(
+                        connectionForDraft.client_approved || connectionForDraft['client_approved']
+                      )
+                      
+                      return (
+                        <>
+                          <textarea
+                            value={editableDraftMessage}
+                            onChange={(e) => setEditableDraftMessage(e.target.value)}
+                            disabled={isLocked}
+                            className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[300px] ${
+                              isLocked ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'
+                            }`}
+                            placeholder="Enter draft message..."
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            {isLocked 
+                              ? 'Draft is locked and cannot be edited.'
+                              : isAlreadyApproved
+                              ? 'Draft is already approved. You can still edit and save changes.'
+                              : 'You can edit the message before saving or submitting for approval.'
+                            }
+                          </p>
+                        </>
+                      )
+                    })()}
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    {(() => {
+                      // Check if draft is already approved
+                      const isAlreadyApproved = connectionForDraft && isTruthy(
+                        connectionForDraft.client_approved || connectionForDraft['client_approved']
+                      )
+                      const isLocked = connectionForDraft && isTruthy(
+                        connectionForDraft.draft_locked || connectionForDraft['draft_locked']
+                      )
+                      
+                      return (
+                        <>
+                          {!isLocked && (
+                            <Button
+                              onClick={handleSaveDraftFromModal}
+                              disabled={sendingEmail}
+                              variant="outline"
+                              className="flex-1"
+                            >
+                              {sendingEmail ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Saving...
+                                </>
+                              ) : (
+                                <>
+                                  <Save className="w-4 h-4 mr-2" />
+                                  Save Draft
+                                </>
+                              )}
+                            </Button>
+                          )}
+                          {!isAlreadyApproved && !isLocked && (
+                            <Button
+                              onClick={handleSubmitForApproval}
+                              disabled={sendingEmail}
+                              className="flex-1 bg-[#0a3d3d] hover:bg-[#083030] text-white"
+                            >
+                              {sendingEmail ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Submitting...
+                                </>
+                              ) : (
+                                <>
+                                  <Check className="w-4 h-4 mr-2" />
+                                  Submit for Approval
+                                </>
+                              )}
+                            </Button>
+                          )}
+                          {isAlreadyApproved && !isLocked && (
+                            <div className="flex-1 flex items-center justify-center px-3 py-2 bg-blue-50 border border-blue-200 rounded-md">
+                              <p className="text-sm text-blue-700">
+                                ✓ Already submitted for approval
+                              </p>
+                            </div>
+                          )}
+                          {isLocked && (
+                            <div className="flex-1 flex items-center justify-center px-3 py-2 bg-green-50 border border-green-200 rounded-md">
+                              <p className="text-sm text-green-700">
+                                🔒 Draft locked and finalized
+                              </p>
+                            </div>
+                          )}
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setShowGenerateDraftModal(false)
+                              setConnectionForDraft(null)
+                              setEditableDraftMessage('')
+                              setEmailSubject('')
+                            }}
+                            disabled={sendingEmail}
+                          >
+                            Cancel
+                          </Button>
+                        </>
+                      )
+                    })()}
+                  </div>
                 </div>
               </CardContent>
             </Card>
