@@ -32,9 +32,13 @@ export async function POST(request, { params }) {
             );
         }
 
-        // Verify this connection belongs to the user
+        // Check ownership: admin can approve any connection, client can only approve their own
         const fromUserId = connection.from_user_id || connection['from_user_id'] || connection['From User ID'];
-        if (fromUserId !== userId) {
+        const userRole = session.role || '';
+
+        // Admin can approve any connection, client can only approve their own
+        const isAdmin = userRole && userRole.toLowerCase().includes('admin');
+        if (!isAdmin && String(fromUserId).trim() !== String(userId).trim()) {
             return NextResponse.json(
                 { error: "Forbidden: You can only approve your own connection requests" },
                 { status: 403 }

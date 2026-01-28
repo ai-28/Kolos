@@ -24,9 +24,14 @@ export async function POST(request, { params }) {
             );
         }
 
-        // Verify ownership - members can only generate drafts for their own connections
+        // Check ownership: admin can generate drafts for any connection, client can only generate for their own
         const fromUserId = connection.from_user_id || connection['from_user_id'] || connection['From User ID'];
-        if (String(fromUserId).trim() !== String(session.clientId).trim()) {
+        const sessionClientId = session.clientId;
+        const userRole = session.role || '';
+
+        // Admin can generate drafts for any connection, client can only generate for their own
+        const isAdmin = userRole && userRole.toLowerCase().includes('admin');
+        if (!isAdmin && String(fromUserId).trim() !== String(sessionClientId).trim()) {
             return NextResponse.json(
                 { error: "Forbidden: You can only generate drafts for your own connections" },
                 { status: 403 }
@@ -57,7 +62,7 @@ export async function POST(request, { params }) {
         const existingDraft = connection.draft_message || connection['draft_message'] || connection['Draft Message'] || '';
         const rawDraftLocked = connection.draft_locked || connection['draft_locked'] || connection['Draft Locked'] || false;
         const draftLocked = toBoolean(rawDraftLocked);
-        
+
         if (existingDraft && draftLocked) {
             return NextResponse.json(
                 { error: "Draft is locked and cannot be regenerated" },
@@ -153,8 +158,8 @@ export async function POST(request, { params }) {
         console.error("Error generating draft:", error);
         console.error("Error stack:", error.stack);
         return NextResponse.json(
-            { 
-                error: "Failed to generate draft", 
+            {
+                error: "Failed to generate draft",
                 details: error.message,
                 ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
             },

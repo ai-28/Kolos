@@ -7,7 +7,7 @@ import { Button } from "@/app/components/ui/button"
 import { Card, CardContent } from "@/app/components/ui/card"
 import {KolosLogo} from "@/app/components/svg"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, Loader2, Edit2, Save, X, Trash2, Menu, Linkedin, Mail, Check, Briefcase, History, MoreVertical, FileText, Clock } from "lucide-react"
+import { ArrowLeft, Loader2, Edit2, Save, X, Trash2, Menu, Linkedin, Mail, Check, Briefcase, History, MoreVertical, FileText, Clock, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
 import { DashboardIcon, BusinessGoalsIcon,SignalsIcon, IndustryFocusIcon, BusinessMatchIcon, BusinessRequestsIcon,TravelPlanIcon, UpcomingEventIcon } from "@/app/components/svg"
 import Image from "next/image"
@@ -63,6 +63,15 @@ function ClientDashboardContent() {
   const [showGenerateDraftModal, setShowGenerateDraftModal] = useState(false)
   const [emailSubject, setEmailSubject] = useState('')
   const [loadingConnections, setLoadingConnections] = useState(false)
+  const [generatingDraft, setGeneratingDraft] = useState(null)
+  const [approvingDraft, setApprovingDraft] = useState(null)
+  const [showConnectionModal, setShowConnectionModal] = useState(false)
+  const [selectedDealForConnection, setSelectedDealForConnection] = useState(null)
+  const [connectionType, setConnectionType] = useState('linkedin')
+  const [connectionMessage, setConnectionMessage] = useState('')
+  const [showDraftMessageModal, setShowDraftMessageModal] = useState(false)
+  const [selectedDecisionMaker, setSelectedDecisionMaker] = useState(null)
+  const [selectedConnection, setSelectedConnection] = useState(null)
   useEffect(() => {
     // Get client ID from URL params and fetch client data
     const clientId = searchParams.get("id")
@@ -142,40 +151,83 @@ function ClientDashboardContent() {
     return <Badge className="bg-gray-600 text-white text-xs">Pending</Badge>
   }
 
-  // Helper function to get primary action button for connection (Admin version - no send email)
+  // Helper function to get primary action button for connection
   const getConnectionPrimaryAction = (connection, deal) => {
     if (!connection) return null
     
+    const dealId = deal?.deal_id || deal?.['deal_id'] || deal?.id || deal?.['id']
     const hasDraft = connection.draft_message && connection.draft_message.trim() !== ''
     const clientApproved = isTruthy(connection.client_approved || connection['client_approved'])
     const draftLocked = isTruthy(connection.draft_locked || connection['draft_locked'])
     const status = connection.status || 'pending'
+    const isProcessing = approvingDraft === connection.connection_id
     
-    // Step 1: No draft, admin approved - Show status (admin can generate draft from connections page)
+    // Step 1: No draft, admin approved - Generate Draft
     if (!hasDraft && status === 'admin_approved') {
       return (
         <Button
           size="sm"
-          disabled
-          className="bg-gray-400 text-white text-xs min-h-[32px] cursor-not-allowed"
-          title="Draft pending - Admin can generate from Connections page"
+          onClick={() => handleGenerateDraft(connection.connection_id)}
+          disabled={generatingDraft === connection.connection_id}
+          className="bg-[#0a3d3d] hover:bg-[#083030] text-white text-xs min-h-[32px]"
+          title={generatingDraft === connection.connection_id ? "Generating draft message..." : "Generate AI draft message for connection request"}
         >
-          Draft Pending
+          {generatingDraft === connection.connection_id ? (
+            <>
+              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+              Generating...
+            </>
+          ) : (
+            <>
+              <FileText className="w-3 h-3 mr-1" />
+              Generate Draft
+            </>
+          )}
         </Button>
       )
     }
     
-    // Step 2: Has draft, not approved - Show status
+    // Step 2: Has draft, not approved - Review & Approve
     if (hasDraft && !clientApproved && !draftLocked) {
       return (
-        <Button
-          size="sm"
-          disabled
-          className="bg-yellow-400 text-white text-xs min-h-[32px] cursor-not-allowed"
-          title="Draft ready - Waiting for client approval"
-        >
-          Draft Ready
-        </Button>
+        <div className="flex gap-1">
+          <Button
+            size="sm"
+            onClick={() => {
+              // Ensure we have the connection_id in the correct format
+              const connId = connection.connection_id || connection['connection_id']
+              if (!connId) {
+                toast.error('Connection ID not found')
+                return
+              }
+              setConnectionForDraft({
+                ...connection,
+                connection_id: connId
+              })
+              setEditableDraftMessage(connection.draft_message || '')
+              setEmailSubject(`Connection Request - ${deal?.deal_name || deal?.['deal_name'] || ''}`)
+              setShowGenerateDraftModal(true)
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white text-xs min-h-[32px] flex-1"
+            title="Review and edit the draft message"
+          >
+            <Edit2 className="w-3 h-3 mr-1" />
+            Review Draft
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => handleApproveDraft(connection.connection_id)}
+            disabled={isProcessing}
+            className="bg-green-600 hover:bg-green-700 text-white text-xs min-h-[32px]"
+            title={isProcessing ? "Approving draft..." : "Approve this draft message"}
+          >
+            {isProcessing ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <Check className="w-3 h-3" />
+            )}
+          </Button>
+        </div>
       )
     }
     
@@ -185,10 +237,10 @@ function ClientDashboardContent() {
         <Button
           size="sm"
           disabled
-          className="bg-blue-400 text-white text-xs min-h-[32px] cursor-not-allowed"
-          title="Client approved - Admin can final approve from Connections page"
+          className="bg-gray-400 text-white text-xs min-h-[32px] cursor-not-allowed"
+          title="Draft approved, waiting for admin final approval"
         >
-          Client Approved
+          Waiting for Admin
         </Button>
       )
     }
@@ -207,7 +259,7 @@ function ClientDashboardContent() {
       )
     }
     
-    // Default: Pending
+    // Default: Pending admin approval
     if (status === 'pending') {
       return (
         <Button
@@ -390,6 +442,191 @@ function ClientDashboardContent() {
       toast.error(error.message || 'Failed to submit draft for approval')
     } finally {
       setSendingEmail(false)
+    }
+  }
+
+  // Handle approve draft
+  const handleApproveDraft = async (connectionId) => {
+    setApprovingDraft(connectionId)
+    try {
+      const response = await fetch(`/api/connections/${connectionId}/approve-draft`, {
+        method: 'POST',
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to approve draft')
+      }
+      
+      toast.success('Draft approved successfully!')
+      const profileId = client?.id || client?.ID || client?.["id"] || client?.["ID"]
+      if (profileId) {
+        await fetchConnections(profileId)
+      }
+    } catch (error) {
+      console.error('Error approving draft:', error)
+      toast.error(error.message || 'Failed to approve draft')
+    } finally {
+      setApprovingDraft(null)
+    }
+  }
+
+  // Handle generate draft
+  const handleGenerateDraft = async (connectionId) => {
+    setGeneratingDraft(connectionId)
+    try {
+      const response = await fetch(`/api/connections/${connectionId}/generate-draft`, {
+        method: 'POST',
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to generate draft')
+      }
+
+      toast.success('Draft generated successfully!')
+      
+      // Find the connection to get deal name and other info
+      const connection = connections.find(c => {
+        const connId = c.connection_id || c['connection_id']
+        return connId && String(connId).trim() === String(connectionId).trim()
+      })
+      if (connection) {
+        // Create updated connection object with the new draft
+        const updatedConnection = {
+          ...connection,
+          draft_message: data.draft_message || '',
+          draft_generated_at: new Date().toISOString(),
+          status: 'draft_generated'
+        }
+        
+        // Ensure connection_id is properly set
+        const connId = connection.connection_id || connection['connection_id'] || connectionId
+        setConnectionForDraft({
+          ...updatedConnection,
+          connection_id: connId
+        })
+        setEditableDraftMessage(data.draft_message || '')
+        const dealName = connection.deal_name || ''
+        setEmailSubject(`Connection Request - ${dealName}`)
+        setShowGenerateDraftModal(true)
+      }
+      
+      // Refresh connections list
+      const profileId = client?.id || client?.ID || client?.["id"] || client?.["ID"]
+      if (profileId) {
+        await fetchConnections(profileId)
+      }
+    } catch (error) {
+      console.error('Error generating draft:', error)
+      toast.error(error.message || 'Failed to generate draft')
+    } finally {
+      setGeneratingDraft(null)
+    }
+  }
+
+  // Handle send draft email
+  const handleSendDraftEmail = async () => {
+    if (!selectedConnection || !selectedDecisionMaker) return
+
+    setSendingEmail(true)
+    try {
+      const toEmail = selectedDecisionMaker.email || selectedDecisionMaker["email"] || selectedConnection.to_user_email || ""
+      
+      if (!toEmail) {
+        toast.error("No email address found for this decision maker")
+        return
+      }
+
+      const dealName = selectedDealForModal?.deal_name || selectedDealForModal?.['deal_name'] || ''
+      const subject = emailSubject || `Connection Request - ${dealName}`
+
+      const response = await fetch(`/api/connections/${selectedConnection.connection_id}/send-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to_email: toEmail,
+          subject: subject,
+          draft_message: editableDraftMessage,
+          deal_id: selectedDealForModal?.deal_id || selectedDealForModal?.id,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send email')
+      }
+
+      toast.success('Email sent successfully!')
+      setShowDraftMessageModal(false)
+      setSelectedDecisionMaker(null)
+      setSelectedConnection(null)
+      setEmailSubject('')
+      
+      // Refresh connections to update status
+      const profileId = client?.id || client?.ID || client?.["id"] || client?.["ID"]
+      if (profileId) {
+        await fetchConnections(profileId)
+      }
+    } catch (error) {
+      console.error('Error sending email:', error)
+      toast.error(error.message || 'Failed to send email')
+    } finally {
+      setSendingEmail(false)
+    }
+  }
+
+  // Submit connection request
+  const handleSubmitConnection = async () => {
+    if (!selectedDealForConnection) return
+
+    const dealId = selectedDealForConnection.deal_id || selectedDealForConnection['deal_id'] || selectedDealForConnection.id || selectedDealForConnection['id']
+    
+    if (!dealId) {
+      toast.error('Deal ID not found')
+      return
+    }
+
+    setRequestingConnection(dealId)
+    try {
+      const response = await fetch(`/api/deals/${dealId}/connect`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          connection_type: connectionType,
+          message: connectionMessage,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create connection request')
+      }
+
+      toast.success('Connection request created successfully!')
+
+      setShowConnectionModal(false)
+      setSelectedDealForConnection(null)
+      setConnectionMessage('')
+      setConnectionType('linkedin')
+      // Refresh connections to show new request
+      const profileId = client?.id || client?.ID || client?.["id"] || client?.["ID"]
+      if (profileId) {
+        await fetchConnections(profileId)
+      }
+    } catch (error) {
+      console.error('Error creating connection:', error)
+      toast.error(error.message || 'Failed to create connection request')
+    } finally {
+      setRequestingConnection(null)
     }
   }
 
@@ -4109,15 +4346,9 @@ console.log("client",client)
                 <div className="space-y-3">
                   {(() => {
                     try {
-                      // Debug: Log the deal object to see what fields are available
-                      console.log('🔍 Deal data for Email modal:', selectedDealForModal)
-                      
-                      // Try multiple possible field names for all_decision_makers
                       const allDecisionMakersField = selectedDealForModal.all_decision_makers 
                         || selectedDealForModal["all_decision_makers"]
                         || null
-                      
-                      console.log('🔍 all_decision_makers field:', allDecisionMakersField)
                       
                       const allDecisionMakers = allDecisionMakersField
                         ? (typeof allDecisionMakersField === 'string' 
@@ -4125,56 +4356,108 @@ console.log("client",client)
                             : allDecisionMakersField)
                         : []
                       
-                      console.log('🔍 Parsed decision makers:', allDecisionMakers)
-                      
-                      // Try multiple possible field names for primary decision maker
                       const primaryName = selectedDealForModal.decision_maker_name 
                         || selectedDealForModal["decision_maker_name"]
-
                         || ""
                       
-                      // If no decision makers in array, try to show primary from individual fields
                       if (!Array.isArray(allDecisionMakers) || allDecisionMakers.length === 0) {
-                        // Fallback: Show primary decision maker from individual fields
-                        const primaryLinkedIn = selectedDealForModal.decision_maker_linkedin_url 
-                          || selectedDealForModal["decision_maker_linkedin_url"]
-                          || selectedDealForModal["Decision Maker LinkedIn URL"]
-                          || ""
-                        const primaryName = selectedDealForModal.decision_maker_name 
-                          || selectedDealForModal["decision_maker_name"]
-                          || ""
-                        const primaryRole = selectedDealForModal.decision_maker_role 
-                          || selectedDealForModal["decision_maker_role"]
+                        const primaryEmail = selectedDealForModal.decision_maker_email 
+                          || selectedDealForModal["decision_maker_email"]
                           || ""
                         
-                        if (primaryName || primaryLinkedIn) {
+                        // Find connection for this deal (match by deal_id only)
+                        const dealId = selectedDealForModal.deal_id || selectedDealForModal["deal_id"] || selectedDealForModal.id || selectedDealForModal["id"]
+                        const connection = connections.find(conn => {
+                          const connDealId = conn.deal_id || conn['deal_id']
+                          return connDealId && String(connDealId).trim() === String(dealId).trim()
+                        }) || null
+                        
+                        const hasApprovedLockedDraft = connection && 
+                          connection.draft_message && 
+                          connection.draft_message.trim() !== '' &&
+                          isTruthy(connection.client_approved || connection['client_approved']) &&
+                          isTruthy(connection.draft_locked || connection['draft_locked'])
+                        
+                        if (primaryName || primaryEmail) {
                           return (
-                            <div className="border rounded-lg p-4 bg-blue-50 border-blue-300 shadow-md">
+                            <div 
+                              className={`border rounded-lg p-4 bg-green-50 border-green-300 shadow-md transition-colors ${
+                                hasApprovedLockedDraft && primaryEmail ? 'cursor-pointer hover:bg-green-100' : ''
+                              }`}
+                              onClick={() => {
+                                if (!primaryEmail) {
+                                  return
+                                }
+                                
+                                if (!connection) {
+                                  toast.info('No connection request found for this decision maker. Please create a connection request first.')
+                                  return
+                                }
+                                
+                                // If no draft exists, offer to generate one
+                                if (!connection.draft_message || connection.draft_message.trim() === '') {
+                                  // Check if admin approved
+                                  const isAdminApproved = isTruthy(connection.admin_approved || connection['admin_approved'])
+                                  if (isAdminApproved) {
+                                    // Offer to generate draft
+                                    handleGenerateDraft(connection.connection_id)
+                                  } else {
+                                    toast.info('Draft message not yet generated. Please wait for admin approval first.')
+                                  }
+                                  return
+                                }
+                                
+                                const isApproved = isTruthy(connection.client_approved || connection['client_approved'])
+                                const isLocked = isTruthy(connection.draft_locked || connection['draft_locked'])
+                                
+                                if (!isApproved) {
+                                  toast.info('Draft message must be approved before sending. Please approve the draft first.')
+                                  return
+                                }
+                                
+                                if (!isLocked) {
+                                  toast.info('Draft message must be locked by admin before sending.')
+                                  return
+                                }
+                                
+                                setSelectedDecisionMaker({ name: primaryName, email: primaryEmail })
+                                setSelectedConnection(connection)
+                                setEmailSubject(`Connection Request - ${selectedDealForModal?.deal_name || selectedDealForModal?.['deal_name'] || ''}`)
+                                setEditableDraftMessage(connection.draft_message || '')
+                                setShowDraftMessageModal(true)
+                              }}
+                            >
                               <div className="flex items-start justify-between gap-3">
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2 mb-2">
-                                    <h3 className="font-semibold text-blue-700 text-lg">
+                                    <h3 className="font-semibold text-green-700 text-lg">
                                       {primaryName || "Unknown"}
                                     </h3>
-                                    <Badge className="bg-blue-600 text-white text-xs">
+                                    <Badge className="bg-green-600 text-white text-xs">
                                       Primary
                                     </Badge>
+                                    {hasApprovedLockedDraft && primaryEmail && (
+                                      <Badge className="bg-blue-600 text-white text-xs">
+                                        Ready to Send
+                                      </Badge>
+                                    )}
                                   </div>
-                                  {primaryRole && (
-                                    <p className="text-sm text-gray-600 mb-2">{primaryRole}</p>
-                                  )}
-                                  {primaryLinkedIn ? (
-                                    <a
-                                      href={primaryLinkedIn}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-blue-600 hover:text-blue-700 hover:underline text-sm flex items-center gap-1"
-                                    >
-                                      <Linkedin className="w-4 h-4" />
-                                      {primaryLinkedIn}
-                                    </a>
+                                  {primaryEmail ? (
+                                    <div className="flex items-center gap-2">
+                                      <a
+                                        href={`mailto:${primaryEmail}`}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="text-green-600 hover:text-green-700 hover:underline text-sm flex items-center gap-1"
+                                      >
+                                        <Mail className="w-4 h-4" />
+                                        {primaryEmail}
+                                      </a>
+                                      {hasApprovedLockedDraft && (
+                                        <span className="text-xs text-blue-600">(Click to send draft)</span>
+                                      )}
+                                    </div>
                                   ) : (
-                                    <p className="text-sm text-gray-400 italic">No LinkedIn URL available</p>
+                                    <p className="text-sm text-gray-400 italic">No email address available</p>
                                   )}
                                 </div>
                               </div>
@@ -4185,34 +4468,83 @@ console.log("client",client)
                         return (
                           <div className="text-center py-8 text-gray-500">
                             <p>No decision makers found for this deal.</p>
-                            <p className="text-xs mt-2">Available fields: {Object.keys(selectedDealForModal).join(', ')}</p>
                           </div>
                         )
                       }
 
                       return allDecisionMakers.map((dm, index) => {
                         const isPrimary = dm.name === primaryName
-                        console.log('🔍 Decision maker:', dm, 'Email field:', dm.email)
-                        // Try multiple possible field names for email
-                        let email = dm.email 
-                          || dm["email"]
-                          || ""
+                        let email = dm.email || dm["email"] || ""
                         
-                        // If this is the primary decision maker and no email in array, try primary fields
-                        if (isPrimary && !email) {
+                        if (!email && isPrimary) {
                           email = selectedDealForModal.decision_maker_email 
                             || selectedDealForModal["decision_maker_email"]
                             || ""
                         }
                         
+                        // Find connection for this deal (match by deal_id only)
+                        const dealId = selectedDealForModal.deal_id || selectedDealForModal["deal_id"] || selectedDealForModal.id || selectedDealForModal["id"]
+                        const connection = connections.find(conn => {
+                          const connDealId = conn.deal_id || conn['deal_id']
+                          return connDealId && String(connDealId).trim() === String(dealId).trim()
+                        })
+                        
+                        const hasApprovedLockedDraft = connection && 
+                          connection.draft_message && 
+                          connection.draft_message.trim() !== '' &&
+                          isTruthy(connection.client_approved || connection['client_approved']) &&
+                          isTruthy(connection.draft_locked || connection['draft_locked'])
+                        
                         return (
                           <div
                             key={index}
-                            className={`border rounded-lg p-4 ${
+                            className={`border rounded-lg p-4 transition-colors ${
                               isPrimary 
                                 ? 'bg-green-50 border-green-300 shadow-md' 
                                 : 'bg-white border-gray-200'
-                            }`}
+                            } ${hasApprovedLockedDraft && email ? 'cursor-pointer hover:bg-green-100' : email ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+                            onClick={() => {
+                              if (!email) {
+                                return
+                              }
+                              
+                              if (!connection) {
+                                toast.info('No connection request found for this decision maker. Please create a connection request first.')
+                                return
+                              }
+                              
+                              // If no draft exists, offer to generate one
+                              if (!connection.draft_message || connection.draft_message.trim() === '') {
+                                // Check if admin approved
+                                const isAdminApproved = isTruthy(connection.admin_approved || connection['admin_approved'])
+                                if (isAdminApproved) {
+                                  // Offer to generate draft
+                                  handleGenerateDraft(connection.connection_id)
+                                } else {
+                                  toast.info('Draft message not yet generated. Please wait for admin approval first.')
+                                }
+                                return
+                              }
+                              
+                              const isApproved = isTruthy(connection.client_approved || connection['client_approved'])
+                              const isLocked = isTruthy(connection.draft_locked || connection['draft_locked'])
+                              
+                              if (!isApproved) {
+                                toast.info('Draft message must be approved before sending. Please approve the draft first.')
+                                return
+                              }
+                              
+                              if (!isLocked) {
+                                toast.info('Draft message must be locked by admin before sending.')
+                                return
+                              }
+                              
+                              setSelectedDecisionMaker(dm)
+                              setSelectedConnection(connection)
+                              setEmailSubject(`Connection Request - ${selectedDealForModal?.deal_name || selectedDealForModal?.['deal_name'] || ''}`)
+                              setEditableDraftMessage(connection.draft_message || '')
+                              setShowDraftMessageModal(true)
+                            }}
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex-1">
@@ -4227,18 +4559,29 @@ console.log("client",client)
                                       Primary
                                     </Badge>
                                   )}
+                                  {hasApprovedLockedDraft && email && (
+                                    <Badge className="bg-blue-600 text-white text-xs">
+                                      Ready to Send
+                                    </Badge>
+                                  )}
                                 </div>
                                 {dm.role && (
                                   <p className="text-sm text-gray-600 mb-2">{dm.role}</p>
                                 )}
                                 {email ? (
-                                  <a
-                                    href={`mailto:${email}`}
-                                    className="text-green-600 hover:text-green-700 hover:underline text-sm flex items-center gap-1"
-                                  >
-                                    <Mail className="w-4 h-4" />
-                                    {email}
-                                  </a>
+                                  <div className="flex items-center gap-2">
+                                    <a
+                                      href={`mailto:${email}`}
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="text-green-600 hover:text-green-700 hover:underline text-sm flex items-center gap-1"
+                                    >
+                                      <Mail className="w-4 h-4" />
+                                      {email}
+                                    </a>
+                                    {hasApprovedLockedDraft && (
+                                      <span className="text-xs text-blue-600">(Click to send draft)</span>
+                                    )}
+                                  </div>
                                 ) : (
                                   <p className="text-sm text-gray-400 italic">No email address available</p>
                                 )}
@@ -4256,6 +4599,115 @@ console.log("client",client)
                       )
                     }
                   })()}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Draft Message Modal (Send Email) */}
+        {showDraftMessageModal && selectedDecisionMaker && selectedConnection && (
+          <div className="fixed inset-0 bg-gray-50/80 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+            <Card className="w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+              <CardContent className="p-4 md:p-6">
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-montserrat text-[#0a3d3d]">
+                    Send Email to {selectedDecisionMaker.name || "Decision Maker"}
+                  </h2>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setShowDraftMessageModal(false)
+                      setSelectedDecisionMaker(null)
+                      setSelectedConnection(null)
+                      setEmailSubject('')
+                      setEditableDraftMessage('')
+                    }}
+                    className="min-w-[44px] min-h-[44px]"
+                  >
+                    <X className="w-5 h-5" />
+                  </Button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      From:
+                    </label>
+                    <p className="text-sm text-gray-900 font-medium">
+                      {client?.email || client?.['email'] || 'Not available'}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      To:
+                    </label>
+                    <p className="text-sm text-gray-900">
+                      {selectedDecisionMaker.email || selectedDecisionMaker["email"] || selectedConnection.to_user_email || ""}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Subject:
+                    </label>
+                    <input
+                      type="text"
+                      value={emailSubject}
+                      onChange={(e) => setEmailSubject(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                      placeholder="Email subject"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Message:
+                    </label>
+                    <textarea
+                      value={editableDraftMessage}
+                      onChange={(e) => setEditableDraftMessage(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[200px] bg-white"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      You can edit the message before sending.
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      onClick={handleSendDraftEmail}
+                      disabled={sendingEmail}
+                      className="flex-1 bg-[#0a3d3d] hover:bg-[#083030] text-white"
+                    >
+                      {sendingEmail ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="w-4 h-4 mr-2" />
+                          Send Email
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowDraftMessageModal(false)
+                        setSelectedDecisionMaker(null)
+                        setSelectedConnection(null)
+                        setEmailSubject('')
+                        setEditableDraftMessage('')
+                      }}
+                      disabled={sendingEmail}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -4416,6 +4868,97 @@ console.log("client",client)
                         </>
                       )
                     })()}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Connection Request Modal */}
+        {showConnectionModal && selectedDealForConnection && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-3 md:p-4">
+            <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Request Connection</h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowConnectionModal(false)
+                      setSelectedDealForConnection(null)
+                      setConnectionMessage('')
+                    }}
+                    className="h-8 w-8 p-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">
+                      <strong>Deal:</strong> {selectedDealForConnection.deal_name || selectedDealForConnection['deal_name'] || 'N/A'}
+                    </p>
+                    <p className="text-sm text-gray-600 mb-4">
+                      <strong>Decision Maker:</strong> {selectedDealForConnection.decision_maker_name || selectedDealForConnection['decision_maker_name'] || 'N/A'}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Connection Type
+                    </label>
+                    <select
+                      value={connectionType}
+                      onChange={(e) => setConnectionType(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d]"
+                    >
+                      <option value="linkedin">LinkedIn Only</option>
+                      <option value="email">Email Only</option>
+                      <option value="both">Both LinkedIn & Email</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Message (Optional)
+                    </label>
+                    <textarea
+                      value={connectionMessage}
+                      onChange={(e) => setConnectionMessage(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a3d3d] min-h-[100px]"
+                      placeholder="Add a personalized message..."
+                    />
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      onClick={handleSubmitConnection}
+                      disabled={!!requestingConnection}
+                      className="flex-1 bg-[#0a3d3d] hover:bg-[#083030] text-white"
+                    >
+                      {requestingConnection ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Requesting...
+                        </>
+                      ) : (
+                        'Request Connection'
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowConnectionModal(false)
+                        setSelectedDealForConnection(null)
+                        setConnectionMessage('')
+                      }}
+                      disabled={!!requestingConnection}
+                    >
+                      Cancel
+                    </Button>
                   </div>
                 </div>
               </CardContent>
